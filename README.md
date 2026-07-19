@@ -1,116 +1,228 @@
 # Dragon Quest 1 MMO
 
-Love2D client + FastAPI/WebSocket server. Server-authoritative DQ1 combat.
+> Server-authoritative **Dragon Quest I–style** multiplayer  
+> **Love2D** client · **FastAPI / WebSocket** server · **SQLite**
 
-**Version:** 0.4.0
+| | |
+|:--|:--|
+| **Version** | `0.5.1` |
+| **Status** | Playable MVP |
+| **Combat** | Server-side DQ1 rules |
+| **Client** | Love2D 11.x · 1024×720 default |
+| **Tests** | `cd server && python tests/run_tests.py` |
+
+Walk a shared overworld, fight random encounters with classic Dragon Quest combat math, equip gear, shop in town, chat globally, and see other adventurers nearby.
+
+---
+
+## Table of contents
+
+- [Screenshots / look](#screenshots--look)
+- [Quick start](#quick-start)
+- [Controls](#controls)
+- [Features](#features)
+- [Multiplayer testing](#multiplayer-testing)
+- [Configuration](#configuration)
+- [Project layout](#project-layout)
+- [Documentation](#documentation)
+- [Networking](#networking)
+- [License / credits](#license--credits)
+
+---
+
+## Screenshots / look
+
+The client uses a **Dragon Quest–inspired UI toolkit** (gold double-frame windows, starfield menus, HP/MP bars, combat command menus). Map tiles and actors are procedural (no sprite pack yet).
+
+| Screen | Notes |
+|:-------|:------|
+| Login / Register | Centered modal, tab fields |
+| Hero select | Cards with level, HP bar, gold |
+| Overworld | HUD, minimap, chat, nearby list |
+| Combat | Arena, command list, battle log |
+| Inventory / Shop | Equipment panel + bag list |
+
+---
 
 ## Quick start
 
+### Requirements
+
+| Need | Notes |
+|:-----|:------|
+| **Python 3.11+** | 3.12–3.14 fine |
+| **Love2D 11.x** | Client only |
+| **pip / venv** | Server deps |
+
+### 1. Server
+
 ```bash
-# Server
 cd server
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ./run.sh
-# API: http://127.0.0.1:8000/docs
+```
 
-# Client (needs Love2D 11.x)
+| Endpoint | URL |
+|:---------|:----|
+| OpenAPI | http://127.0.0.1:8000/docs |
+| Health | http://127.0.0.1:8000/health |
+| WebSocket | `ws://127.0.0.1:8000/ws` |
+
+### 2. Client
+
+```bash
+# from repo root
 love client
 ```
 
-Default login fields work after you register once (`hero@example.com` / `password`).
+1. **Register** (any email / password / username)  
+2. **Create a hero** (or pick an existing one — double-click works)  
+3. **Enter World** — you spawn in town (safe)
 
-## Controls
+> Demo fields often pre-filled: `hero@example.com` / `password` — you still need to register once.
 
-| Key | Action |
-|-----|--------|
-| WASD / arrows | Move |
-| I | Inventory / shop (Tab in inventory) |
-| B | Debug slime fight (`ALLOW_DEBUG=1`) |
-| Combat: A / F / Enter | Attack / Flee / confirm |
-| Esc | Back / quit |
-
-## Features
-
-- Email/password auth + JWT (Google OAuth optional via env)
-- Grid world: **town / field / water / dungeon**
-- Multiplayer presence (nearby players)
-- Zone encounters (field + harder dungeon table)
-- DQ1 combat; **60s reconnect grace** resumes mid-fight
-- XP, level-ups, spells by level
-- Equipment, inventory, town shop
-- Defeat → town respawn, half gold
-- Heartbeats, move acks, prediction, prod `ENV` guards
-
-## Tests
+### 3. Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
 ```
 
-## Multiplayer testing (one PC)
+Suites: formulas · combat · presence/AOI · full API flow · two-player multiplayer (chat, combat flag).
 
-### Bot simulator (recommended)
+---
 
-Spawns N headless clients that register, connect, move, and report who they see:
+## Controls
+
+| Key | Action |
+|:----|:-------|
+| **WASD** / arrows | Move on the grid |
+| **T** | Chat · **Enter** send · **Esc** cancel |
+| **C** | Toggle chat panel |
+| **I** | Inventory / town shop (**Tab** switches shop) |
+| **P** / **Tab** | Nearby player list |
+| **B** | Debug slime fight (`ALLOW_DEBUG=1`) |
+| Combat **↑↓** · **Enter** | Menu |
+| Combat **A** / **F** | Attack / Flee |
+| Inventory **S** / **U** | Sell / unequip |
+| **Esc** | Back · logout · or quit from overworld |
+
+---
+
+## Features
+
+| Area | Details |
+|:-----|:--------|
+| **Auth** | Email/password + JWT · optional Google OAuth |
+| **World** | Town (safe) · field · water · dungeon |
+| **UI** | DQ-style panels, menus, HUD, combat/inventory screens |
+| **Multiplayer** | Nearby presence · AOI join/leave · ⚔ combat status |
+| **Chat** | Global · sanitized · rate-limited |
+| **Combat** | Attack / spells / flee · enemy AI · level-ups |
+| **Items** | Weapon / armor / shield / helmet · town shop |
+| **Resilience** | Move prediction · heartbeats · 60s combat reconnect |
+
+Defeat → town respawn, half gold, partial HP (XP kept).
+
+---
+
+## Multiplayer testing
+
+### Bot simulator
 
 ```bash
-# auto-starts server if needed, 3 bots meet in town
-./tools/mp_sim.sh
-
-# 5 bots wander 30s
+./tools/mp_sim.sh                              # 3 bots, meet in town
 ./tools/mp_sim.sh -n 5 --scenario wander --seconds 30
-
-# AOI: bots split then re-enter visibility range
 ./tools/mp_sim.sh -n 2 --scenario aoi --seconds 45
-
-# interactive control
-./tools/mp_sim.sh -n 2 -i
+./tools/mp_sim.sh -n 2 -i                      # interactive
 ```
 
-Interactive commands: `status`, `move 0 e`, `wander`, `meet`, `sync`, `quit`.
+Interactive: `status`, `move 0 e`, `wander`, `meet`, `sync`, `quit`.
 
-### Multiple Love2D windows
+### Two game windows
 
 ```bash
 # terminal 1
-cd server && ./run.sh
+cd server && source .venv/bin/activate && ./run.sh
 
-# terminal 2 — opens 2 game windows (register different accounts)
-./tools/mp_love.sh 2
+# terminal 2
+./tools/mp_love.sh 2    # register two different accounts
 ```
 
-## Layout
+---
 
+## Configuration
+
+Copy [`.env.example`](.env.example) → `.env` at the **repo root** (optional).
+
+| Variable | Purpose | Default / notes |
+|:---------|:--------|:----------------|
+| `ENV` | `development` / `production` | Prod refuses default secrets |
+| `SECRET_KEY` | JWT signing | **Required** in production |
+| `DATABASE_URL` | SQLite file | `data/dq1_mmo.db` |
+| `ALLOW_DEBUG` | Debug encounters | On in dev, off in prod |
+| `STARTING_GOLD` | New heroes | `300` |
+| `COMBAT_GRACE_SECONDS` | Mid-fight reconnect | `60` |
+| `GOOGLE_CLIENT_*` | OAuth | Optional |
+| `CORS_ORIGINS` | CORS | Use real origins in prod |
+
+---
+
+## Project layout
+
+```text
+dq1_mmo/
+├── README.md              # ← humans (GitHub landing)
+├── AGENTS.md              # ← coding agents / LLMs only
+├── plan.md                # historical roadmap (not live truth)
+├── docs/
+│   ├── README.md          # docs index + audience rules
+│   └── HUMAN.md           # player & operator guide
+├── client/                # Love2D game
+│   ├── client/ui.lua      # shared DQ-style UI toolkit
+│   ├── client/renderer.lua
+│   ├── states/            # login, character, overworld, combat, inventory
+│   └── libs/              # websocket + dq1-combat symlink (reference)
+├── server/                # FastAPI + combat + presence
+├── shared/                # dq1_data.json (canonical catalogs)
+├── tools/                 # mp_sim, multi-window helpers
+└── data/                  # SQLite (gitignored)
 ```
-client/     Love2D game
-server/     FastAPI + WebSocket + combat engine
-shared/     dq1_data.json (enemies, spells, gear)
-data/       SQLite DB (gitignored)
-plan.md     original roadmap
-```
 
-## Env
+---
 
-See `.env.example`. Production tips:
+## Documentation
 
-- Set a strong `SECRET_KEY`
-- `ALLOW_DEBUG=0` to disable forced encounters
-- Point `DATABASE_URL` at a durable path
+Human docs and agent docs are **intentionally separate**.
 
-## Networking reliability
+| Audience | Start here | Contains |
+|:---------|:-----------|:---------|
+| **Players & operators** | [docs/HUMAN.md](docs/HUMAN.md) | Gameplay, zones, hosting |
+| **GitHub / newcomers** | [README.md](README.md) | Install, controls, features |
+| **Agents / LLMs** | [AGENTS.md](AGENTS.md) | Protocol, hot paths, tests, constraints |
+| **Docs map** | [docs/README.md](docs/README.md) | How to keep this split clean |
+| **History only** | [plan.md](plan.md) | Original multi-phase plan — may be outdated |
 
-- **Server-authoritative moves** with `seq` + `move_ok` ack/reject
-- Client **prediction + reconciliation** (pending queue, snap on reject)
-- **Move rate limit** (~10 steps/sec) and global msg rate limit
-- **Deferred position DB writes** (flush every ~3s / combat / disconnect)
-- **Heartbeats** (`ping`/`pong` + RTT) and stale-connection reconnect with backoff
-- **Idle kick** (~90s), presence `sync`, remote player lerp
-- Reconnect-safe socket ownership (stale `finally` cannot wipe new session)
+> **Agents:** read `AGENTS.md` first. Do not treat `plan.md` as the current design.
 
-## Protocol (WebSocket JSON)
+---
 
-**Client → server:** `auth`, `move`(+`seq`), `attack`, `flee`, `use_spell`, `equip`, `unequip`, `buy`, `sell`, `shop`, `inventory`, `ping`, `sync`
+## Networking
 
-**Server → client:** `auth_ok`, `world_state`, `move_ok`, `player_moved`, `player_joined`, `player_left`, `combat_start`, `combat_update`, `combat_end`, `level_up`, `inventory_update`, `shop_list`, `error`, `pong`
+- Server-authoritative moves (`seq` + `move_ok`)
+- Client prediction + reconciliation
+- Rate limits: moves, messages, chat
+- Heartbeats, ~90s idle kick, deferred position saves
+- Presence AOI (~10 tiles); `in_combat` on nearby players
+
+Full message catalog → **[AGENTS.md](AGENTS.md)**.
+
+---
+
+## License / credits
+
+- Combat design inspired by **Dragon Quest I / Dragon Warrior** (NES-era math; not a ROM dump).
+- Server combat is a Python port aligned with [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) (optional symlink under `client/libs/dq1-combat`).
+- Fan / experimental project — not affiliated with Square Enix.

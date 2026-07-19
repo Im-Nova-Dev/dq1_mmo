@@ -45,11 +45,14 @@ def apply_xp(hero: dict, xp_gain: int) -> dict:
             hero["level"] = lv
             hero["strength"] = row["strength"]
             hero["agility"] = row["agility"]
-            # keep current hp/mp ratio feel: full heal on level up (DQ1 style-ish)
+            # Full heal on level up (DQ1 style-ish).
+            # Battle engine uses hp/mp; persistence uses current_hp/current_mp — keep both in sync.
             hero["max_hp"] = row["max_hp"]
             hero["max_mp"] = row["max_mp"]
             hero["current_hp"] = row["max_hp"]
             hero["current_mp"] = row["max_mp"]
+            hero["hp"] = row["max_hp"]
+            hero["mp"] = row["max_mp"]
             if row.get("spell"):
                 report["new_spells"].append(row["spell"])
             report["level_ups"].append(up)
@@ -58,7 +61,11 @@ def apply_xp(hero: dict, xp_gain: int) -> dict:
 
 
 def gold_add(hero: dict, amount: int) -> int:
-    cur = int(str(hero.get("gold", "0")))
-    cur += int(amount)
+    """Add gold to hero. Clamps at 0; tolerates corrupt gold strings."""
+    try:
+        cur = int(str(hero.get("gold", "0") or "0"))
+    except (TypeError, ValueError):
+        cur = 0
+    cur = max(0, cur + int(amount))
     hero["gold"] = str(cur)
-    return amount
+    return int(amount)

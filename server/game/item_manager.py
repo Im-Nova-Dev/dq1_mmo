@@ -1,9 +1,11 @@
-"""Equipment / inventory / shop."""
+"""Equipment / inventory / shop / consumables."""
 
 from __future__ import annotations
 
 from game.data_loader import load_data
 from game.formulas import hero_attack_power, hero_defense_power
+from game.rng import Rng
+from game.world_manager import SPAWN_X, SPAWN_Y
 
 VALID_SLOTS = ("weapon", "armor", "shield", "helmet")
 SLOT_COLUMNS = {
@@ -12,6 +14,9 @@ SLOT_COLUMNS = {
     "shield": "equipment_shield",
     "helmet": "equipment_helmet",
 }
+
+# Fairy Water: suppress random encounters for this many steps
+REPEL_STEPS = 64
 
 
 def get_equipment_def(item_id: str | None) -> dict | None:
@@ -166,7 +171,7 @@ async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     shop_ids = set(load_data().get("shop") or [])
     if item_id not in shop_ids:
         return False, "not in shop"
-    gold = int(str(character.get("gold", "0")))
+    gold = _safe_gold(character)
     if gold < price:
         return False, "not enough gold"
     gold -= price
@@ -187,7 +192,10 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     price = int(defn.get("price", 0)) // 2
     if not await remove_item(db, character["id"], item_id, 1):
         return False, "not in inventory"
-    gold = int(str(character.get("gold", "0"))) + price
+    try:
+        gold = max(0, int(str(character.get("gold", "0") or "0"))) + price
+    except (TypeError, ValueError):
+        gold = price
     await db.execute(
         "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (str(gold), character["id"]),
@@ -195,6 +203,93 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     await db.commit()
     character["gold"] = str(gold)
     return True, "ok"
+
+
+def _safe_gold(character: dict) -> int:
+    try:
+        return max(0, int(str(character.get("gold", "0") or "0")))
+    except (TypeError, ValueError):
+        return 0
+
+
+async def use_consumable(
+    db,
+    character: dict,
+    item_id: str,
+    *,
+    in_combat: bool = False,
+    rng: Rng | None = None,
+) -> tuple[bool, str, dict]:
+    """
+    Use a consumable from inventory.
+    Returns (ok, reason, result) where result may include healed, effect, teleported, repel_steps.
+    """
+    rng = rng or Rng()
+    defn = get_item_def(item_id)
+    if not defn:
+        return False, "unknown item", {}
+    if defn.get("slot") != "consumable" and defn.get("type") != "consumable":
+        # equipment defs have weapon/armor slots; only consumables are usable
+        if "effect" not in defn:
+            return False, "not usable", {}
+
+    effect = defn.get("effect") or ""
+    if in_combat and effect not in ("heal",):
+        return False, "cannot use in combat", {}
+
+    if not await remove_item(db, character["id"], item_id, 1):
+        return False, "not in inventory", {}
+
+    result: dict = {"item_id": item_id, "name": defn.get("name", item_id), "effect": effect}
+
+    if effect == "heal":
+        lo = int(defn.get("heal_min", 20))
+        hi = int(defn.get("heal_max", max(lo, 35)))
+        amount = rng.int(lo, hi)
+        max_hp = int(character.get("max_hp", 15))
+        cur = int(character.get("current_hp", max_hp))
+        new_hp = min(max_hp, cur + amount)
+        healed = new_hp - cur
+        await db.execute(
+            "UPDATE characters SET current_hp = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (new_hp, character["id"]),
+        )
+        await db.commit()
+        character["current_hp"] = new_hp
+        result["healed"] = healed
+        result["amount_rolled"] = amount
+        result["current_hp"] = new_hp
+        result["max_hp"] = max_hp
+        result["message"] = f"You use the {defn.get('name', 'item')} and recover {healed} HP!"
+        return True, "ok", result
+
+    if effect == "return":
+        await db.execute(
+            "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (SPAWN_X, SPAWN_Y, character["id"]),
+        )
+        await db.commit()
+        character["world_x"] = SPAWN_X
+        character["world_y"] = SPAWN_Y
+        result["teleported"] = True
+        result["x"] = SPAWN_X
+        result["y"] = SPAWN_Y
+        result["message"] = f"The {defn.get('name', 'Wings')} carry you back to town!"
+        return True, "ok", result
+
+    if effect == "repel":
+        result["repel_steps"] = REPEL_STEPS
+        result["message"] = (
+            f"You sprinkle {defn.get('name', 'Fairy Water')}! "
+            f"Weaker foes keep away for a while ({REPEL_STEPS} steps)."
+        )
+        await db.commit()  # item already removed
+        return True, "ok", result
+
+    # Unknown effect — refund item
+    await add_item(db, character["id"], item_id, 1)
+    await db.commit()
+    return False, "unknown effect", {}
 
 
 def character_public(character: dict, items: list[dict] | None = None) -> dict:

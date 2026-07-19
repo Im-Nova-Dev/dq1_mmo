@@ -6,7 +6,6 @@ import asyncio
 import logging
 
 from database.db import db_write
-from network.protocol import ServerMessageType, msg
 from network.websocket_manager import HEARTBEAT_CHECK_INTERVAL, manager
 
 log = logging.getLogger("dq1.presence")
@@ -47,9 +46,9 @@ async def kick_idle() -> int:
                         (meta["x"], meta["y"], cid),
                     )
                     await db.commit()
+            # disconnect() already notifies AOI peers with player_left — no global double-send
             left = await manager.disconnect(cid)
             if left is not None:
-                await manager.broadcast(msg(ServerMessageType.PLAYER_LEFT, player_id=cid))
                 n += 1
         except Exception as exc:
             log.warning("idle kick failed for %s: %s", cid, exc)

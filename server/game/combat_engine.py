@@ -187,6 +187,10 @@ class Battle:
                 return self._result(True)
         elif atype == "spell":
             self._hero_spell(action["id"])
+        elif atype == "item":
+            self._hero_item(action)
+        else:
+            return {"ok": False, "error": "illegal action", "events": [], "observe": self.snapshot()}
 
         if self._check_end():
             return self._result(True)
@@ -198,6 +202,9 @@ class Battle:
         return self._result(True)
 
     def _action_legal(self, action: dict, legal: list[dict]) -> bool:
+        # Item use is authorized by inventory layer (message_handler), not legal_actions list
+        if action.get("type") == "item" and action.get("effect") == "heal":
+            return True
         for a in legal:
             if a["type"] != action.get("type"):
                 continue
@@ -205,6 +212,32 @@ class Battle:
                 continue
             return True
         return False
+
+    def _hero_item(self, action: dict) -> None:
+        name = action.get("name") or action.get("id") or "item"
+        self._emit(
+            {
+                "kind": "action_declared",
+                "side": "hero",
+                "action": "item",
+                "id": action.get("id"),
+                "message": f"You use the {name}!",
+            }
+        )
+        if action.get("effect") == "heal":
+            amount = int(action.get("amount") or 0)
+            self.hero["hp"], actual = F.apply_heal(self.hero["hp"], self.hero["max_hp"], amount)
+            self._emit(
+                {
+                    "kind": "heal",
+                    "target": "hero",
+                    "amount": actual,
+                    "source": "item",
+                    "message": f"You recover {actual} HP!",
+                }
+            )
+            return
+        self._emit({"kind": "item_failed", "message": "Nothing happens..."})
 
     def _result(self, ok: bool, error: str | None = None) -> dict:
         return {

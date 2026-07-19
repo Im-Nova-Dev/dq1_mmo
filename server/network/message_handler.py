@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from auth.jwt_handler import decode_access_token
@@ -15,13 +16,17 @@ from game.item_manager import (
     sell_item,
     shop_catalog,
     unequip_item,
+    use_consumable,
 )
 from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
 from game.serialize import character_dict
 from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload, zone_at
 from network.protocol import ClientMessageType, ServerMessageType, msg
-from network.websocket_manager import manager
+from network.websocket_manager import CHAT_MAX_LEN, manager
+
+# Strip control chars except space/tab; collapse whitespace for storage display
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 async def _inventory_msg(character_id: int) -> dict:
@@ -68,6 +73,22 @@ async def expire_combat_grace(character_id: int) -> None:
     }
     await apply_character_patch(character_id, patch)
     combat_engine.end(character_id)
+    manager.set_in_combat(character_id, False)
+    await manager.publish_status(character_id)
+
+
+def sanitize_chat(raw: Any) -> str | None:
+    """Validate and clean chat text. Returns None if empty/invalid after sanitize."""
+    if not isinstance(raw, str):
+        return None
+    text = _CTRL_RE.sub("", raw)
+    text = " ".join(text.split())
+    text = text.strip()
+    if not text:
+        return None
+    if len(text) > CHAT_MAX_LEN:
+        text = text[:CHAT_MAX_LEN]
+    return text
 
 
 def _combat_update(battle, events: list | None = None) -> dict:
@@ -209,6 +230,7 @@ async def handle_message(
             "y": character["world_y"],
             "map_id": character["map_id"],
             "level": character["level"],
+            "in_combat": bool(character.get("in_combat")),
         }
 
         outbound.append(
@@ -304,8 +326,10 @@ async def handle_message(
         if battle.outcome != "ongoing":
             char = await _persist_battle_end(character_id, battle)
             combat_engine.end(character_id)
+            manager.set_in_combat(character_id, False)
             if char.get("level"):
                 manager.set_level(character_id, int(char["level"]))
+            await manager.publish_status(character_id)
             outbound.append(
                 msg(
                     ServerMessageType.COMBAT_END,
@@ -415,6 +439,10 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
         outbound.extend(aoi_msgs)
 
+        # Fairy Water: consume a repel step; while active, skip random fights
+        if manager.consume_repel_step(character_id):
+            return character_id, user_id, outbound, None
+
         # Random encounter
         enemy_id = roll_encounter(tx, ty, Rng())
         if enemy_id:
@@ -430,6 +458,8 @@ async def handle_message(
             if char:
                 char["known_spells"] = battle_spells_at(int(char["level"]))
                 battle = combat_engine.start(character_id, char, enemy_id)
+                manager.set_in_combat(character_id, True)
+                await manager.publish_status(character_id)
                 start_events = battle._take_batch()
                 outbound.append(
                     msg(
@@ -442,6 +472,155 @@ async def handle_message(
                 )
                 outbound.append(_combat_update(battle, start_events))
 
+        return character_id, user_id, outbound, None
+
+    # --- Global chat ---
+    if msg_type in (ClientMessageType.CHAT, ClientMessageType.SAY, "chat", "say"):
+        text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
+        if text is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
+            return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        name = (meta or {}).get("name") or "Hero"
+        chat_msg = msg(
+            ServerMessageType.CHAT,
+            player_id=character_id,
+            name=name,
+            text=text,
+            channel="global",
+        )
+        # Deliver to everyone including sender (echo)
+        await manager.broadcast(chat_msg)
+        return character_id, user_id, outbound, None
+
+    # --- Use consumable (herb / wings / fairy water) ---
+    if msg_type in (ClientMessageType.USE_ITEM, "use_item"):
+        item_id = data.get("item") or data.get("item_id")
+        if not item_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+            return character_id, user_id, outbound, None
+
+        in_combat = combat_engine.is_in_combat(character_id)
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+
+        # Combat item use is a full turn — only on hero phase
+        battle = combat_engine.get(character_id) if in_combat else None
+        if in_combat:
+            if battle is None or battle.phase != "awaiting_hero" or battle.outcome != "ongoing":
+                outbound.append(msg(ServerMessageType.ERROR, reason="wait for your turn"))
+                return character_id, user_id, outbound, None
+
+        async with db_write() as db:
+            ok, reason, info = await use_consumable(
+                db, char, str(item_id), in_combat=in_combat, rng=Rng()
+            )
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            outbound.append(await _inventory_msg(character_id))
+            return character_id, user_id, outbound, None
+
+        # Refresh character after use
+        char = await get_character(character_id) or char
+
+        if info.get("effect") == "repel":
+            manager.set_repel(character_id, int(info.get("repel_steps") or 0))
+
+        if info.get("teleported"):
+            aoi_msgs = await manager.publish_move(
+                character_id, int(info["x"]), int(info["y"]), seq=None
+            )
+            outbound.extend(aoi_msgs)
+            outbound.append(
+                msg(
+                    ServerMessageType.MOVE_OK,
+                    ok=True,
+                    x=int(info["x"]),
+                    y=int(info["y"]),
+                    seq=None,
+                    reason="wings",
+                )
+            )
+
+        if in_combat and battle is not None and info.get("effect") == "heal":
+            # Spend turn: heal already applied to DB — sync battle HP then enemy acts
+            amount = int(info.get("amount_rolled") or info.get("healed") or 0)
+            # Prefer rolled amount so battle heal matches DQ band even if already at high HP
+            result = battle.act(
+                {
+                    "type": "item",
+                    "id": str(item_id),
+                    "name": info.get("name"),
+                    "effect": "heal",
+                    "amount": amount,
+                }
+            )
+            # Re-sync DB HP from battle after enemy counter
+            if result.get("ok"):
+                patch_hp = max(0, int(battle.hero["hp"]))
+                patch_mp = max(0, int(battle.hero["mp"]))
+                await apply_character_patch(
+                    character_id,
+                    {
+                        "current_hp": max(1, patch_hp) if battle.outcome == "defeat" else patch_hp,
+                        "current_mp": patch_mp,
+                    },
+                )
+            events = result.get("events") or []
+            outbound.append(_combat_update(battle, events))
+            if battle.outcome != "ongoing":
+                char = await _persist_battle_end(character_id, battle)
+                combat_engine.end(character_id)
+                manager.set_in_combat(character_id, False)
+                await manager.publish_status(character_id)
+                outbound.append(
+                    msg(
+                        ServerMessageType.COMBAT_END,
+                        result=battle.outcome,
+                        xp=(battle.rewards or {}).get("xp", 0),
+                        gold=(battle.rewards or {}).get("gold", 0),
+                        character=char,
+                        events=events,
+                    )
+                )
+                if battle.outcome == "defeat":
+                    aoi_msgs = await manager.publish_move(
+                        character_id, SPAWN_X, SPAWN_Y, seq=None
+                    )
+                    outbound.extend(aoi_msgs)
+                    outbound.append(
+                        msg(
+                            ServerMessageType.MOVE_OK,
+                            ok=True,
+                            x=SPAWN_X,
+                            y=SPAWN_Y,
+                            seq=None,
+                            reason="respawn",
+                        )
+                    )
+            outbound.append(
+                msg(ServerMessageType.ITEM_USED, **info, in_combat=True)
+            )
+            outbound.append(await _inventory_msg(character_id))
+            return character_id, user_id, outbound, None
+
+        # Overworld use
+        char["known_spells"] = battle_spells_at(int(char["level"]))
+        char["bonuses"] = equipment_bonuses(char)
+        outbound.append(msg(ServerMessageType.ITEM_USED, **info, in_combat=False))
+        outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
     # --- Inventory / shop / equip ---
@@ -551,6 +730,8 @@ async def handle_message(
         if seed is not None and not isinstance(seed, int):
             seed = None
         battle = combat_engine.start(character_id, char, str(enemy_id), seed=seed)
+        manager.set_in_combat(character_id, True)
+        await manager.publish_status(character_id)
         start_events = battle._take_batch()
         outbound.append(
             msg(

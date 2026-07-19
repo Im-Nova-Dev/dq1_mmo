@@ -244,8 +244,13 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
                 """,
                 (user["id"], name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
             )
-            await db.commit()
             char_id = cursor.lastrowid
+            # Starter herb so new heroes can heal (DQ1 staple)
+            await db.execute(
+                "INSERT INTO item_instances (character_id, item_id, quantity, is_equipped) VALUES (?, 'herb', 3, 0)",
+                (char_id,),
+            )
+            await db.commit()
             async with db.execute("SELECT * FROM characters WHERE id = ?", (char_id,)) as c:
                 crow = await c.fetchone()
     except HTTPException:

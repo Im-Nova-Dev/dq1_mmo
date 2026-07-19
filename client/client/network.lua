@@ -249,6 +249,10 @@ function Network.sync()
   return Network.send({ type = "sync" })
 end
 
+function Network.chat(text)
+  return Network.send({ type = "chat", text = text })
+end
+
 function Network.ping(with_presence)
   local payload = { type = "ping", t = now() }
   if with_presence then

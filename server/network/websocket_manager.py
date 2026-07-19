@@ -11,6 +11,8 @@ from game.world_manager import is_nearby
 MOVE_MIN_INTERVAL = 0.10
 MSG_RATE_WINDOW = 1.0
 MSG_RATE_MAX = 40
+CHAT_MIN_INTERVAL = 0.75  # max ~1.3 messages/sec per player
+CHAT_MAX_LEN = 200
 IDLE_TIMEOUT = 90.0
 HEARTBEAT_CHECK_INTERVAL = 15.0
 
@@ -25,6 +27,7 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
         "y": meta["y"],
         "map_id": meta["map_id"],
         "level": meta["level"],
+        "in_combat": bool(meta.get("in_combat")),
     }
 
 
@@ -44,6 +47,7 @@ class ConnectionManager:
         y: float,
         map_id: int,
         level: int = 1,
+        in_combat: bool = False,
     ) -> list[dict[str, Any]]:
         """Register connection. Returns list of peer public metas now visible."""
         async with self._lock:
@@ -70,12 +74,15 @@ class ConnectionManager:
                 "y": float(y),
                 "map_id": map_id,
                 "level": level,
+                "in_combat": bool(in_combat),
                 "last_seen": now,
                 "last_move_at": 0.0,
                 "last_move_seq": 0,
+                "last_chat_at": 0.0,
                 "msg_window_start": now,
                 "msg_count": 0,
                 "dirty": False,
+                "repel_steps": 0,  # fairy water encounter suppress
                 "visible": set(),  # peer ids currently in AOI
             }
 
@@ -170,6 +177,62 @@ class ConnectionManager:
         if meta is not None:
             meta["level"] = int(level)
 
+    def set_in_combat(self, character_id: int, in_combat: bool) -> None:
+        meta = self._meta.get(character_id)
+        if meta is not None:
+            meta["in_combat"] = bool(in_combat)
+
+    def set_repel(self, character_id: int, steps: int) -> None:
+        meta = self._meta.get(character_id)
+        if meta is not None:
+            meta["repel_steps"] = max(0, int(steps))
+
+    def repel_remaining(self, character_id: int) -> int:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return 0
+        return max(0, int(meta.get("repel_steps") or 0))
+
+    def consume_repel_step(self, character_id: int) -> bool:
+        """Tick one repel step on move. Returns True if encounters should be blocked."""
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False
+        left = int(meta.get("repel_steps") or 0)
+        if left <= 0:
+            return False
+        meta["repel_steps"] = left - 1
+        return True
+
+    def allow_chat(self, character_id: int) -> tuple[bool, float]:
+        """Rate-limit chat. Returns (allowed, retry_after_seconds)."""
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False, 0.0
+        now = time.monotonic()
+        elapsed = now - float(meta.get("last_chat_at") or 0.0)
+        if elapsed < CHAT_MIN_INTERVAL:
+            return False, CHAT_MIN_INTERVAL - elapsed
+        meta["last_chat_at"] = now
+        return True, 0.0
+
+    async def publish_status(self, character_id: int) -> None:
+        """Broadcast current public status (level, combat) to AOI peers."""
+        me = self._meta.get(character_id)
+        if me is None:
+            return
+        payload = {
+            "type": "player_update",
+            "player_id": character_id,
+            "name": me["name"],
+            "level": me["level"],
+            "x": me["x"],
+            "y": me["y"],
+            "in_combat": bool(me.get("in_combat")),
+        }
+        for oid in list(me.get("visible") or set()):
+            await self.send(oid, payload)
+
     def ids_nearby(self, character_id: int) -> list[int]:
         me = self._meta.get(character_id)
         if me is None:
@@ -251,17 +314,20 @@ class ConnectionManager:
                     "x": me_pub["x"],
                     "y": me_pub["y"],
                     "level": me_pub["level"],
+                    "in_combat": me_pub["in_combat"],
                 },
             )
             # tell us they appeared
+            other_pub = _public_meta(other)
             to_self.append(
                 {
                     "type": "player_joined",
-                    "player_id": other["id"],
-                    "name": other["name"],
-                    "x": other["x"],
-                    "y": other["y"],
-                    "level": other["level"],
+                    "player_id": other_pub["id"],
+                    "name": other_pub["name"],
+                    "x": other_pub["x"],
+                    "y": other_pub["y"],
+                    "level": other_pub["level"],
+                    "in_combat": other_pub["in_combat"],
                 }
             )
 
@@ -308,16 +374,7 @@ class ConnectionManager:
         if me is None:
             return
         me["level"] = int(level)
-        payload = {
-            "type": "player_update",
-            "player_id": character_id,
-            "name": me["name"],
-            "level": me["level"],
-            "x": me["x"],
-            "y": me["y"],
-        }
-        for oid in list(me.get("visible") or set()):
-            await self.send(oid, payload)
+        await self.publish_status(character_id)
 
     def mark_clean(self, character_id: int) -> None:
         meta = self._meta.get(character_id)

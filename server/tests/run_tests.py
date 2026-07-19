@@ -67,7 +67,15 @@ def main() -> int:
     print("DQ1 MMO tests")
     total_p = total_f = 0
     all_err: list[str] = []
-    for mod in ("tests.test_formulas", "tests.test_combat", "tests.test_api"):
+    for mod in (
+        "tests.test_formulas",
+        "tests.test_combat",
+        "tests.test_presence",
+        "tests.test_api",
+        "tests.test_multiplayer",
+        "tests.test_adversarial",
+        "tests.test_items",
+    ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)
         total_p += p

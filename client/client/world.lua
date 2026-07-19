@@ -83,6 +83,9 @@ function World.set_players(list)
       existing.ty = ty
       existing.name = p.name or existing.name
       existing.level = p.level or existing.level
+      if p.in_combat ~= nil then
+        existing.in_combat = p.in_combat and true or false
+      end
     else
       World.players[id] = {
         id = id,
@@ -92,6 +95,7 @@ function World.set_players(list)
         tx = tx,
         ty = ty,
         level = p.level or 1,
+        in_combat = p.in_combat and true or false,
       }
     end
   end
@@ -152,24 +156,42 @@ function World.apply_move_ok(data)
   end
 end
 
-function World.update_player(id, x, y)
+function World.update_player(id, x, y, extras)
   if World.local_player and World.local_player.id == id then
     -- remote echo of self — ignore; move_ok is authoritative
+    if extras and extras.in_combat ~= nil and World.local_player then
+      World.local_player.in_combat = extras.in_combat and true or false
+    end
     return
   end
   local p = World.players[id]
+  extras = extras or {}
   if p then
-    p.tx = x
-    p.ty = y
+    if x ~= nil then
+      p.tx = x
+    end
+    if y ~= nil then
+      p.ty = y
+    end
+    if extras.name then
+      p.name = extras.name
+    end
+    if extras.level then
+      p.level = extras.level
+    end
+    if extras.in_combat ~= nil then
+      p.in_combat = extras.in_combat and true or false
+    end
   else
     World.players[id] = {
       id = id,
-      name = "P" .. tostring(id),
-      x = x,
-      y = y,
-      tx = x,
-      ty = y,
-      level = 1,
+      name = extras.name or ("P" .. tostring(id)),
+      x = x or 0,
+      y = y or 0,
+      tx = x or 0,
+      ty = y or 0,
+      level = extras.level or 1,
+      in_combat = extras.in_combat and true or false,
     }
   end
 end

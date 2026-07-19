@@ -13,7 +13,7 @@ local Combat = {
   result = nil,
   selected = 1,
   menu = {},
-  waiting = false, -- lock input until server responds
+  waiting = false,
 }
 
 local function push_log(self, text)
@@ -21,21 +21,43 @@ local function push_log(self, text)
     return
   end
   self.log[#self.log + 1] = text
-  while #self.log > 10 do
+  while #self.log > 12 do
     table.remove(self.log, 1)
   end
 end
 
 local function rebuild_menu(self)
-  self.menu = { { label = "Attack", action = { type = "attack" } }, { label = "Flee", action = { type = "flee" } } }
+  self.menu = {
+    { label = "Attack", hint = "A", action = { type = "attack" } },
+    { label = "Flee", hint = "F", action = { type = "flee" } },
+  }
   for _, a in ipairs(self.legal or {}) do
     if a.type == "spell" then
+      local id = tostring(a.id or "?")
+      local pretty = id:gsub("^%l", string.upper)
       self.menu[#self.menu + 1] = {
-        label = "Spell: " .. tostring(a.id),
+        label = pretty,
+        hint = "✦",
         action = { type = "use_spell", spell = a.id },
       }
     end
   end
+  -- Herb from inventory if we still have any (server validates)
+  local inv = Session.character and Session.character.inventory
+  local herbs = 0
+  if type(inv) == "table" then
+    for _, it in ipairs(inv) do
+      if it.item_id == "herb" then
+        herbs = herbs + (tonumber(it.quantity) or 1)
+      end
+    end
+  end
+  -- Always offer herb; server rejects if none
+  self.menu[#self.menu + 1] = {
+    label = herbs > 0 and ("Herb ×" .. tostring(herbs)) or "Herb",
+    hint = "H",
+    action = { type = "use_item", item = "herb" },
+  }
   if self.selected > #self.menu then
     self.selected = 1
   end
@@ -49,7 +71,6 @@ end
 
 function Combat:enter(payload)
   payload = payload or {}
-  -- Keep socket; replace handlers so overworld move handlers don't fight us
   Network.clear_handlers()
   self.enemy = payload.enemy
   self.hero = payload.hero or {
@@ -85,7 +106,7 @@ function Combat:enter(payload)
     apply_events(self, data.events)
     rebuild_menu(self)
     if data.outcome and data.outcome ~= "ongoing" then
-      self.status = "Battle ending..."
+      self.status = "Battle ending…"
     else
       self.status = "Your turn"
     end
@@ -103,16 +124,17 @@ function Combat:enter(payload)
     if data.result == "fled" then
       line = "You fled."
     elseif data.result == "defeat" then
-      line = "Defeated... returned to town."
+      line = "Defeated… returned to town."
     else
       line = string.format("Victory! +%s XP  +%s G", tostring(data.xp or 0), tostring(data.gold or 0))
     end
     push_log(self, line)
-    self.status = line .. "  (Enter: continue)"
+    self.status = line .. "   (Enter to continue)"
   end)
 
   Network.on("level_up", function(data)
-    push_log(self, "LEVEL UP! Now level " .. tostring(data.new_level))
+    push_log(self, "★ LEVEL UP! Now level " .. tostring(data.new_level))
+    UI.toast("Level up! Lv " .. tostring(data.new_level), "ok")
   end)
 
   Network.on("error", function(data)
@@ -124,8 +146,23 @@ function Combat:enter(payload)
     end
   end)
 
+  Network.on("item_used", function(data)
+    if data.message then
+      push_log(self, data.message)
+    end
+  end)
+
+  Network.on("inventory_update", function(data)
+    if data.character then
+      Session.character = data.character
+    end
+    if data.items and Session.character then
+      Session.character.inventory = data.items
+    end
+    rebuild_menu(self)
+  end)
+
   Network.on("combat_resume", function(data)
-    -- already in combat UI; refresh snapshot after reconnect
     self.waiting = false
     self.ended = false
     if data.enemy then
@@ -145,15 +182,14 @@ function Combat:enter(payload)
       Session.character = data.character
     end
     if data.in_combat then
-      -- combat_resume should arrive next; stay in combat UI
-      push_log(self, "Reconnected — restoring battle...")
-      self.status = "Reconnecting battle..."
+      push_log(self, "Reconnected — restoring battle…")
+      self.status = "Reconnecting battle…"
       return
     end
     push_log(self, "Reconnected — battle was lost.")
     self.ended = true
     self.waiting = false
-    self.status = "Battle ended while away (Enter: continue)"
+    self.status = "Battle ended while away (Enter to continue)"
   end)
 end
 
@@ -174,8 +210,10 @@ function Combat:_send(action)
     Network.send({ type = "flee" })
   elseif action.type == "use_spell" then
     Network.send({ type = "use_spell", spell = action.spell })
+  elseif action.type == "use_item" then
+    Network.send({ type = "use_item", item = action.item or "herb" })
   end
-  self.status = "..."
+  self.status = "…"
 end
 
 function Combat:keypressed(key)
@@ -198,6 +236,8 @@ function Combat:keypressed(key)
     self:_send({ type = "attack" })
   elseif key == "f" then
     self:_send({ type = "flee" })
+  elseif key == "h" then
+    self:_send({ type = "use_item", item = "herb" })
   elseif key == "escape" then
     self:_send({ type = "flee" })
   end
@@ -212,10 +252,11 @@ function Combat:mousepressed(x, y, button)
     return
   end
   local w, h = love.graphics.getDimensions()
-  local mx, my = 40, h - 160
+  local menu_x, menu_y = 36, h - 168
+  local menu_w = 240
   for i, item in ipairs(self.menu) do
-    local iy = my + (i - 1) * 28
-    if UI.hit(x, y, mx, iy, 220, 26) then
+    local iy = menu_y + 36 + (i - 1) * 32
+    if UI.hit(x, y, menu_x + 10, iy, menu_w - 20, 28) then
       self.selected = i
       self:_send(item.action)
       return
@@ -224,83 +265,101 @@ function Combat:mousepressed(x, y, button)
 end
 
 function Combat:draw()
-  love.graphics.clear(0.08, 0.05, 0.1)
+  UI.draw_bg({ plain = false })
+  -- combat arena floor
   local w, h = love.graphics.getDimensions()
+  love.graphics.setColor(0.12, 0.08, 0.14, 0.55)
+  love.graphics.ellipse("fill", w * 0.55, h * 0.48, w * 0.38, 48)
+  love.graphics.setColor(0.2, 0.12, 0.18, 0.25)
+  love.graphics.ellipse("fill", w * 0.55, h * 0.48, w * 0.28, 28)
 
-  UI.panel(30, 30, w - 60, 130)
-  love.graphics.setColor(1, 0.92, 0.45)
-  love.graphics.print("COMBAT", 50, 45)
-  love.graphics.setColor(0.9, 0.9, 0.95)
+  -- top status window
+  UI.panel(24, 18, w - 48, 100, {
+    title = "COMBAT",
+    subtitle = self.waiting and "resolving…" or (self.ended and "ended" or "your turn"),
+    title_h = 28,
+    accent = self.ended and (self.result == "defeat" and "danger" or "ok") or nil,
+  })
+
   if self.hero then
     local hp = self.hero.hp or 0
     local mhp = math.max(1, self.hero.max_hp or 1)
     local mp = self.hero.mp or 0
     local mmp = math.max(0, self.hero.max_mp or 0)
+    UI.set_font("body")
+    UI.color("gold")
     love.graphics.print(
-      string.format("%s  Lv%d", self.hero.name or "Hero", self.hero.level or 1),
-      50,
-      72
+      string.format("%s   Lv %d", self.hero.name or "Hero", self.hero.level or 1),
+      44,
+      56
     )
-    love.graphics.setColor(0.2, 0.2, 0.25)
-    love.graphics.rectangle("fill", 50, 96, 200, 12)
-    love.graphics.setColor(0.85, 0.25, 0.28)
-    love.graphics.rectangle("fill", 50, 96, 200 * math.min(1, hp / mhp), 12)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(string.format("HP %d/%d", hp, mhp), 54, 94)
+    UI.bar(44, 80, 220, 14, hp / mhp, "hp", string.format("HP  %d / %d", hp, mhp))
     if mmp > 0 then
-      love.graphics.setColor(0.2, 0.2, 0.25)
-      love.graphics.rectangle("fill", 270, 96, 140, 12)
-      love.graphics.setColor(0.3, 0.5, 0.95)
-      love.graphics.rectangle("fill", 270, 96, 140 * math.min(1, mp / mmp), 12)
-      love.graphics.setColor(1, 1, 1)
-      love.graphics.print(string.format("MP %d/%d", mp, mmp), 274, 94)
+      UI.bar(280, 80, 160, 14, mp / mmp, "mp", string.format("MP  %d / %d", mp, mmp))
     end
   end
+
   if self.enemy then
     local ehp = self.enemy.hp or 0
     local emhp = math.max(1, self.enemy.max_hp or 1)
-    love.graphics.setColor(1, 0.55, 0.55)
-    love.graphics.print(self.enemy.name or "?", 50, 120)
-    love.graphics.setColor(0.2, 0.15, 0.15)
-    love.graphics.rectangle("fill", 160, 122, 200, 10)
-    love.graphics.setColor(0.9, 0.35, 0.25)
-    love.graphics.rectangle("fill", 160, 122, 200 * math.min(1, ehp / emhp), 10)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(string.format("%d/%d", ehp, emhp), 370, 118)
+    UI.set_font("small")
+    UI.color("danger")
+    love.graphics.print(self.enemy.name or "Enemy", w - 280, 56)
+    UI.bar(w - 280, 80, 220, 14, ehp / emhp, "hp", string.format("%d / %d", ehp, emhp))
   end
 
-  -- enemy blob
-  love.graphics.setColor(0.7, 0.25, 0.35)
-  love.graphics.circle("fill", w * 0.7, h * 0.42, 50)
-  love.graphics.setColor(1, 1, 1)
-  if self.enemy then
-    local n = self.enemy.name or "?"
-    local font = love.graphics.getFont()
-    love.graphics.print(n, w * 0.7 - font:getWidth(n) / 2, h * 0.42 - 70)
+  -- figures
+  UI.draw_hero_figure(w * 0.28, h * 0.42)
+  local pulse = 1
+  if self.enemy and self.enemy.hp and self.enemy.max_hp and self.enemy.hp < self.enemy.max_hp * 0.3 then
+    pulse = 0.85 + 0.15 * math.sin((UI._t or 0) * 8)
+  end
+  UI.draw_enemy_figure(w * 0.68, h * 0.40, self.enemy and self.enemy.name, pulse)
+
+  -- message log
+  UI.panel(24, h - 300, w - 48, 110, { title = "Battle log", title_h = 26, no_ornament = true })
+  UI.set_font("small")
+  local ly = h - 266
+  local start = math.max(1, #self.log - 4)
+  for i = start, #self.log do
+    UI.color(i == #self.log and "text" or "muted")
+    love.graphics.print(self.log[i], 44, ly)
+    ly = ly + 18
   end
 
-  UI.panel(30, h - 280, w - 60, 120)
-  love.graphics.setColor(0.85, 0.9, 0.85)
-  local ly = h - 265
-  for i = math.max(1, #self.log - 5), #self.log do
-    love.graphics.print(self.log[i], 50, ly)
-    ly = ly + 20
-  end
-
-  UI.panel(30, h - 150, 260, 120)
+  -- command menu
+  local menu_h = 36 + #self.menu * 32 + 12
+  UI.panel(24, h - 178, 250, math.min(menu_h, 170), {
+    title = "Command",
+    title_h = 28,
+    no_ornament = true,
+  })
   for i, item in ipairs(self.menu) do
-    local iy = h - 135 + (i - 1) * 28
-    if i == self.selected and not self.ended then
-      love.graphics.setColor(0.35, 0.3, 0.12)
-      love.graphics.rectangle("fill", 40, iy, 220, 26, 3, 3)
-    end
-    love.graphics.setColor(1, 1, 0.9)
-    love.graphics.print((i == self.selected and "> " or "  ") .. item.label, 50, iy + 4)
+    local iy = h - 142 + (i - 1) * 32
+    local sel = i == self.selected and not self.ended
+    UI.list_row(36, iy, 226, 28, sel, item.label, item.hint or "")
   end
 
-  love.graphics.setColor(0.75, 0.8, 0.9)
-  love.graphics.print(self.status or "", 320, h - 40)
-  love.graphics.setColor(1, 1, 1)
+  -- status line
+  UI.panel(290, h - 70, w - 314, 48, { no_ornament = true, radius = 4 })
+  UI.set_font("body")
+  if self.ended then
+    if self.result == "defeat" then
+      UI.color("danger")
+    elseif self.result == "fled" then
+      UI.color("muted")
+    else
+      UI.color("ok")
+    end
+  else
+    UI.color("gold")
+  end
+  love.graphics.print(self.status or "", 308, h - 54)
+
+  UI.set_font("tiny")
+  UI.color("muted")
+  love.graphics.print("↑↓  ·  Enter  ·  A attack  ·  F flee", 308, h - 36)
+  UI.reset_color()
 end
 
 return Combat

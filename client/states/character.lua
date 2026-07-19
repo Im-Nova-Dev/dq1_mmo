@@ -21,7 +21,7 @@ function Character:enter()
 end
 
 function Character:_reload()
-  self.status = "Loading characters..."
+  self.status = "Loading characters…"
   local list, err = Auth.list_characters()
   if not list then
     self.error = tostring(err or "failed")
@@ -38,78 +38,93 @@ function Character:leave() end
 function Character:update(dt) end
 
 function Character:draw()
-  if UI.draw_bg then
-    UI.draw_bg()
-  else
-    love.graphics.clear(0.05, 0.05, 0.09)
-  end
+  UI.draw_bg()
   local w, h = love.graphics.getDimensions()
-  local pw, ph = 500, 440
+  local pw = math.min(540, w - 40)
+  local ph = 480
   local px, py = (w - pw) / 2, (h - ph) / 2
-  UI.panel(px, py, pw, ph)
 
-  love.graphics.setColor(1, 0.92, 0.45)
-  love.graphics.printf("Select Hero", px, py + 18, pw, "center")
-  love.graphics.setColor(0.7, 0.75, 0.8)
-  love.graphics.printf("Account: " .. tostring(Session.username or "?"), px, py + 48, pw, "center")
+  UI.panel(px, py, pw, ph, {
+    title = "Select Hero",
+    subtitle = tostring(Session.username or "Account"),
+    title_h = 38,
+  })
 
   if self.creating then
-    UI.field("Hero name", self.new_name, px + 40, py + 130, pw - 80, 34, true)
-    love.graphics.setColor(0.55, 0.6, 0.65)
-    love.graphics.printf("2–16 letters, numbers, spaces", px, py + 175, pw, "center")
+    UI.subtitle("Name your champion", px, py + 58, pw)
+    UI.field("Hero name", self.new_name, px + 48, py + 140, pw - 96, 38, true)
+    UI.set_font("tiny")
+    UI.color("muted")
+    love.graphics.printf("2–16 letters, numbers, spaces", px, py + 195, pw, "center")
   else
     if #self.list == 0 then
-      love.graphics.setColor(0.6, 0.65, 0.7)
-      love.graphics.printf("Create a hero to begin your quest.", px + 40, py + 160, pw - 80, "center")
+      UI.set_font("body")
+      UI.color("muted")
+      love.graphics.printf("Create a hero to begin your quest.", px + 40, py + 180, pw - 80, "center")
     end
     for i, c in ipairs(self.list) do
-      local y = py + 95 + (i - 1) * 56
+      local y = py + 78 + (i - 1) * 72
       local selected = i == self.selected
-      if selected then
-        love.graphics.setColor(0.32, 0.28, 0.14, 1)
-      else
-        love.graphics.setColor(0.1, 0.11, 0.18, 1)
-      end
-      love.graphics.rectangle("fill", px + 36, y, pw - 72, 48, 6, 6)
-      love.graphics.setColor(selected and 0.95 or 0.55, selected and 0.85 or 0.5, 0.35, 1)
-      love.graphics.setLineWidth(2)
-      love.graphics.rectangle("line", px + 36, y, pw - 72, 48, 6, 6)
-      love.graphics.setColor(1, 1, 0.92)
-      love.graphics.print(c.name, px + 52, y + 8)
-      love.graphics.setColor(0.7, 0.75, 0.8)
-      love.graphics.print(
-        string.format("Lv %d   HP %d/%d   %s G", c.level, c.current_hp, c.max_hp, tostring(c.gold or "0")),
-        px + 52,
-        y + 28
+      local hp = tonumber(c.current_hp) or 0
+      local mhp = math.max(1, tonumber(c.max_hp) or 1)
+      UI.list_row(
+        px + 36,
+        y,
+        pw - 72,
+        62,
+        selected,
+        c.name,
+        string.format("%s G", tostring(c.gold or "0")),
+        {
+          sub = string.format("Lv %d   HP %d/%d", c.level or 1, hp, mhp),
+        }
       )
+      -- mini HP bar on card
+      UI.bar(px + 64, y + 42, 160, 8, hp / mhp, "hp")
     end
   end
 
-  local mx, my = love.mouse.getPosition()
-  local by = py + ph - 72
+  local mx, my = UI.mouse()
+  local by = py + ph - 78
   if self.creating then
-    UI.button(self.busy and "..." or "Create", px + 40, by, 150, 40, UI.hit(mx, my, px + 40, by, 150, 40))
-    UI.button("Cancel", px + pw - 190, by, 150, 40, UI.hit(mx, my, px + pw - 190, by, 150, 40))
-  else
     UI.button(
-      self.busy and "..." or "Enter World",
+      self.busy and "…" or "Create",
       px + 40,
       by,
-      150,
-      40,
-      UI.hit(mx, my, px + 40, by, 150, 40)
+      160,
+      42,
+      UI.hit(mx, my, px + 40, by, 160, 42),
+      { primary = true }
     )
-    UI.button("New Hero", px + pw - 190, by, 150, 40, UI.hit(mx, my, px + pw - 190, by, 150, 40))
+    UI.button("Cancel", px + pw - 200, by, 160, 42, UI.hit(mx, my, px + pw - 200, by, 160, 42))
+  else
+    UI.button(
+      self.busy and "…" or "Enter World",
+      px + 40,
+      by,
+      160,
+      42,
+      UI.hit(mx, my, px + 40, by, 160, 42),
+      { primary = true }
+    )
+    UI.button("New Hero", px + pw - 200, by, 160, 42, UI.hit(mx, my, px + pw - 200, by, 160, 42))
   end
 
+  local msg_y = py + ph - 112
   if self.error then
-    love.graphics.setColor(1, 0.4, 0.4)
-    love.graphics.printf(tostring(self.error), px + 20, py + ph - 110, pw - 40, "center")
+    UI.set_font("small")
+    UI.color("danger")
+    love.graphics.printf(tostring(self.error), px + 20, msg_y, pw - 40, "center")
   elseif self.status then
-    love.graphics.setColor(0.55, 0.85, 0.6)
-    love.graphics.printf(self.status, px + 20, py + ph - 110, pw - 40, "center")
+    UI.set_font("small")
+    UI.color("ok")
+    love.graphics.printf(self.status, px + 20, msg_y, pw - 40, "center")
   end
-  love.graphics.setColor(1, 1, 1)
+
+  UI.set_font("tiny")
+  UI.color("muted")
+  love.graphics.printf("↑↓ select   ·   Enter world   ·   N new   ·   Esc logout", px, py + ph - 28, pw, "center")
+  UI.reset_color()
 end
 
 function Character:_enter_world()
@@ -194,30 +209,35 @@ function Character:mousepressed(x, y, button)
     return
   end
   local w, h = love.graphics.getDimensions()
-  local pw, ph = 500, 440
+  local pw = math.min(540, w - 40)
+  local ph = 480
   local px, py = (w - pw) / 2, (h - ph) / 2
-  local by = py + ph - 72
+  local by = py + ph - 78
 
   if not self.creating then
     for i = 1, #self.list do
-      local ly = py + 95 + (i - 1) * 56
-      if UI.hit(x, y, px + 36, ly, pw - 72, 48) then
-        self.selected = i
+      local ly = py + 78 + (i - 1) * 72
+      if UI.hit(x, y, px + 36, ly, pw - 72, 62) then
+        if self.selected == i then
+          self:_enter_world()
+        else
+          self.selected = i
+        end
       end
     end
   end
 
   if self.creating then
-    if UI.hit(x, y, px + 40, by, 150, 40) then
+    if UI.hit(x, y, px + 40, by, 160, 42) then
       self:_create()
-    elseif UI.hit(x, y, px + pw - 190, by, 150, 40) then
+    elseif UI.hit(x, y, px + pw - 200, by, 160, 42) then
       self.creating = false
       self.error = nil
     end
   else
-    if UI.hit(x, y, px + 40, by, 150, 40) then
+    if UI.hit(x, y, px + 40, by, 160, 42) then
       self:_enter_world()
-    elseif UI.hit(x, y, px + pw - 190, by, 150, 40) then
+    elseif UI.hit(x, y, px + pw - 200, by, 160, 42) then
       if #self.list >= 3 then
         self.error = "Maximum 3 heroes per account"
       else

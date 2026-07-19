@@ -1,5 +1,14 @@
 # Dragon Quest 1 MMO - Implementation Plan
 
+> **Historical document.** This was the original multi-phase roadmap used to build the MVP.  
+> It is **not** the live source of truth. Prefer:
+>
+> - [README.md](README.md) — human overview & run instructions  
+> - [docs/HUMAN.md](docs/HUMAN.md) — player/operator guide  
+> - [AGENTS.md](AGENTS.md) — agent/LLM contract, protocol, tests  
+>
+> Shipped baseline as of docs refresh: **v0.5.1** (phases 1–6 complete; chat, combat presence, DQ-style UI polish).
+
 ## Architecture Overview
 
 ```

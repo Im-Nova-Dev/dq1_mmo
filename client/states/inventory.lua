@@ -4,7 +4,7 @@ local State = require("client.state")
 local UI = require("client.ui")
 
 local Inventory = {
-  mode = "bag", -- bag | shop | equip
+  mode = "bag", -- bag | shop
   items = {},
   shop = {},
   selected = 1,
@@ -13,11 +13,17 @@ local Inventory = {
 }
 
 local SLOTS = { "weapon", "armor", "shield", "helmet" }
+local SLOT_LABEL = {
+  weapon = "Weapon",
+  armor = "Armor",
+  shield = "Shield",
+  helmet = "Helmet",
+}
 
 function Inventory:enter()
   self.mode = "bag"
   self.selected = 1
-  self.status = "Loading..."
+  self.status = "Loading…"
   self.character = Session.character
   self.items = {}
   self.shop = {}
@@ -38,10 +44,26 @@ function Inventory:enter()
     self.shop = data.items or {}
     self.mode = "shop"
     self.selected = 1
-    self.status = "Town shop — Enter buy, Esc back"
+    self.status = "Town shop — Enter to buy"
   end)
   Network.on("error", function(data)
     self.status = tostring(data.reason or "error")
+    UI.toast(tostring(data.reason or "error"), "danger")
+  end)
+  Network.on("item_used", function(data)
+    local line = data.message or ("Used " .. tostring(data.name or data.item_id or "item"))
+    self.status = line
+    UI.toast(line, "ok")
+    if data.teleported and Session.character then
+      Session.character.world_x = data.x
+      Session.character.world_y = data.y
+    end
+    if data.current_hp and Session.character then
+      Session.character.current_hp = data.current_hp
+    end
+    if self.character and data.current_hp then
+      self.character.current_hp = data.current_hp
+    end
   end)
 
   Network.send({ type = "inventory" })
@@ -69,7 +91,6 @@ function Inventory:keypressed(key)
       self.status = "Inventory"
       return
     end
-    -- persist character from inventory into session before world
     if self.character then
       Session.character = self.character
     end
@@ -96,14 +117,16 @@ function Inventory:keypressed(key)
     else
       local def = item["def"] or item.def
       local slot = def and def.slot
-      if slot and slot ~= "consumable" then
+      local effect = def and def.effect
+      if slot == "consumable" or effect then
+        Network.send({ type = "use_item", item = item.item_id })
+      elseif slot and slot ~= "consumable" then
         Network.send({ type = "equip", slot = slot, item = item.item_id })
       else
-        self.status = "Can't equip that"
+        self.status = "Can't use or equip that"
       end
     end
   elseif key == "u" and self.mode == "bag" then
-    -- unequip first filled slot cycle
     local c = self.character or {}
     for _, slot in ipairs(SLOTS) do
       local keyname = "equipment_" .. slot
@@ -122,75 +145,107 @@ function Inventory:keypressed(key)
 end
 
 function Inventory:draw()
-  love.graphics.clear(0.05, 0.07, 0.1)
+  UI.draw_bg()
   local w, h = love.graphics.getDimensions()
-  UI.panel(40, 30, w - 80, h - 60)
-
-  love.graphics.setColor(1, 0.92, 0.45)
-  local title = self.mode == "shop" and "SHOP" or "INVENTORY"
-  love.graphics.print(title, 60, 50)
+  local margin = 28
+  UI.panel(margin, 20, w - margin * 2, h - 40, {
+    title = self.mode == "shop" and "TOWN SHOP" or "INVENTORY",
+    subtitle = self.mode == "shop" and "Tab → bag" or "Tab → shop",
+    title_h = 36,
+  })
 
   local c = self.character or {}
   local b = c.bonuses or {}
-  love.graphics.setColor(0.85, 0.9, 0.95)
+  local left_x = margin + 24
+  local top = 72
+
+  -- Hero summary card
+  UI.panel(left_x, top, 280, 100, { no_ornament = true, radius = 5 })
+  UI.set_font("body")
+  UI.color("gold")
+  love.graphics.print(tostring(c.name or "Hero"), left_x + 16, top + 14)
+  UI.set_font("small")
+  UI.color("text")
+  love.graphics.print(string.format("Lv %d", tonumber(c.level or 1)), left_x + 16, top + 40)
+  UI.color("gold")
+  love.graphics.print(tostring(c.gold or "0") .. " G", left_x + 100, top + 40)
+  UI.color("muted")
   love.graphics.print(
-    string.format(
-      "%s  Lv%d  Gold %s  ATK %s  DEF %s",
-      tostring(c.name or "?"),
-      tonumber(c.level or 1),
-      tostring(c.gold or "0"),
-      tostring(b.attack_power or "?"),
-      tostring(b.defense_power or "?")
-    ),
-    60,
-    80
+    string.format("ATK %s   DEF %s", tostring(b.attack_power or "—"), tostring(b.defense_power or "—")),
+    left_x + 16,
+    top + 66
   )
 
-  love.graphics.setColor(0.95, 0.85, 0.5)
-  love.graphics.print("Equipment", 60, 120)
-  love.graphics.setColor(0.85, 0.85, 0.9)
-  local y = 145
+  -- Equipment panel
+  UI.panel(left_x, top + 116, 280, 220, {
+    title = "Equipment",
+    title_h = 28,
+    no_ornament = true,
+  })
+  local ey = top + 156
   for _, slot in ipairs(SLOTS) do
-    local val = c["equipment_" .. slot] or "(none)"
-    love.graphics.print(string.format("%-8s %s", slot, tostring(val)), 70, y)
-    y = y + 22
+    local val = c["equipment_" .. slot]
+    local label = SLOT_LABEL[slot] or slot
+    UI.list_row(
+      left_x + 12,
+      ey,
+      256,
+      36,
+      false,
+      label,
+      val and tostring(val) or "— empty —",
+      { font = "small", right_color = val and "gold" or "muted" }
+    )
+    ey = ey + 42
   end
 
-  love.graphics.setColor(0.95, 0.85, 0.5)
-  love.graphics.print(self.mode == "shop" and "For sale" or "Bag", w / 2, 120)
+  -- Bag / shop list
+  local rx = left_x + 300
+  local rw = w - margin * 2 - 348
+  UI.panel(rx, top, rw, h - top - 100, {
+    title = self.mode == "shop" and "For sale" or "Bag",
+    subtitle = self.status or "",
+    title_h = 28,
+    no_ornament = true,
+  })
+
   local list = self:_list()
-  y = 145
+  local y = top + 48
   for i, item in ipairs(list) do
-    if i == self.selected then
-      love.graphics.setColor(0.35, 0.3, 0.12)
-      love.graphics.rectangle("fill", w / 2 - 10, y - 2, 320, 22, 3, 3)
+    if y + 40 > h - 110 then
+      break
     end
-    love.graphics.setColor(1, 1, 0.9)
-    local name, extra
+    local name, extra, sub
     if self.mode == "shop" then
       name = item.name or item.id
       extra = tostring(item.price or 0) .. " G"
+      sub = item.slot or item.kind or ""
     else
       local def = item["def"] or item.def or {}
-      name = (def.name or item.item_id) .. " x" .. tostring(item.quantity or 1)
-      extra = def.slot or ""
+      name = def.name or item.item_id or "?"
+      extra = "×" .. tostring(item.quantity or 1)
+      sub = def.slot or ""
+      if item.is_equipped or item.equipped then
+        sub = (sub ~= "" and sub .. " · " or "") .. "equipped"
+      end
     end
-    love.graphics.print((i == self.selected and "> " or "  ") .. name .. "  " .. extra, w / 2, y)
-    y = y + 24
+    UI.list_row(rx + 12, y, rw - 24, 40, i == self.selected, name, extra, { sub = sub, font = "body" })
+    y = y + 46
   end
   if #list == 0 then
-    love.graphics.setColor(0.6, 0.6, 0.7)
-    love.graphics.print("(empty)", w / 2, 145)
+    UI.set_font("body")
+    UI.color("muted")
+    love.graphics.print(self.mode == "shop" and "Shop unavailable (town only)." or "Bag is empty.", rx + 24, top + 60)
   end
 
-  love.graphics.setColor(0.7, 0.8, 0.75)
-  love.graphics.print(self.status or "", 60, h - 90)
-  love.graphics.print(
-    "Enter: equip/buy  S: sell  U: unequip  Tab: shop  Esc: back",
-    60,
-    h - 65
+  UI.hint_bar(
+    margin + 16,
+    h - 68,
+    w - margin * 2 - 32,
+    36,
+    "Enter equip/use/buy   ·   S sell   ·   U unequip   ·   Tab shop   ·   Esc back"
   )
-  love.graphics.setColor(1, 1, 1)
+  UI.reset_color()
 end
 
 return Inventory

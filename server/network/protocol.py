@@ -14,8 +14,11 @@ class ClientMessageType(StrEnum):
     SELL = "sell"
     SHOP = "shop"
     INVENTORY = "inventory"
+    USE_ITEM = "use_item"
     PING = "ping"
     SYNC = "sync"  # request full presence snapshot
+    CHAT = "chat"  # global chat message
+    SAY = "say"  # alias for chat
 
 
 class ServerMessageType(StrEnum):
@@ -34,6 +37,8 @@ class ServerMessageType(StrEnum):
     LEVEL_UP = "level_up"
     INVENTORY_UPDATE = "inventory_update"
     SHOP_LIST = "shop_list"
+    ITEM_USED = "item_used"
+    CHAT = "chat"
     ERROR = "error"
     PONG = "pong"
 

@@ -12,6 +12,10 @@ local Overworld = {
   locked = false,
   net_info = "",
   show_list = true,
+  chat_log = {},
+  chat_draft = "",
+  chat_open = false,
+  show_chat = true,
 }
 
 local MOVE_COOLDOWN = 0.12
@@ -107,14 +111,11 @@ local function bind_handlers(self)
   end)
 
   Network.on("player_moved", function(data)
-    World.update_player(data.player_id, data.x, data.y)
-    local p = World.players[data.player_id]
-    if p and data.level then
-      p.level = data.level
-    end
-    if p and data.name then
-      p.name = data.name
-    end
+    World.update_player(data.player_id, data.x, data.y, {
+      name = data.name,
+      level = data.level,
+      in_combat = data.in_combat,
+    })
   end)
 
   Network.on("player_joined", function(data)
@@ -128,6 +129,7 @@ local function bind_handlers(self)
       tx = math.floor(data.x or 0),
       ty = math.floor(data.y or 0),
       level = data.level or (existing and existing.level) or 1,
+      in_combat = data.in_combat and true or false,
     }
     if not existing then
       UI.toast((data.name or "Hero") .. " appeared nearby", "join")
@@ -146,19 +148,43 @@ local function bind_handlers(self)
   end)
 
   Network.on("player_update", function(data)
+    World.update_player(data.player_id, data.x, data.y, {
+      name = data.name,
+      level = data.level,
+      in_combat = data.in_combat,
+    })
     local p = World.players[data.player_id]
-    if not p then
-      return
+    if p and data.in_combat == true then
+      -- optional soft toast once
     end
-    if data.name then
-      p.name = data.name
+  end)
+
+  Network.on("chat", function(data)
+    self.chat_log[#self.chat_log + 1] = {
+      name = data.name or "?",
+      text = data.text or "",
+      player_id = data.player_id,
+    }
+    while #self.chat_log > 40 do
+      table.remove(self.chat_log, 1)
     end
-    if data.level then
-      p.level = data.level
+  end)
+
+  Network.on("item_used", function(data)
+    if data.message then
+      UI.toast(data.message, "ok")
     end
-    if data.x and data.y then
-      p.tx = data.x
-      p.ty = data.y
+    if data.current_hp and Session.character then
+      Session.character.current_hp = data.current_hp
+    end
+  end)
+
+  Network.on("inventory_update", function(data)
+    if data.character then
+      Session.character = data.character
+    end
+    if data.items and Session.character then
+      Session.character.inventory = data.items
     end
   end)
 
@@ -180,7 +206,10 @@ local function bind_handlers(self)
       end
       return
     end
-    if data.reason == "in combat" or data.reason == "rate_limit" then
+    if data.reason == "in combat" or data.reason == "rate_limit" or data.reason == "chat_rate_limit" then
+      return
+    end
+    if data.reason == "empty chat" then
       return
     end
     self.status = "Error: " .. tostring(data.reason)
@@ -244,7 +273,7 @@ function Overworld:update(dt)
   end
   self.net_info = string.format("%s · %dms · %d nearby", Network.status(), rtt_ms, others)
 
-  if self.locked then
+  if self.locked or self.chat_open then
     return
   end
   if not Network.connected or not Network.authenticated then
@@ -283,7 +312,10 @@ function Overworld:update(dt)
 end
 
 function Overworld:draw()
-  UI.draw_bg()
+  -- Soft backdrop behind the map
+  love.graphics.clear(0.04, 0.05, 0.09)
+  love.graphics.setColor(0.06, 0.07, 0.12)
+  love.graphics.rectangle("fill", 0, 0, love.graphics.getDimensions())
   Renderer.draw_overworld()
 
   local w, h = love.graphics.getDimensions()
@@ -291,75 +323,101 @@ function Overworld:draw()
   local p = World.local_player
 
   -- Top-left HUD
-  UI.panel(12, 12, 280, 118)
-  UI.set_font("large")
-  UI.color("gold")
-  love.graphics.print("DQ1 MMO", 24, 20)
-  UI.set_font("small")
-  UI.color("muted")
-  love.graphics.print(self.net_info, 24, 46)
+  UI.panel(12, 12, 300, 128, {
+    title = "DQ1 MMO",
+    subtitle = self.net_info,
+    title_h = 30,
+    no_ornament = true,
+  })
 
   if p then
     UI.set_font("body")
     UI.color("text")
     love.graphics.print(
-      string.format("%s  Lv%d", p.name or "?", (c.level or p.level or 1)),
-      24,
-      68
+      string.format("%s   Lv %d", p.name or "?", (c.level or p.level or 1)),
+      26,
+      52
     )
     local hp = tonumber(c.current_hp) or 0
     local mhp = math.max(1, tonumber(c.max_hp) or 1)
     local mp = tonumber(c.current_mp) or 0
     local mmp = math.max(0, tonumber(c.max_mp) or 0)
-    UI.bar(24, 92, 160, 12, hp / mhp, "hp", string.format("HP %d/%d", hp, mhp))
+    UI.bar(26, 78, 180, 14, hp / mhp, "hp", string.format("HP  %d / %d", hp, mhp))
     if mmp > 0 then
-      UI.bar(24, 108, 160, 10, mp / mmp, "mp", string.format("MP %d/%d", mp, mmp))
+      UI.bar(26, 100, 180, 12, mp / mmp, "mp", string.format("MP  %d / %d", mp, mmp))
     end
     UI.set_font("small")
     UI.color("gold")
-    love.graphics.print(tostring(c.gold or "0") .. " G", 200, 92)
+    love.graphics.print(tostring(c.gold or "0") .. " G", 220, 80)
   end
 
   -- Zone badge
-  UI.panel(12, 140, 140, 36)
-  UI.set_font("small")
-  UI.color(zone_color(self.zone))
-  love.graphics.print("ZONE  " .. string.upper(self.zone or "?"), 24, 150)
+  local zc = zone_color(self.zone)
+  UI.badge(12, 150, 150, 28, "ZONE  " .. string.upper(self.zone or "?"), zc)
   if p then
+    UI.set_font("tiny")
     UI.color("muted")
-    love.graphics.print(string.format("(%d, %d)", math.floor(p.x + 0.01), math.floor(p.y + 0.01)), 24, 162)
+    love.graphics.print(string.format("(%d, %d)", math.floor(p.x + 0.01), math.floor(p.y + 0.01)), 170, 158)
   end
 
-  -- Minimap
-  UI.minimap(w - 148, 12, 128, World)
+  -- Minimap (taller panel for title)
+  UI.minimap(w - 148, 12, 120, World)
 
   -- Player list
   if self.show_list then
-    UI.player_list(w - 250, 156, 238, 200, World.local_player, World.players, "Adventurers nearby")
+    UI.player_list(w - 260, 170, 248, 210, World.local_player, World.players, "Nearby")
   end
 
-  -- Bottom help bar
-  UI.panel(12, h - 48, w - 24, 36)
-  UI.set_font("small")
-  UI.color("muted")
-  love.graphics.print(
-    "WASD move   ·   I inventory   ·   P player list   ·   field/dungeon battles   ·   B debug fight   ·   Esc quit",
-    24,
-    h - 36
+  -- Chat panel
+  if self.show_chat then
+    UI.chat_log(12, h - 210, math.min(440, w - 290), 150, self.chat_log, self.chat_draft, self.chat_open)
+  end
+
+  UI.hint_bar(
+    12,
+    h - 48,
+    w - 24,
+    36,
+    "WASD move   ·   T chat   ·   I inventory   ·   P list   ·   B fight   ·   Esc quit"
   )
 
   if self.status and self.status ~= "Connected" then
     UI.set_font("small")
     UI.color("ok")
-    love.graphics.print(self.status, 24, 188)
+    love.graphics.print(self.status, 14, 188)
   end
   UI.reset_color()
 end
 
 function Overworld:keypressed(key)
+  if self.chat_open then
+    if key == "escape" then
+      self.chat_open = false
+      self.chat_draft = ""
+      return
+    elseif key == "return" or key == "kpenter" then
+      local text = (self.chat_draft or ""):match("^%s*(.-)%s*$")
+      if text and text ~= "" then
+        Network.chat(text)
+      end
+      self.chat_draft = ""
+      self.chat_open = false
+      return
+    elseif key == "backspace" then
+      local d = self.chat_draft or ""
+      self.chat_draft = d:sub(1, math.max(0, #d - 1))
+      return
+    end
+    return
+  end
+
   if key == "escape" then
     Network.disconnect()
     love.event.quit()
+  elseif key == "t" and not self.locked then
+    self.chat_open = true
+    self.chat_draft = ""
+    self.show_chat = true
   elseif key == "b" and not self.locked then
     Network.send({ type = "debug_encounter", enemy = "slime" })
   elseif key == "i" and not self.locked then
@@ -367,6 +425,16 @@ function Overworld:keypressed(key)
   elseif key == "p" or key == "tab" then
     self.show_list = not self.show_list
     UI.toast(self.show_list and "Player list on" or "Player list off", "info")
+  elseif key == "c" and not self.locked then
+    self.show_chat = not self.show_chat
+  end
+end
+
+function Overworld:textinput(text)
+  if self.chat_open then
+    if #(self.chat_draft or "") < 200 then
+      self.chat_draft = (self.chat_draft or "") .. text
+    end
   end
 end
 

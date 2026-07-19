@@ -117,6 +117,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     y=connect_meta["y"],
                     map_id=connect_meta["map_id"],
                     level=connect_meta["level"],
+                    in_combat=bool(connect_meta.get("in_combat")),
                 )
 
                 # Drop placeholder world_state from handler
@@ -132,6 +133,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     x=connect_meta["x"],
                     y=connect_meta["y"],
                     level=connect_meta["level"],
+                    in_combat=bool(connect_meta.get("in_combat")),
                 )
                 for p in peers:
                     await manager.send(p["id"], join_payload)
