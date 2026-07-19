@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.83** (2026-07-19) · suite **390** tests · `VERSION` in `server/config.py` · humans ≠ agents · shipped on `main`
+**Last docs refresh:** **v0.5.86** (2026-07-19) · suite **403** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · local uncommitted since `2b2cc85` (v0.5.83 on `main`)
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -75,16 +75,21 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - `/profile` · `/whereis` · `/mapinfo` · `/server` · `/info` · `/s` · `/g`
 - `/stuck` · `/unstuck` · `/home` — free town return (nearby system notice) · `/yell` · `/shout` · `/emote` list
 - AFK duration visible on look / online lists · nearby AFK/back system lines
-- Buy/sell/equip/use clear AFK for peers · `/counts` may show `afk_for`
+- Buy/sell/equip/use clear AFK for peers · `/counts` shows online + AFK totals
 - `/buy` · `/sell` · `/shop` · `/use` · `/equip` slash shop · `/ping` latency
 - `/cast heal` · `/repel` · `/return` field magic · `/discard` from chat
+- **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
+- **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
+- **`/near` · `/zone`** show nearby / in-zone AFK counts
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
-- Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, or walk
-- Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up
+- Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, walk, or `/stuck`
+- Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up (plus reason if set)
 - Zone chat only in town/field/dungeon; shout = zone (not world-wide)
 - Online lists update promptly when people leave
 - Safer buy/sell/discard quantities (0 and fractions rejected); bare buy/sell/discard need an item
 - Equip / unequip show clear toasts
+- **Change password** for email accounts (`POST /auth/password`)
+- Health check includes online, zones, combats, **AFK count**
 - CC0 pixel art (Kenney + Tiny Creatures) + SVG companions
 
 ---
@@ -98,7 +103,7 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 **Belongs only in AGENTS.md** (do not paste into README / HUMAN):
 
 - Full WebSocket message catalogs
-- Reliability rules (AOI, soft grace, rates, `resolve_live_name`, bag caps, …)
+- Reliability rules · bag caps · reconnect / presence edge cases
 - Test module matrix (`server/tests/run_tests.py`)
 - Hot paths, architecture, coding constraints
 

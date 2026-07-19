@@ -254,12 +254,14 @@ async def handle_message(
             "t": client_t,
             "server_t": _time.time(),
             "online": len(manager.online_ids()),
+            "afk_count": manager.afk_count(),
             "zones": manager.zone_counts(),
             "version": _VER,
             "uptime": max(0, int(_time.time() - PROCESS_STARTED_AT)),
         }
         if character_id is not None:
             pong_body["nearby_count"] = len(manager.ids_nearby(character_id))
+            pong_body["nearby_afk"] = manager.nearby_afk_count(character_id)
             pong_body["session_id"] = manager.session_id(character_id)
         outbound.append(msg(ServerMessageType.PONG, **pong_body))
         if data.get("sync") or data.get("presence"):
@@ -311,6 +313,10 @@ async def handle_message(
                 "idle": _idle_chk(meta),
                 "in_combat": bool(meta.get("in_combat")),
             }
+            if you_blob["afk"]:
+                am = meta.get("afk_message")
+                if isinstance(am, str) and am.strip():
+                    you_blob["afk_message"] = am.strip()[:48]
         outbound.append(
             msg(
                 ServerMessageType.WORLD_STATE,
@@ -318,7 +324,9 @@ async def handle_message(
                 enemies=[],
                 map=map_payload(),
                 online=len(manager.online_ids()),
+                afk_count=manager.afk_count(),
                 nearby_count=len(nearby_list),
+                nearby_afk=manager.nearby_afk_count(character_id),
                 zones=manager.zone_counts(),
                 roster=manager.online_roster(),
                 you=you_blob,
@@ -401,16 +409,34 @@ async def handle_message(
                 you_zone = zone_at(int(meta["x"]), int(meta["y"]))
             except Exception:
                 you_zone = None
-        outbound.append(
-            msg(
-                "near",
-                players=nearby,
-                nearby_count=len(nearby),
-                online=len(manager.online_ids()),
-                zone=you_zone,
-                zones=manager.zone_counts(),
-            )
-        )
+        nearby_afk = manager.nearby_afk_count(character_id)
+        afk_n = manager.afk_count()
+        near_body = {
+            "type": "near",
+            "players": nearby,
+            "nearby_count": len(nearby),
+            "nearby_afk": nearby_afk,
+            "afk_count": afk_n,
+            "online": len(manager.online_ids()),
+            "zone": you_zone,
+            "zones": manager.zone_counts(),
+            "message": (
+                f"{len(nearby)} nearby · AFK {nearby_afk} · {afk_n} AFK online"
+            ),
+        }
+        you_afk = bool((meta or {}).get("afk"))
+        near_body["you"] = {
+            "id": character_id,
+            "name": (meta or {}).get("name"),
+            "afk": you_afk,
+            "zone": you_zone,
+            "session_id": manager.session_id(character_id),
+        }
+        if you_afk and meta is not None:
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                near_body["you"]["afk_message"] = am.strip()[:48]
+        outbound.append(near_body)
         return character_id, user_id, outbound, None
 
     # --- Lightweight census (online + zone counts, no full roster) ---
@@ -514,6 +540,8 @@ async def handle_message(
         # Same-zone roster (public cards, no x/y) for multiplayer social overview
         mates = manager.zone_roster(character_id, include_self=True)
         zone_pop = int(zones.get(you_zone, 0)) if you_zone else len(mates)
+        zone_afk = manager.zone_afk_count(character_id, include_self=True)
+        afk_n = manager.afk_count()
         zone_body = {
             "type": "zone",
             "zone": you_zone,
@@ -522,10 +550,12 @@ async def handle_message(
             "zones": zones,
             "players": mates,
             "zone_count": len(mates),
+            "zone_afk": zone_afk,
+            "afk_count": afk_n,
             "population": zone_pop,
             "online": len(manager.online_ids()),
             "message": (
-                f"You are in the {you_zone} ({len(mates)} here)."
+                f"You are in the {you_zone} ({len(mates)} here · AFK {zone_afk})."
                 if you_zone in ("town", "field", "dungeon")
                 else "You are somewhere on the map."
             ),
@@ -1166,8 +1196,11 @@ async def handle_message(
         except Exception:
             cx, cy = SPAWN_X, SPAWN_Y
         already = cx == SPAWN_X and cy == SPAWN_Y and zone_at(cx, cy) == "town"
-        # Already home: no rate burn, no teleport
+        # Already home: no rate burn, no teleport — still activity (clear AFK badge)
         if already:
+            was_afk_home = manager.mark_active(character_id)
+            if was_afk_home:
+                await manager.publish_status(character_id, pulse_online=True)
             outbound.append(
                 msg(
                     "stuck",
@@ -1178,6 +1211,7 @@ async def handle_message(
                     teleported=False,
                     session_id=manager.session_id(character_id),
                     message="You are already in town.",
+                    afk=False,
                 )
             )
             return character_id, user_id, outbound, None
@@ -1192,9 +1226,10 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
-        # allow_chat cleared AFK; ensure stamp is clean for peers
+        # allow_chat cleared AFK; keep stamps clean (including optional reason)
         meta["afk"] = False
         meta["afk_since"] = None
+        meta["afk_message"] = None
         name = (meta.get("name") or "Hero")
         char = await apply_character_patch(
             character_id, {"world_x": SPAWN_X, "world_y": SPAWN_Y}
@@ -1255,6 +1290,7 @@ async def handle_message(
                 "version",
                 version=_VER,
                 online=len(manager.online_ids()),
+                afk_count=manager.afk_count(),
                 zones=manager.zone_counts(),
                 uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
                 service="dq1-mmo",
@@ -1292,6 +1328,7 @@ async def handle_message(
         except Exception:
             you_zone = None
         sid = manager.session_id(character_id)
+        you_afk = bool(meta.get("afk"))
         body = {
             "type": "played",
             "seconds": age,
@@ -1299,11 +1336,17 @@ async def handle_message(
             "name": meta.get("name"),
             "zone": you_zone,
             "online": len(manager.online_ids()),
+            "afk_count": manager.afk_count(),
             "nearby_count": len(manager.ids_nearby(character_id)),
-            "afk": bool(meta.get("afk")),
+            "nearby_afk": manager.nearby_afk_count(character_id),
+            "afk": you_afk,
             "idle": _idle_played(meta),
             "message": f"This session: {pretty}.",
         }
+        if you_afk:
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                body["afk_message"] = am.strip()[:48]
         outbound.append(body)
         return character_id, user_id, outbound, None
 
@@ -1555,6 +1598,7 @@ async def handle_message(
                 idle=idle_filter,
                 players=hits,
                 online=len(manager.online_ids()),
+                afk_count=manager.afk_count(),
                 count=len(hits),
                 zones=manager.zone_counts(),
             )
@@ -2530,18 +2574,7 @@ async def handle_message(
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
-        allowed, retry = manager.allow_chat(character_id)
-        if not allowed:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        name = (meta or {}).get("name") or "Hero"
+        # Validate sides BEFORE allow_chat so bad rolls never burn rate or clear AFK.
         # Optional sides: {type:roll, sides:20} default 100, must be 2..1000.
         # Do NOT use `or` for default — sides=0 is falsy and used to become 100.
         if "sides" in data:
@@ -2556,11 +2589,9 @@ async def handle_message(
                 raise ValueError("bool sides")
             sides_i = int(raw_sides)
         except (TypeError, ValueError):
-            manager.refund_chat(character_id)
             outbound.append(msg(ServerMessageType.ERROR, reason="invalid roll sides"))
             return character_id, user_id, outbound, None
         if sides_i < 2 or sides_i > 1000:
-            manager.refund_chat(character_id)
             outbound.append(
                 msg(
                     ServerMessageType.ERROR,
@@ -2571,6 +2602,18 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        name = (meta or {}).get("name") or "Hero"
         import random as _random
 
         value = _random.randint(1, sides_i)

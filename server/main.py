@@ -67,6 +67,7 @@ async def health():
         "service": "dq1-mmo",
         "version": VERSION,
         "online": len(manager.online_ids()),
+        "afk_count": manager.afk_count(),
         "zones": manager.zone_counts(),
         "combats": len(combat_engine.active),
         "uptime": max(0, int(_time.time() - PROCESS_STARTED_AT)),

@@ -378,6 +378,23 @@ class ConnectionManager:
                 n += 1
         return n
 
+    def nearby_afk_count(self, character_id: int) -> int:
+        """AFK peers currently in geometric AOI (excludes self)."""
+        n = 0
+        for oid in self.ids_nearby(character_id):
+            meta = self._meta.get(oid)
+            if meta and meta.get("afk") and oid in self._connections:
+                n += 1
+        return n
+
+    def zone_afk_count(self, character_id: int, *, include_self: bool = True) -> int:
+        """AFK players in the same zone type as character_id."""
+        n = 0
+        for card in self.zone_roster(character_id, include_self=include_self):
+            if card.get("afk"):
+                n += 1
+        return n
+
     def online_roster(self) -> list[dict[str, Any]]:
         """All online players as public cards; sorted by name then id for stable UI."""
         out: list[dict[str, Any]] = []

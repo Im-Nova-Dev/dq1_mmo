@@ -45,6 +45,20 @@ class UserLogin(BaseModel):
         return v
 
 
+class PasswordChange(BaseModel):
+    """Change password for an authenticated local account."""
+
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=6, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def check_new_password(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Password too long")
+        return v
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

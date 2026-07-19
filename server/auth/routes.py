@@ -19,6 +19,7 @@ from game.world_manager import SPAWN_X, SPAWN_Y
 from models.player import (
     CharacterCreate,
     CharacterOut,
+    PasswordChange,
     TokenResponse,
     UserLogin,
     UserOut,
@@ -134,6 +135,39 @@ async def login(body: UserLogin):
 @router.get("/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
     return UserOut(id=user["id"], email=user["email"], username=user["username"])
+
+
+@router.post("/password")
+async def change_password(body: PasswordChange, user: dict = Depends(get_current_user)):
+    """Change password for local (email/password) accounts. OAuth-only users get 400."""
+    if body.new_password == body.current_password:
+        raise HTTPException(status_code=400, detail="new password must differ")
+    db = await get_db()
+    async with db.execute(
+        "SELECT id, password_hash FROM users WHERE id = ?",
+        (user["id"],),
+    ) as c:
+        row = await c.fetchone()
+    if row is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not row["password_hash"]:
+        raise HTTPException(
+            status_code=400,
+            detail="password change not available for this account",
+        )
+    if not await verify_password(body.current_password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="current password incorrect")
+    try:
+        new_hash = await hash_password(body.new_password)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid password") from None
+    async with db_write() as wdb:
+        await wdb.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_hash, user["id"]),
+        )
+        await wdb.commit()
+    return {"ok": True, "message": "Password updated."}
 
 
 @router.get("/google/status")

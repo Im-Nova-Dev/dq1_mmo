@@ -17,19 +17,20 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · AFK notices + reason · afk_count | Final commercial art (placeholders OK to replace) |
+| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.83` (`server/config.py` → `VERSION`) · **390** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.86` (`server/config.py` → `VERSION`) · **403** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.83** / **390** until the suite or `VERSION` changes.  
-Shipped on `main` as `9c371bb` (and later commits if present).  
-**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
+Keep badges at **0.5.86** / **403** until the suite or `VERSION` changes.  
+Last **pushed** ship: `2b2cc85` (v0.5.83). Local tree includes **0.5.84–0.5.86** (uncommitted until push).  
+**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
+Docs pass: badges **0.5.86 / 403** · human tree plain language · protocol **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -338,6 +339,15 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 146. System notice may include reason: `"{name} is now AFK: {reason}."`; flip-only (no spam on reason-only update).
 147. Tests: `test_mp_reliability_v0582` + `test_features_v0582` lock AFK message + afk_count + soft reconnect ignore + yell regression.
 148. **Item name resolve:** `resolve_item_id` on buy/sell/use/equip/discard — display names (`Copper Sword`), aliases (`herbs`/`wings`/`dragon scale`), unique prefixes (`copper`); ambiguous → `name ambiguous`.
+149. **Roll sides validate before `allow_chat`** — invalid sides never burn rate or clear AFK (same pattern as empty chat / reserved channel).
+150. **AFK census peeks:** `near` → `nearby_afk` + `afk_count`; `zone` → `zone_afk` + `afk_count`; `played`/`pong`/`find`/`version` carry `afk_count` (and nearby_afk on played/pong).
+151. **`stuck` clears `afk_message`** with AFK flags so peers never see a stale AFK tip after home recall.
+152. Tests: `test_mp_reliability_v0585` + `test_features_v0585`.
+153. `GET /health` includes **`afk_count`**; unauthed **pong** includes global `afk_count`.
+154. Already-home **`stuck`** calls `mark_active` (clears AFK reason, may `publish_status`).
+155. `sync` world_state: `afk_count`, `nearby_afk`, `you.afk_message` when AFK.
+156. **Password change:** `POST /auth/password` `{current_password,new_password}` (local accounts only; 401 if wrong current).
+157. Tests: `test_features_v0586`.
 
 ## Tests (mandatory for your changes)
 
@@ -422,6 +432,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0582` | /afk reason clamp; field aliases; unauth AFK; help hint |
 | `tests.test_features_v0583` | resolve_item_id names/aliases; buy copper sword; equip/sell/discard |
 | `tests.test_adversarial_v0583` | item resolve edges; bare item; AFK+buy clear; ambiguous equip |
+| `tests.test_adversarial_v0584` | invalid roll keeps AFK; failed social AFK matrix; shop/combat gates; soft reconnect |
+| `tests.test_mp_reliability_v0585` | nearby/zone AFK census; stuck clears reason; whisper/yell/who regression |
+| `tests.test_features_v0585` | near unauth; played afk_message; version afk_count |
+| `tests.test_features_v0586` | health/pong afk_count; stuck-home clears AFK; password change; sync |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
