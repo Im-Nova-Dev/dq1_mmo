@@ -628,7 +628,14 @@ local function bind_handlers(self)
         self.last_whisper_from = data.name
         UI.toast("Whisper from " .. tostring(data.name), "info")
       elseif is_self then
-        local tip = data.target_afk and " (they are AFK)" or ""
+        local tip = ""
+        if data.target_afk then
+          if data.target_afk_message and data.target_afk_message ~= "" then
+            tip = " (AFK: " .. tostring(data.target_afk_message) .. ")"
+          else
+            tip = " (they are AFK)"
+          end
+        end
         UI.toast("Whisper to " .. tostring(data.to or "?") .. tip, "info")
       end
     end
@@ -649,7 +656,16 @@ local function bind_handlers(self)
       loc = loc .. " [" .. tostring(p.zone) .. "]"
     end
     local combat = p.in_combat and " ⚔" or ""
-    local idle = (p.afk or p.idle) and " (AFK)" or ""
+    local idle = ""
+    if p.afk then
+      if p.afk_message and p.afk_message ~= "" then
+        idle = " (AFK: " .. tostring(p.afk_message) .. ")"
+      else
+        idle = " (AFK)"
+      end
+    elseif p.idle then
+      idle = " (idle)"
+    end
     UI.toast(
       string.format("%s  Lv%d%s%s%s", tostring(p.name), tonumber(p.level) or 1, combat, idle, loc),
       "info"
@@ -1131,8 +1147,11 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]rules%s*$")
         local wants_afk = text:match("^[/%!]afk%s*$")
           or text:match("^[/%!]away%s*$")
+        local afk_reason = text:match("^[/%!]afk%s+(.+)$")
+          or text:match("^[/%!]away%s+(.+)$")
         local wants_back = text:match("^[/%!]back%s*$")
           or text:match("^[/%!]afk%s+back%s*$")
+          or text:match("^[/%!]away%s+back%s*$")
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
@@ -1219,16 +1238,19 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]vendor%s*$")
         local wants_ping = text:match("^[/%!]ping%s*$")
           or text:match("^[/%!]latency%s*$")
-        local use_item = text:match("^[/%!]use%s+(%S+)$")
-          or text:match("^[/%!]consume%s+(%S+)$")
-        local buy_item, buy_qty = text:match("^[/%!]buy%s+(%S+)%s+(%d+)%s*$")
-        local buy_item_only = text:match("^[/%!]buy%s+(%S+)%s*$")
-        local sell_item, sell_qty = text:match("^[/%!]sell%s+(%S+)%s+(%d+)%s*$")
-        local sell_item_only = text:match("^[/%!]sell%s+(%S+)%s*$")
-        local equip_slot, equip_item2 = text:match("^[/%!]equip%s+(%S+)%s+(%S+)$")
-        local equip_item = text:match("^[/%!]equip%s+(%S+)$")
-          or text:match("^[/%!]wear%s+(%S+)$")
-          or text:match("^[/%!]wield%s+(%S+)$")
+        -- Multi-word item names OK (server resolve_item_id): "/buy copper sword 2"
+        local use_item = text:match("^[/%!]use%s+(.+)$")
+          or text:match("^[/%!]consume%s+(.+)$")
+        local buy_item, buy_qty = text:match("^[/%!]buy%s+(.+)%s+(%d+)%s*$")
+        local buy_item_only = text:match("^[/%!]buy%s+(.+)%s*$")
+        local sell_item, sell_qty = text:match("^[/%!]sell%s+(.+)%s+(%d+)%s*$")
+        local sell_item_only = text:match("^[/%!]sell%s+(.+)%s*$")
+        local equip_slot, equip_item2 = text:match(
+          "^[/%!]equip%s+(weapon|armor|shield|helmet)%s+(.+)$"
+        )
+        local equip_item = text:match("^[/%!]equip%s+(.+)$")
+          or text:match("^[/%!]wear%s+(.+)$")
+          or text:match("^[/%!]wield%s+(.+)$")
         local quick_emote = text:match("^[/%!](wave|bow|cheer|dance|laugh|point|think|cry|sit)%s*$")
         local wants_look_self = text:match("^[/%!]look%s*$")
           or text:match("^[/%!]examine%s*$")
@@ -1236,9 +1258,9 @@ function Overworld:keypressed(key)
         local cast_spell = text:match("^[/%!]cast%s+(%S+)$")
           or text:match("^[/%!]spell%s+(%S+)$")
         local cast_shortcut = text:match("^[/%!](heal|healmore|return|repel|outside|radiant)%s*$")
-        local discard_item, discard_qty = text:match("^[/%!]discard%s+(%S+)%s+(%d+)%s*$")
-        local discard_only = text:match("^[/%!]discard%s+(%S+)%s*$")
-          or text:match("^[/%!]drop%s+(%S+)%s*$")
+        local discard_item, discard_qty = text:match("^[/%!]discard%s+(.+)%s+(%d+)%s*$")
+        local discard_only = text:match("^[/%!]discard%s+(.+)%s*$")
+          or text:match("^[/%!]drop%s+(.+)%s*$")
         local wants_roll = text:match("^[/%!]roll%s*$")
           or text:match("^[/%!]dice%s*$")
           or text:match("^[/%!]d100%s*$")
@@ -1278,27 +1300,42 @@ function Overworld:keypressed(key)
           self._want_ping_toast = true
           Network.ping(false)
         elseif use_item and use_item ~= "" then
-          Network.send({ type = "use_item", item = use_item:lower() })
+          Network.send({ type = "use_item", item = (use_item:match("^%s*(.-)%s*$") or use_item):lower() })
         elseif buy_item and buy_item ~= "" then
           Network.send({
             type = "buy",
-            item = buy_item:lower(),
+            item = (buy_item:match("^%s*(.-)%s*$") or buy_item):lower(),
             quantity = tonumber(buy_qty) or 1,
           })
         elseif buy_item_only and buy_item_only ~= "" then
-          Network.send({ type = "buy", item = buy_item_only:lower(), quantity = 1 })
+          Network.send({
+            type = "buy",
+            item = (buy_item_only:match("^%s*(.-)%s*$") or buy_item_only):lower(),
+            quantity = 1,
+          })
         elseif sell_item and sell_item ~= "" then
           Network.send({
             type = "sell",
-            item = sell_item:lower(),
+            item = (sell_item:match("^%s*(.-)%s*$") or sell_item):lower(),
             quantity = tonumber(sell_qty) or 1,
           })
         elseif sell_item_only and sell_item_only ~= "" then
-          Network.send({ type = "sell", item = sell_item_only:lower(), quantity = 1 })
+          Network.send({
+            type = "sell",
+            item = (sell_item_only:match("^%s*(.-)%s*$") or sell_item_only):lower(),
+            quantity = 1,
+          })
         elseif equip_slot and equip_item2 then
-          Network.send({ type = "equip", slot = equip_slot:lower(), item = equip_item2:lower() })
+          Network.send({
+            type = "equip",
+            slot = equip_slot:lower(),
+            item = (equip_item2:match("^%s*(.-)%s*$") or equip_item2):lower(),
+          })
         elseif equip_item and equip_item ~= "" then
-          Network.send({ type = "equip", item = equip_item:lower() })
+          Network.send({
+            type = "equip",
+            item = (equip_item:match("^%s*(.-)%s*$") or equip_item):lower(),
+          })
         elseif quick_emote and quick_emote ~= "" then
           Network.emote(quick_emote:lower())
           UI.toast("Emote: " .. quick_emote:lower(), "info")
@@ -1311,11 +1348,15 @@ function Overworld:keypressed(key)
         elseif discard_item and discard_item ~= "" then
           Network.send({
             type = "discard",
-            item = discard_item:lower(),
+            item = (discard_item:match("^%s*(.-)%s*$") or discard_item):lower(),
             quantity = tonumber(discard_qty) or 1,
           })
         elseif discard_only and discard_only ~= "" then
-          Network.send({ type = "discard", item = discard_only:lower(), quantity = 1 })
+          Network.send({
+            type = "discard",
+            item = (discard_only:match("^%s*(.-)%s*$") or discard_only):lower(),
+            quantity = 1,
+          })
         elseif wants_roll or roll_sides then
           local payload = { type = "roll" }
           if roll_sides then
@@ -1358,6 +1399,14 @@ function Overworld:keypressed(key)
           Network.send({ type = "unequip", slot = unequip_slot:lower() })
         elseif wants_back then
           Network.send({ type = "back" })
+        elseif afk_reason and afk_reason ~= "" then
+          local r = afk_reason:match("^%s*(.-)%s*$") or afk_reason
+          local low = (r or ""):lower()
+          if low == "back" or low == "off" or low == "clear" then
+            Network.send({ type = "back" })
+          else
+            Network.send({ type = "afk", text = r })
+          end
         elseif wants_afk then
           Network.send({ type = "afk" })
         elseif wants_quit then

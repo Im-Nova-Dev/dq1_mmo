@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from game.data_loader import load_data
 from game.formulas import hero_attack_power, hero_defense_power
 from game.rng import Rng
@@ -21,6 +24,129 @@ REPEL_STEPS = 64
 # Inventory caps (DQ-style limited bag — economy / anti-hoard reliability)
 MAX_BAG_SLOTS = 12  # distinct item stacks in the bag
 MAX_STACK_QTY = 8  # max quantity per stack
+
+# Friendly slash names → canonical ids (beyond underscore/space normalize)
+_ITEM_ALIASES: dict[str, str] = {
+    "herbs": "herb",
+    "medical_herb": "herb",
+    "medicinal_herb": "herb",
+    "wings": "wing",
+    "wyvern_wing": "wing",
+    "wyvern_wings": "wing",
+    "fairywater": "fairy_water",
+    "fairy_waters": "fairy_water",
+    "holy_water": "fairy_water",
+    "dragon_scale": "dragons_scale",
+    "dragons_scales": "dragons_scale",
+    "dragonsscale": "dragons_scale",
+    "scale": "dragons_scale",
+    "bamboo": "bamboo_pole",
+    "club": "club",
+    "copper": "copper_sword",
+    "handaxe": "hand_axe",
+    "broadsword": "broad_sword",
+    "flamesword": "flame_sword",
+    "erdrick_sword": "erdricks_sword",
+    "erdrickssword": "erdricks_sword",
+    "chainmail": "chain_mail",
+    "halfplate": "half_plate",
+    "fullplate": "full_plate",
+    "leather": "leather_armor",  # unique short form preferred over helmet
+    "ironhelm": "iron_helmet",
+    "iron_helm": "iron_helmet",
+    "fightersring": "fighters_ring",
+    "fighter_ring": "fighters_ring",
+}
+
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
+
+
+def normalize_item_key(raw: Any) -> str:
+    """Lowercase + collapse spaces/hyphens/apostrophes to underscores."""
+    if raw is None:
+        return ""
+    s = str(raw).strip().lower()
+    if not s:
+        return ""
+    s = s.replace("'", "").replace("'", "").replace("'", "")
+    s = _NON_ALNUM.sub("_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s
+
+
+def resolve_item_id(raw: Any) -> tuple[str | None, str | None]:
+    """Map player-typed item text to a canonical item id.
+
+    Accepts ids (`copper_sword`), display names (`Copper Sword`), and common
+    aliases (`herbs`, `dragon scale`). Unique prefixes of id or name work when
+    unambiguous (e.g. `copper` → copper_sword).
+
+    Returns (item_id, None) on success, or (None, reason) on failure:
+      - \"item required\" when empty
+      - \"unknown item\" when nothing matches
+      - \"name ambiguous\" when multiple prefix matches
+    """
+    if raw is None:
+        return None, "item required"
+    key = normalize_item_key(raw)
+    if not key:
+        return None, "item required"
+
+    data = load_data()
+    equipment = data.get("equipment") or {}
+    consumables = data.get("consumables") or {}
+    all_ids = set(equipment) | set(consumables)
+
+    # Alias first
+    if key in _ITEM_ALIASES:
+        aliased = _ITEM_ALIASES[key]
+        if aliased in all_ids:
+            return aliased, None
+
+    # Exact id
+    if key in all_ids:
+        return key, None
+
+    # Exact display name (normalized)
+    name_hits: list[str] = []
+    for iid in all_ids:
+        defn = equipment.get(iid) or consumables.get(iid) or {}
+        nkey = normalize_item_key(defn.get("name") or "")
+        if nkey and nkey == key:
+            name_hits.append(iid)
+    if len(name_hits) == 1:
+        return name_hits[0], None
+    if len(name_hits) > 1:
+        return None, "name ambiguous"
+
+    # Unique prefix / token match on id or normalized name (min 3 chars)
+    if len(key) >= 3:
+        prefix_hits: list[str] = []
+        for iid in sorted(all_ids):
+            defn = equipment.get(iid) or consumables.get(iid) or {}
+            nkey = normalize_item_key(defn.get("name") or "")
+            id_parts = iid.split("_")
+            name_parts = nkey.split("_") if nkey else []
+            if (
+                iid.startswith(key)
+                or (nkey and nkey.startswith(key))
+                or key in id_parts
+                or key in name_parts
+            ):
+                prefix_hits.append(iid)
+        # de-dupe preserve order
+        seen: set[str] = set()
+        uniq: list[str] = []
+        for h in prefix_hits:
+            if h not in seen:
+                seen.add(h)
+                uniq.append(h)
+        if len(uniq) == 1:
+            return uniq[0], None
+        if len(uniq) > 1:
+            return None, "name ambiguous"
+
+    return None, "unknown item"
 
 
 def get_equipment_def(item_id: str | None) -> dict | None:

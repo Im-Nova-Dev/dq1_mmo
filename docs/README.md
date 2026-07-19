@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.81** (2026-07-19) · suite **377** tests · `VERSION` in `server/config.py` · **humans ≠ agents**
+**Last docs refresh:** **v0.5.83** (2026-07-19) · suite **390** tests · `VERSION` in `server/config.py` · humans ≠ agents · shipped on `main`
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

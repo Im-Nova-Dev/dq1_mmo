@@ -17,6 +17,7 @@ from game.item_manager import (
     equip_item,
     equipment_bonuses,
     list_items,
+    resolve_item_id,
     sell_item,
     shop_catalog,
     unequip_item,
@@ -154,6 +155,11 @@ def sanitize_chat(raw: Any) -> str | None:
     if len(text) > CHAT_MAX_LEN:
         text = text[:CHAT_MAX_LEN]
     return text
+
+
+def _resolve_item_arg(raw: Any) -> tuple[str | None, str | None]:
+    """Resolve slash/UI item text → canonical id (or error reason)."""
+    return resolve_item_id(raw)
 
 
 async def _announce_combat_outcome(character_id: int, outcome: str) -> None:
@@ -351,6 +357,7 @@ async def handle_message(
                 online_ids=manager.online_ids(),
                 roster=manager.online_roster(),
                 zones=manager.zone_counts(),
+                afk_count=manager.afk_count(),
                 you={
                     "id": character_id,
                     "name": (meta or {}).get("name"),
@@ -367,6 +374,17 @@ async def handle_message(
                 },
             )
         )
+        # Optional AFK reason on self card
+        who_msg = outbound[-1]
+        you_card = who_msg.get("you") if isinstance(who_msg, dict) else None
+        if (
+            isinstance(you_card, dict)
+            and you_card.get("afk")
+            and meta is not None
+        ):
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                you_card["afk_message"] = am.strip()[:48]
         return character_id, user_id, outbound, None
 
     # --- Nearby-only roster (lighter than full /who) ---
@@ -445,17 +463,22 @@ async def handle_message(
                     you["afk_for"] = max(0, int(_time.monotonic() - since))
             except (TypeError, ValueError):
                 pass
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                you["afk_message"] = am.strip()[:48]
         if sid is not None:
             you["session_id"] = sid
+        afk_n = manager.afk_count()
         body = {
             "type": "counts",
             "online": online_n,
+            "afk_count": afk_n,
             "nearby_count": nearby_n,
             "zones": zones,
             "you": you,
             "session_id": sid,
             "message": (
-                f"{online_n} online · nearby {nearby_n} · "
+                f"{online_n} online · AFK {afk_n} · nearby {nearby_n} · "
                 f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
                 f"dungeon {zones.get('dungeon', 0)}"
             ),
@@ -591,6 +614,9 @@ async def handle_message(
                 since = float(tmeta.get("afk_since") or 0.0)
                 if since > 0:
                     card["afk_for"] = max(0, int(_time.monotonic() - since))
+                am = tmeta.get("afk_message")
+                if isinstance(am, str) and am.strip():
+                    card["afk_message"] = am.strip()[:48]
         except Exception:
             card["idle"] = False
         sid = tmeta.get("session_id")
@@ -635,6 +661,21 @@ async def handle_message(
 
         you_afk = bool(meta.get("afk")) if meta else False
         you_idle = _idle_chk(meta) if meta else False
+        you_status: dict = {
+            "x": x,
+            "y": y,
+            "zone": z,
+            "in_combat": combat_engine.is_in_combat(character_id),
+            "repel": manager.repel_remaining(character_id),
+            "radiant": manager.radiant_remaining(character_id),
+            "session_id": manager.session_id(character_id),
+            "afk": you_afk,
+            "idle": you_idle,
+        }
+        if you_afk and meta is not None:
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                you_status["afk_message"] = am.strip()[:48]
         outbound.append(
             msg(
                 ServerMessageType.STATUS,
@@ -659,18 +700,9 @@ async def handle_message(
                     "known_spells": battle_spells_at(int(char.get("level") or 1)),
                     "field_spells": field_spells_at(int(char.get("level") or 1)),
                 },
-                you={
-                    "x": x,
-                    "y": y,
-                    "zone": z,
-                    "in_combat": combat_engine.is_in_combat(character_id),
-                    "repel": manager.repel_remaining(character_id),
-                    "radiant": manager.radiant_remaining(character_id),
-                    "session_id": manager.session_id(character_id),
-                    "afk": you_afk,
-                    "idle": you_idle,
-                },
+                you=you_status,
                 online=len(manager.online_ids()),
+                afk_count=manager.afk_count(),
             )
         )
         return character_id, user_id, outbound, None
@@ -823,8 +855,19 @@ async def handle_message(
             bits.append(f"Radiant {radiant}")
         if in_combat:
             bits.append("In combat")
+        afk_reason = None
+        if afk and meta is not None:
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                afk_reason = am.strip()[:48]
         if afk:
-            bits.append(f"AFK {afk_for}s" if afk_for is not None else "AFK")
+            if afk_reason:
+                bits.append(
+                    f"AFK ({afk_reason})"
+                    + (f" {afk_for}s" if afk_for is not None else "")
+                )
+            else:
+                bits.append(f"AFK {afk_for}s" if afk_for is not None else "AFK")
         elif idle:
             bits.append("Idle")
         body = {
@@ -839,6 +882,8 @@ async def handle_message(
         }
         if afk_for is not None:
             body["afk_for"] = afk_for
+        if afk_reason:
+            body["afk_message"] = afk_reason
         outbound.append(body)
         return character_id, user_id, outbound, None
 
@@ -893,9 +938,9 @@ async def handle_message(
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
                     {"cmd": "use", "hint": "/use herb — use consumable from bag"},
-                    {"cmd": "buy", "hint": "/buy herb [qty] — town shop"},
-                    {"cmd": "sell", "hint": "/sell herb [qty] — town shop"},
-                    {"cmd": "equip", "hint": "/equip club — equip gear (slot auto)"},
+                    {"cmd": "buy", "hint": "/buy copper sword [qty] — names or ids OK"},
+                    {"cmd": "sell", "hint": "/sell herb [qty] — names or ids OK"},
+                    {"cmd": "equip", "hint": "/equip copper sword — name/id, slot auto"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
                     {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
                     {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
@@ -917,7 +962,7 @@ async def handle_message(
                     {"cmd": "version", "hint": "/version · /server · /info — server version"},
                     {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
                     {"cmd": "motd", "hint": "/motd — message of the day"},
-                    {"cmd": "afk", "hint": "/afk · /away · /back — AFK badge"},
+                    {"cmd": "afk", "hint": "/afk [reason] · /away · /back — AFK badge + status"},
                     {"cmd": "block", "hint": "/block · /unblock — same as ignore"},
                     {"cmd": "quit", "hint": "/quit · /logout — leave the world"},
                 ],
@@ -947,7 +992,7 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # --- Manual AFK / away / back ---
+    # --- Manual AFK / away / back (+ optional status message) ---
     if msg_type in ("afk", "away", "back"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
@@ -957,10 +1002,16 @@ async def handle_message(
             want_afk = False
         if msg_type == "afk" and (data.get("clear") or data.get("off")):
             want_afk = False
+        raw_afk_text = str(
+            data.get("text")
+            or data.get("message")
+            or data.get("reason")
+            or data.get("status")
+            or data.get("mode")
+            or ""
+        ).strip()
         # /afk with text "back" or explicit back
-        if msg_type == "afk" and str(
-            data.get("text") or data.get("mode") or ""
-        ).strip().lower() in (
+        if msg_type in ("afk", "away") and raw_afk_text.lower() in (
             "back",
             "off",
             "clear",
@@ -968,9 +1019,14 @@ async def handle_message(
             "false",
         ):
             want_afk = False
+            raw_afk_text = ""
         meta_pre = manager.get_meta(character_id)
         was_afk = bool((meta_pre or {}).get("afk"))
-        if not manager.set_afk(character_id, want_afk):
+        afk_msg_arg: str | None = None
+        if want_afk:
+            # Empty → no reason; non-empty → set/sanitize
+            afk_msg_arg = raw_afk_text if raw_afk_text else None
+        if not manager.set_afk(character_id, want_afk, message=afk_msg_arg):
             outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
             return character_id, user_id, outbound, None
         if not want_afk:
@@ -982,9 +1038,13 @@ async def handle_message(
         # Nearby system notice when AFK state flips (multiplayer roster hygiene)
         if want_afk != was_afk and meta is not None:
             pname = (meta.get("name") or "Hero")
-            notice_text = (
-                f"{pname} is now AFK." if want_afk else f"{pname} is back."
-            )
+            reason = meta.get("afk_message") if want_afk else None
+            if want_afk and isinstance(reason, str) and reason.strip():
+                notice_text = f"{pname} is now AFK: {reason.strip()[:48]}."
+            elif want_afk:
+                notice_text = f"{pname} is now AFK."
+            else:
+                notice_text = f"{pname} is back."
             notice = msg(
                 ServerMessageType.CHAT,
                 player_id=character_id,
@@ -1000,15 +1060,25 @@ async def handle_message(
                 character_id, notice, include_self=False, respect_ignore=False
             )
 
-        outbound.append(
-            msg(
-                "afk",
-                afk=want_afk,
-                idle=_idle_chk(meta) if meta else want_afk,
-                session_id=manager.session_id(character_id),
-                message=("You are now AFK." if want_afk else "Welcome back."),
-            )
-        )
+        ack_reason = None
+        if want_afk and meta is not None:
+            am = meta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                ack_reason = am.strip()[:48]
+        ack_body: dict = {
+            "type": "afk",
+            "afk": want_afk,
+            "idle": _idle_chk(meta) if meta else want_afk,
+            "session_id": manager.session_id(character_id),
+            "message": (
+                (f"You are now AFK: {ack_reason}." if ack_reason else "You are now AFK.")
+                if want_afk
+                else "Welcome back."
+            ),
+        }
+        if ack_reason:
+            ack_body["afk_message"] = ack_reason
+        outbound.append(ack_body)
         return character_id, user_id, outbound, None
 
     # --- Last whisper peer (multiplayer /r target after soft reconnect) ---
@@ -1040,6 +1110,10 @@ async def handle_message(
             psid = (pmeta or {}).get("session_id") if pmeta else None
             if psid is not None:
                 peer["session_id"] = psid
+            if peer_afk and pmeta is not None:
+                pam = pmeta.get("afk_message")
+                if isinstance(pam, str) and pam.strip():
+                    peer["afk_message"] = pam.strip()[:48]
         outbound.append(
             msg(
                 "lastwhisper",
@@ -2242,6 +2316,11 @@ async def handle_message(
         if sid is not None:
             whisper_msg["session_id"] = sid
         target_afk = bool((tmeta or {}).get("afk"))
+        target_afk_msg = None
+        if target_afk and tmeta is not None:
+            am = tmeta.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                target_afk_msg = am.strip()[:48]
         # Deliver to target; fail closed if socket is dead (don't echo a lie)
         delivered = await manager.send(target_id, whisper_msg)
         if not delivered:
@@ -2253,6 +2332,8 @@ async def handle_message(
         echo = dict(whisper_msg)
         if target_afk:
             echo["target_afk"] = True
+            if target_afk_msg:
+                echo["target_afk_message"] = target_afk_msg
         outbound.append(echo)
         # Target remembers us for their /r; we remember them if they reply later
         manager.note_whisper_from(target_id, character_id, name)
@@ -2367,6 +2448,11 @@ async def handle_message(
             if sid_w is not None:
                 whisper_msg["session_id"] = sid_w
             target_afk_w = bool((tmeta or {}).get("afk"))
+            target_afk_msg_w = None
+            if target_afk_w and tmeta is not None:
+                amw = tmeta.get("afk_message")
+                if isinstance(amw, str) and amw.strip():
+                    target_afk_msg_w = amw.strip()[:48]
             delivered = await manager.send(target_id, whisper_msg)
             if not delivered:
                 manager.refund_chat(character_id)
@@ -2375,6 +2461,8 @@ async def handle_message(
             echo_w = dict(whisper_msg)
             if target_afk_w:
                 echo_w["target_afk"] = True
+                if target_afk_msg_w:
+                    echo_w["target_afk_message"] = target_afk_msg_w
             outbound.append(echo_w)
             manager.note_whisper_from(target_id, character_id, name)
             manager.note_whisper_from(character_id, target_id, tname)
@@ -2606,9 +2694,12 @@ async def handle_message(
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
-        item_id = data.get("item") or data.get("item_id")
-        if not item_id:
-            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+        item_raw = data.get("item") or data.get("item_id")
+        item_id, item_err = _resolve_item_arg(item_raw)
+        if item_err or not item_id:
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason=item_err or "item required")
+            )
             return character_id, user_id, outbound, None
 
         in_combat = combat_engine.is_in_combat(character_id)
@@ -2824,7 +2915,13 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
         slot = data.get("slot")
-        item_id = data.get("item") or data.get("item_id")
+        item_raw = data.get("item") or data.get("item_id")
+        item_id, item_err = _resolve_item_arg(item_raw) if item_raw else (None, "item required")
+        if item_err or not item_id:
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason=item_err or "item required")
+            )
+            return character_id, user_id, outbound, None
         # Auto-slot from equipment def when client only sends item (slash /equip club)
         if (not slot or not str(slot).strip()) and item_id:
             from game.item_manager import get_equipment_def
@@ -2890,9 +2987,12 @@ async def handle_message(
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
-        item_id = data.get("item") or data.get("item_id")
-        if not item_id or not str(item_id).strip():
-            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+        item_raw = data.get("item") or data.get("item_id")
+        item_id, item_err = _resolve_item_arg(item_raw)
+        if item_err or not item_id:
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason=item_err or "item required")
+            )
             return character_id, user_id, outbound, None
         # Explicit quantity parse — do not use `or 1` (qty=0 must not discard one)
         if "quantity" in data:
@@ -2904,9 +3004,6 @@ async def handle_message(
         qty = _parse_positive_qty(raw_qty)
         if qty is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        if not item_id:
-            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
             return character_id, user_id, outbound, None
         char = await get_character(character_id)
         if not char:
@@ -2937,9 +3034,12 @@ async def handle_message(
         if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
-        item_id = data.get("item") or data.get("item_id")
-        if not item_id or not str(item_id).strip():
-            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+        item_raw = data.get("item") or data.get("item_id")
+        item_id, item_err = _resolve_item_arg(item_raw)
+        if item_err or not item_id:
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason=item_err or "item required")
+            )
             return character_id, user_id, outbound, None
         # quantity: never use `or 1` — qty=0 must not buy one unit
         if "quantity" in data:
@@ -3004,9 +3104,12 @@ async def handle_message(
         if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
-        item_id = data.get("item") or data.get("item_id")
-        if not item_id or not str(item_id).strip():
-            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+        item_raw = data.get("item") or data.get("item_id")
+        item_id, item_err = _resolve_item_arg(item_raw)
+        if item_err or not item_id:
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason=item_err or "item required")
+            )
             return character_id, user_id, outbound, None
         # quantity: never use `or 1` — qty=0 must not sell one unit
         if "quantity" in data:

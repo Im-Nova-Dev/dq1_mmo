@@ -17,18 +17,18 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic · vitals/xp/buffs/`played` · keys · stuck/home · yell · emote list · slash buy/sell/use/equip | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/played` · `/stuck` · `/buy` · `/use` · auth welcome | Binary protocol |
+| Auth JWT, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · AFK notices + reason · afk_count | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.81` (`server/config.py` → `VERSION`) · **377** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.83` (`server/config.py` → `VERSION`) · **390** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.81** / **377** until the suite or `VERSION` changes.  
-Local uncommitted work may include shop-slash features already reflected in these docs.  
+Keep badges at **0.5.83** / **390** until the suite or `VERSION` changes.  
+Shipped on `main` as `9c371bb` (and later commits if present).  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
 
 ## Documentation map (do not mix)
@@ -130,7 +130,7 @@ All messages are JSON objects with a `type` string.
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
 | `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
-| `who` / `players` / `online_list` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
+| `who` / `players` / `online_list` | — | Nearby players + `online` + `afk_count` + `zones` counts (town/field/dungeon); lightweight |
 | `look` / `examine` / `inspect` / `profile` / `card` / `player_info` | `name` or `player_id` | Public card; coords only if nearby. Bare → self. Rate-exempt. |
 | `zone` / `where` / `mapinfo` / `whereami` / `coords` | — | Self zone + x/y + same-zone roster + zone counts. Rate-exempt. |
 | `version` / `ver` / `about` / `server` / `info` | — | `{version, online, zones, uptime, service}`. Rate-exempt. |
@@ -138,6 +138,7 @@ All messages are JSON objects with a `type` string.
 | `whereis` / `where_is` | `name` or `player_id` | Look alias. Rate-exempt. |
 | `stuck` / `unstuck` / `home` / `recall_home` | — | Free teleport to town spawn; blocked in combat; chat-rate limited. |
 | `yell` / `shout` | `text` | Zone chat (same as channel zone). |
+| `afk` / `away` / `back` | optional `text`/`message`/`reason` | Manual AFK + optional status (max 48). `back` / text `back` clears. |
 | `emotes` or `emote`+`list` | — | Emote catalog `{emotes[], message}`. Rate-exempt. |
 | `buy` / `purchase` | `item`, optional `quantity` | Town shop buy. |
 | `sell` / `vendor_sell` | `item`, optional `quantity` | Town shop sell. |
@@ -328,8 +329,15 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 137. Manual AFK stores `afk_since` (monotonic); look/who/public cards + buffs may include `afk_for` seconds.
 138. AFK state flip → nearby system chat “is now AFK” / “is back”; `manager.mark_active` clears AFK on successful buy/sell/equip/use and optional `publish_status`.
 139. `counts.you` may include `afk_for`; shop/buy/sell/use/equip require auth (`authenticate first`).
-128. Auth `world_state`/`auth_ok` include `restored.{ignores,last_whisper,repel,radiant}` after soft grace; welcome may note restores.
-129. Move while in combat → `error` + `move_ok ok=false` reason `in combat` (client reconcile); first join `restored` all false (no false "Restored" welcome).
+140. Auth `world_state`/`auth_ok` include `restored.{ignores,last_whisper,repel,radiant}` after soft grace; welcome may note restores.
+141. Move while in combat → `error` + `move_ok ok=false` reason `in combat` (client reconcile); first join `restored` all false (no false "Restored" welcome).
+142. **AFK status message:** `/afk lunch` · msg `afk`/`away` with `text`/`message`/`reason` (max 48, printable). Stored as `afk_message`. Cleared on `/back`, `mark_active`, move, chat. Soft reconnect always starts not-AFK.
+143. `afk_message` on look card, who.you, counts.you, status.you, buffs, roster/`_online_card`/`_public_meta`, `player_update` when AFK.
+144. Whisper sender echo: `target_afk` + optional `target_afk_message` (both whisper paths).
+145. **`afk_count`** on `who`, `counts`/`census`, `online` pulse, `status` (live sockets with manual AFK).
+146. System notice may include reason: `"{name} is now AFK: {reason}."`; flip-only (no spam on reason-only update).
+147. Tests: `test_mp_reliability_v0582` + `test_features_v0582` lock AFK message + afk_count + soft reconnect ignore + yell regression.
+148. **Item name resolve:** `resolve_item_id` on buy/sell/use/equip/discard — display names (`Copper Sword`), aliases (`herbs`/`wings`/`dragon scale`), unique prefixes (`copper`); ambiguous → `name ambiguous`.
 
 ## Tests (mandatory for your changes)
 
@@ -410,6 +418,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v0579` | AFK system notices; buy clears AFK; counts.afk_for; shop unauth |
 | `tests.test_adversarial_v0580` | AFK/back notices; combat shop/stuck; unauth shop; whisper after AFK cycle |
 | `tests.test_features_v0581` | cast/repel aliases; cast clears AFK; discard; unauth cast |
+| `tests.test_mp_reliability_v0582` | AFK status message; afk_count; whisper tip; soft reconnect ignore; yell |
+| `tests.test_features_v0582` | /afk reason clamp; field aliases; unauth AFK; help hint |
+| `tests.test_features_v0583` | resolve_item_id names/aliases; buy copper sword; equip/sell/discard |
+| `tests.test_adversarial_v0583` | item resolve edges; bare item; AFK+buy clear; ambiguous equip |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |

@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.81-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-377-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.83-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-390-059669?style=for-the-badge" />
 </p>
 
 For **people**: players, operators, and human contributors.  
@@ -16,7 +16,7 @@ Coding agents use **[AGENTS.md](../AGENTS.md) only** — you do **not** need tha
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.81 · **377** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.83 · **390** tests · matches `server/config.py` → `VERSION`
 
 ---
 
@@ -29,8 +29,8 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Hero** | Account · up to **3** heroes · start with gold + **3 herbs** |
 | **World** | **Town** (safe) · **field** · **dungeon** · shared grid |
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
-| **Town life** | Inn · shop · **`/buy`** · **`/sell`** · equip · discard (bag **12×8**) |
-| **Magic** | Field heal · return · repel · radiant · outside |
+| **Town life** | Inn · shop · **`/buy`** · **`/sell`** · equip · **`/discard`** (bag **12×8**) |
+| **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
 | **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** |
 | **Meta** | AFK · soft reconnect · **`/stuck` home** · mute list · swappable PNG art |
@@ -146,6 +146,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/shop** · **/buy herb** · **/sell herb** | Town shop (optional qty, e.g. `/buy herb 2`) |
 | **/use herb** · **/equip club** | Use a consumable · equip gear (slot chosen automatically) |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
+| **/buy copper sword** · **/sell herb** · **/equip club** | Shop & gear accept **names or ids** (spaces OK; unique short names work) |
 | **/discard herb** · **/discard herb 2** | Destroy items from the bag |
 | **/ping** | Check connection latency |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
@@ -158,7 +159,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/time** · **/uptime** | Server clock and how long the world has been up |
 | **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — also shows your zone and how many are online/nearby |
 | **/motd** · **/rules** | Message of the day |
-| **/afk** · **/away** · **/back** | Show AFK on the roster (nearby heroes may see a short system line; others can see how long you’ve been AFK). Clears when you chat, emote, **walk**, or shop/use items |
+| **/afk** · **/away** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
@@ -218,7 +219,7 @@ Only **online** characters can be whispered (`/w Name message`). A **unique pref
 **`/find`** never reveals map positions — only names, levels, combat flag, **zone type**, and AFK — never map coordinates of others.  
 Filter with **`zone:town`**, **`zone:field`**, or **`zone:dungeon`** (also `in:field`).  
 Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names are rejected with an error.  
-Whispering someone who is AFK still delivers the message; you get a short note that they may be away.
+Whispering someone who is AFK still delivers the message; you get a short note that they may be away (and their reason, if they set one).
 
 ---
 
@@ -288,7 +289,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 377 passed
+# expect: 390 passed
 ```
 
 ---
@@ -302,11 +303,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.81** · **377** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.83** · **390** tests).
 
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/buy` `/use` `/equip` `/stuck` `/ping` `/zone` `/who` …) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/cast` `/buy` `/discard` `/stuck` `/ping` `/zone` …) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

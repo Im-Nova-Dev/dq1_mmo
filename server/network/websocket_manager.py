@@ -37,6 +37,32 @@ def _zone_of(meta: dict[str, Any]) -> str | None:
     return None
 
 
+def sanitize_afk_message(raw: Any, *, max_len: int = 48) -> str | None:
+    """Optional AFK status text for multiplayer peeks (look/who/whisper tip)."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    # Strip control chars; keep printable unicode
+    text = "".join(ch for ch in text if ch.isprintable() and ch not in "\n\r\t")
+    text = text.strip()
+    if not text:
+        return None
+    if len(text) > max_len:
+        text = text[:max_len].rstrip()
+    return text or None
+
+
+def _attach_afk_message(card: dict[str, Any], meta: dict[str, Any]) -> None:
+    """Add afk_message to a public card when the player is manually AFK."""
+    if not card.get("afk"):
+        return
+    msg = meta.get("afk_message")
+    if isinstance(msg, str) and msg.strip():
+        card["afk_message"] = msg.strip()[:48]
+
+
 def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
     pub = {
         "id": meta["id"],
@@ -65,6 +91,7 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
                 pub["afk_for"] = max(0, int(time.monotonic() - since))
         except (TypeError, ValueError):
             pass
+        _attach_afk_message(pub, meta)
     return pub
 
 
@@ -105,6 +132,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
                 card["afk_for"] = max(0, int(time.monotonic() - since))
         except (TypeError, ValueError):
             pass
+        _attach_afk_message(card, meta)
     return card
 
 
@@ -249,6 +277,7 @@ class ConnectionManager:
                 "last_whisper_from_name": grace_whisper_name,
                 "afk": False,  # manual /afk — cleared on back / activity
                 "afk_since": None,  # monotonic when /afk set (for afk_for peeks)
+                "afk_message": None,  # optional status text while AFK
             }
             # Live again — drop any leftover grace bag
             self._soft_grace.pop(character_id, None)
@@ -340,6 +369,15 @@ class ConnectionManager:
     def online_ids(self) -> list[int]:
         return list(self._connections.keys())
 
+    def afk_count(self) -> int:
+        """How many live sockets currently have manual /afk set (multiplayer census)."""
+        n = 0
+        for cid in self._connections:
+            meta = self._meta.get(cid)
+            if meta and meta.get("afk"):
+                n += 1
+        return n
+
     def online_roster(self) -> list[dict[str, Any]]:
         """All online players as public cards; sorted by name then id for stable UI."""
         out: list[dict[str, Any]] = []
@@ -363,6 +401,7 @@ class ConnectionManager:
         return {
             "type": "online",
             "online": len(self._connections),
+            "afk_count": self.afk_count(),
             "roster": self.online_roster(),
             "zones": self.zone_counts(),
         }
@@ -450,6 +489,7 @@ class ConnectionManager:
         meta["last_seen"] = now
         meta["afk"] = False
         meta["afk_since"] = None
+        meta["afk_message"] = None
         return True, 0.0
 
     def set_level(self, character_id: int, level: int) -> None:
@@ -691,27 +731,45 @@ class ConnectionManager:
         meta["last_seen"] = now
         meta["afk"] = False
         meta["afk_since"] = None
+        meta["afk_message"] = None
         return True, 0.0
 
-    def set_afk(self, character_id: int, afk: bool) -> bool:
-        """Toggle manual AFK flag. Returns False if not online."""
+    def set_afk(
+        self,
+        character_id: int,
+        afk: bool,
+        message: str | None = None,
+    ) -> bool:
+        """Toggle manual AFK flag (+ optional status message). Returns False if not online.
+
+        message is applied when afk=True (None → clear reason; string → set/sanitize).
+        When afk=False, message is always cleared.
+        """
         meta = self._meta.get(character_id)
         if meta is None:
             return False
         now = time.monotonic()
+        was = bool(meta.get("afk"))
         meta["afk"] = bool(afk)
         if afk:
-            meta["afk_since"] = now
+            # Keep original afk_since when only updating the status message
+            if not was or meta.get("afk_since") is None:
+                meta["afk_since"] = now
+            if message is None:
+                meta["afk_message"] = None
+            else:
+                meta["afk_message"] = sanitize_afk_message(message)
         else:
             meta["afk_since"] = None
+            meta["afk_message"] = None
             meta["last_seen"] = now
         return True
 
     def mark_active(self, character_id: int) -> bool:
         """Clear AFK/idle stamps after real multiplayer activity (shop, use, equip).
 
-        Returns True if meta existed (online). Does not publish status — caller should
-        publish when peers need an AFK badge refresh.
+        Returns True if the player *was* AFK (so callers can publish_status).
+        Does not publish status — caller should publish when peers need a badge refresh.
         """
         meta = self._meta.get(character_id)
         if meta is None:
@@ -721,6 +779,7 @@ class ConnectionManager:
         was_afk = bool(meta.get("afk"))
         meta["afk"] = False
         meta["afk_since"] = None
+        meta["afk_message"] = None
         return was_afk
 
     def refund_chat(self, character_id: int) -> None:
@@ -761,6 +820,16 @@ class ConnectionManager:
         sid = me.get("session_id")
         if sid is not None:
             payload["session_id"] = sid
+        if payload["afk"]:
+            am = me.get("afk_message")
+            if isinstance(am, str) and am.strip():
+                payload["afk_message"] = am.strip()[:48]
+            try:
+                since = float(me.get("afk_since") or 0.0)
+                if since > 0:
+                    payload["afk_for"] = max(0, int(time.monotonic() - since))
+            except (TypeError, ValueError):
+                pass
         targets = set(self.ids_nearby(character_id)) | set(me.get("visible") or set())
         # Only live sockets (cached visible can hold ghosts briefly)
         targets = {oid for oid in targets if oid in self._connections}
