@@ -35,6 +35,7 @@ from game.world_manager import (
     map_payload,
     zone_at,
 )
+from network.handlers import session as session_handlers
 from network.handlers._common import (  # noqa: F401 — re-export for tests
     _afk_snap,
     _announce_combat_outcome,
@@ -102,108 +103,15 @@ async def handle_message(
     outbound: list[dict] = []
     connect_meta: dict | None = None
 
-    if msg_type == ClientMessageType.PING:
-        if character_id is not None:
-            manager.touch(character_id)
-        # Echo client timestamp for RTT; include server monotonic for diagnostics
-        import time as _time
-
-        client_t = data.get("t")
-        from config import PROCESS_STARTED_AT, VERSION as _VER
-
-        pong_body: dict[str, Any] = {
-            "t": client_t,
-            "server_t": _time.time(),
-            "online": len(manager.online_ids()),
-            "afk_count": manager.afk_count(),
-            "combat_count": manager.combat_count(),
-            "zones": manager.zone_counts(),
-            "version": _VER,
-            "uptime": max(0, int(_time.time() - PROCESS_STARTED_AT)),
-        }
-        if character_id is not None:
-            pong_body["nearby_count"] = len(manager.ids_nearby(character_id))
-            pong_body["nearby_afk"] = manager.nearby_afk_count(character_id)
-            pong_body["nearby_combat"] = manager.nearby_combat_count(character_id)
-            pong_body["session_id"] = manager.session_id(character_id)
-        outbound.append(msg(ServerMessageType.PONG, **pong_body))
-        if data.get("sync") or data.get("presence"):
-            if character_id is not None:
-                nearby = manager.nearby_players(character_id)
-                outbound.append(
-                    msg(
-                        ServerMessageType.WORLD_STATE,
-                        players=nearby,
-                        enemies=[],
-                        map=map_payload(),
-                        online=len(manager.online_ids()),
-                    )
-                )
-        return character_id, user_id, outbound, None
-
-    if msg_type == ClientMessageType.SYNC or msg_type == "sync":
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        # Repair AOI drift so peers re-appear after desync / reconnect storms
-        aoi_msgs = await manager.rebuild_aoi(character_id)
-        outbound.extend(aoi_msgs)
-        meta = manager.get_meta(character_id)
-        nearby = manager.nearby_players(character_id)
-        sync_zone = None
-        if meta is not None:
-            try:
-                sync_zone = zone_at(int(meta["x"]), int(meta["y"]))
-            except Exception:
-                sync_zone = None
-        nearby_list = nearby
-        ignores_snap = manager.ignore_list(character_id)
-        lw_id, lw_name = manager.last_whisper_from(character_id)
-        last_whisper = None
-        if lw_id is not None or lw_name:
-            last_whisper = {"id": lw_id, "name": lw_name}
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        you_blob = None
-        if meta is not None:
-            you_blob = {
-                "x": meta["x"],
-                "y": meta["y"],
-                "zone": sync_zone,
-                "session_id": manager.session_id(character_id),
-                "afk": bool(meta.get("afk")),
-                "idle": _idle_chk(meta),
-                "in_combat": bool(meta.get("in_combat")),
-            }
-            if you_blob["afk"]:
-                am = meta.get("afk_message")
-                if isinstance(am, str) and am.strip():
-                    you_blob["afk_message"] = am.strip()[:48]
-        outbound.append(
-            msg(
-                ServerMessageType.WORLD_STATE,
-                players=nearby_list,
-                enemies=[],
-                map=map_payload(),
-                online=len(manager.online_ids()),
-                afk_count=manager.afk_count(),
-                nearby_count=len(nearby_list),
-                nearby_afk=manager.nearby_afk_count(character_id),
-                nearby_combat=manager.nearby_combat_count(character_id),
-                zones=manager.zone_counts(),
-                roster=manager.online_roster(),
-                you=you_blob,
-                repel=manager.repel_remaining(character_id),
-                radiant=manager.radiant_remaining(character_id),
-                zone=sync_zone,
-                session_id=manager.session_id(character_id),
-                # Rehydrate multiplayer soft-state without full reconnect
-                ignores=ignores_snap,
-                last_whisper=last_whisper,
-            )
+    if msg_type in session_handlers.PING_TYPES or msg_type == ClientMessageType.PING:
+        return await session_handlers.handle_ping(
+            character_id, user_id, data, outbound
         )
-        return character_id, user_id, outbound, None
+
+    if msg_type in session_handlers.SYNC_TYPES:
+        return await session_handlers.handle_sync(
+            character_id, user_id, data, outbound
+        )
 
     if msg_type in (ClientMessageType.WHO, "who", "players", "online_list"):
         if character_id is None:
@@ -862,6 +770,7 @@ async def handle_message(
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
                     {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @pending — emote shortcuts"},
                     {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
+                    {"cmd": "lastshare", "hint": "/lastshare — last location share target"},
                     {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
                     {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @pending"},
                     {"cmd": "cancel", "hint": "/cancel · /uninvite — cancel your last invite"},
@@ -1061,6 +970,7 @@ async def handle_message(
         i_from_id, i_from_name = manager.last_invite_from(character_id)
         i_to_id, i_to_name = manager.last_invite_to(character_id)
         e_id, e_name = manager.last_emote_to(character_id)
+        s_id, s_name = manager.last_share_to(character_id)
         whisper = social_peer_card(manager, w_id, w_name, viewer_id=character_id)
         invite_from = social_peer_card(
             manager, i_from_id, i_from_name, viewer_id=character_id
@@ -1069,6 +979,7 @@ async def handle_message(
             manager, i_to_id, i_to_name, viewer_id=character_id
         )
         emote = social_peer_card(manager, e_id, e_name, viewer_id=character_id)
+        share = social_peer_card(manager, s_id, s_name, viewer_id=character_id)
         bits: list[str] = []
         if whisper:
             bits.append(f"/r → {whisper['name']}" + peer_status_suffix(whisper))
@@ -1082,6 +993,8 @@ async def handle_message(
             )
         if emote:
             bits.append(f"emote → {emote['name']}" + peer_status_suffix(emote))
+        if share:
+            bits.append(f"share → {share['name']}" + peer_status_suffix(share))
         outbound.append(
             msg(
                 "social",
@@ -1089,6 +1002,7 @@ async def handle_message(
                 invite_from=invite_from,
                 invite_to=invite_to,
                 emote=emote,
+                share=share,
                 has_any=bool(bits),
                 message=(
                     "Social · " + " · ".join(bits) if bits else "No social peers yet."
@@ -1116,6 +1030,29 @@ async def handle_message(
                 peer=peer,
                 online=online,
                 message=le_msg,
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Last location-share peer (multiplayer meetup /share) ---
+    if msg_type in ("lastshare", "last_share", "who_share", "share_last"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        lid, lname = manager.last_share_to(character_id)
+        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
+        online = bool(peer and peer.get("online"))
+        if peer:
+            ls_msg = f"Last share: {peer['name']}{peer_status_suffix(peer)}"
+        else:
+            ls_msg = "No location share yet."
+        outbound.append(
+            msg(
+                "lastshare",
+                peer=peer,
+                online=online,
+                message=ls_msg,
             )
         )
         return character_id, user_id, outbound, None
@@ -1331,9 +1268,11 @@ async def handle_message(
         live_name = tname
         notified = False
         muted_skip = False
+        peer_near: bool | None = None
         if tid in manager.online_ids():
             tmeta = manager.get_meta(tid)
             live_name = (tmeta or {}).get("name") or tname or "Hero"
+            peer_near = tid in set(manager.ids_nearby(character_id))
             # Only notify if invite is still pending from us
             # (prevents spam cancel after accept/decline)
             from_id, _ = manager.last_invite_from(tid)
@@ -1351,11 +1290,11 @@ async def handle_message(
                     sid_c = manager.session_id(character_id)
                     if sid_c is not None:
                         cancel_msg["session_id"] = sid_c
-                    await manager.send(tid, cancel_msg)
-                    notified = True
+                    # Honest notified flag — dead sockets must not claim success
+                    notified = bool(await manager.send(tid, cancel_msg))
                 else:
                     muted_skip = True
-                # still clear their pending pointer even if muted
+                # still clear their pending pointer even if muted / send failed
         # Always drop peer pointer (live + soft-grace) so offline guests
         # do not rehydrate a zombie invite after reconnect.
         manager.clear_invite_from_peer(tid, character_id)
@@ -1366,17 +1305,18 @@ async def handle_message(
             clear_msg = f"Cleared invite to {live_name} (they muted you)."
         else:
             clear_msg = f"Cleared invite to {live_name} (already answered or offline)."
-        outbound.append(
-            msg(
-                "invite_cancel",
-                action="cancel",
-                to=live_name,
-                to_id=tid,
-                notified=notified,
-                muted=muted_skip,
-                message=clear_msg,
-            )
-        )
+        cancel_echo: dict[str, Any] = {
+            "type": "invite_cancel",
+            "action": "cancel",
+            "to": live_name,
+            "to_id": tid,
+            "notified": notified,
+            "muted": muted_skip,
+            "message": clear_msg,
+        }
+        if peer_near is not None:
+            cancel_echo["nearby"] = peer_near
+        outbound.append(cancel_echo)
         if was_idle:
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
@@ -1508,6 +1448,7 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.note_whisper_from(character_id, target_id, tname)
         manager.note_whisper_from(target_id, character_id, name)
+        manager.note_share_to(character_id, target_id, tname)
         echo = dict(share_msg)
         echo["message"] = f"Location shared with {tname}."
         target_afk = bool((tmeta or {}).get("afk"))

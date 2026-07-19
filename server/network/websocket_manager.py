@@ -208,6 +208,8 @@ class ConnectionManager:
         last_name = meta.get("last_whisper_from_name")
         last_emote_id = meta.get("last_emote_to_id")
         last_emote_name = meta.get("last_emote_to_name")
+        last_share_id = meta.get("last_share_to_id")
+        last_share_name = meta.get("last_share_to_name")
         last_invite_id = meta.get("last_invite_from_id")
         last_invite_name = meta.get("last_invite_from_name")
         last_invite_to_id = meta.get("last_invite_to_id")
@@ -218,6 +220,7 @@ class ConnectionManager:
             and not ignore
             and not last_from
             and not last_emote_id
+            and not last_share_id
             and not last_invite_id
             and not last_invite_to_id
         ):
@@ -232,6 +235,8 @@ class ConnectionManager:
             "last_whisper_from_name": last_name,
             "last_emote_to_id": last_emote_id,
             "last_emote_to_name": last_emote_name,
+            "last_share_to_id": last_share_id,
+            "last_share_to_name": last_share_name,
             "last_invite_from_id": last_invite_id,
             "last_invite_from_name": last_invite_name,
             "last_invite_to_id": last_invite_to_id,
@@ -265,6 +270,8 @@ class ConnectionManager:
                 grace_whisper_name = old_meta.get("last_whisper_from_name")
                 grace_emote_id = old_meta.get("last_emote_to_id")
                 grace_emote_name = old_meta.get("last_emote_to_name")
+                grace_share_id = old_meta.get("last_share_to_id")
+                grace_share_name = old_meta.get("last_share_to_name")
                 grace_invite_id = old_meta.get("last_invite_from_id")
                 grace_invite_name = old_meta.get("last_invite_from_name")
                 grace_invite_to_id = old_meta.get("last_invite_to_id")
@@ -279,6 +286,8 @@ class ConnectionManager:
                 grace_whisper_name = bag.get("last_whisper_from_name")
                 grace_emote_id = bag.get("last_emote_to_id")
                 grace_emote_name = bag.get("last_emote_to_name")
+                grace_share_id = bag.get("last_share_to_id")
+                grace_share_name = bag.get("last_share_to_name")
                 grace_invite_id = bag.get("last_invite_from_id")
                 grace_invite_name = bag.get("last_invite_from_name")
                 grace_invite_to_id = bag.get("last_invite_to_id")
@@ -337,6 +346,8 @@ class ConnectionManager:
                 "last_whisper_from_name": grace_whisper_name,
                 "last_emote_to_id": grace_emote_id,
                 "last_emote_to_name": grace_emote_name,
+                "last_share_to_id": grace_share_id,
+                "last_share_to_name": grace_share_name,
                 "last_invite_from_id": grace_invite_id,
                 "last_invite_from_name": grace_invite_name,
                 "last_invite_to_id": grace_invite_to_id,
@@ -874,6 +885,41 @@ class ConnectionManager:
         if target_name:
             meta["last_emote_to_name"] = str(target_name)[:24]
 
+    def last_emote_to(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_emote_to_id")
+        name = meta.get("last_emote_to_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
+    def note_share_to(
+        self, speaker_id: int, target_id: int, target_name: str | None = None
+    ) -> None:
+        """Remember last location-share target for /lastshare after reconnect."""
+        meta = self._meta.get(speaker_id)
+        if meta is None:
+            return
+        meta["last_share_to_id"] = int(target_id)
+        if target_name:
+            meta["last_share_to_name"] = str(target_name)[:24]
+
+    def last_share_to(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_share_to_id")
+        name = meta.get("last_share_to_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
     def note_invite_from(
         self, listener_id: int, inviter_id: int, inviter_name: str | None = None
     ) -> int | None:
@@ -1022,18 +1068,6 @@ class ConnectionManager:
             return
         meta["last_invite_to_id"] = None
         meta["last_invite_to_name"] = None
-
-    def last_emote_to(self, character_id: int) -> tuple[int | None, str | None]:
-        meta = self._meta.get(character_id)
-        if meta is None:
-            return None, None
-        lid = meta.get("last_emote_to_id")
-        name = meta.get("last_emote_to_name")
-        try:
-            lid_i = int(lid) if lid is not None else None
-        except (TypeError, ValueError):
-            lid_i = None
-        return lid_i, str(name) if name else None
 
     def allow_chat(self, character_id: int) -> tuple[bool, float]:
         """Rate-limit chat. Returns (allowed, retry_after_seconds)."""

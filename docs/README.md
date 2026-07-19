@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.113** (2026-07-19) · suite **570** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · far wave reliability · `/last` near/far
+**Last docs refresh:** **v0.5.114** (2026-07-19) · suite **576** tests · lastshare · cancel notify honesty · session extract
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
