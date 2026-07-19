@@ -1303,14 +1303,36 @@ async def handle_message(
                 "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
             }
             if pmeta is not None:
+                from network.websocket_manager import _zone_of
+
                 psid = pmeta.get("session_id")
                 if psid is not None:
                     card["session_id"] = psid
+                # Zone / combat help meetup reliability without leaking coords
+                z = _zone_of(pmeta)
+                if isinstance(z, str) and z:
+                    card["zone"] = z
+                if pmeta.get("in_combat"):
+                    card["in_combat"] = True
                 if card["afk"]:
                     pam = pmeta.get("afk_message")
                     if isinstance(pam, str) and pam.strip():
                         card["afk_message"] = pam.strip()[:48]
             return card
+
+        def _peer_status_suffix(blob: dict | None) -> str:
+            if not blob:
+                return ""
+            if not blob.get("online"):
+                return " (off)"
+            bits_s: list[str] = []
+            if blob.get("zone"):
+                bits_s.append(str(blob["zone"]))
+            if blob.get("afk"):
+                bits_s.append("afk")
+            if blob.get("in_combat"):
+                bits_s.append("fight")
+            return (" [" + ",".join(bits_s) + "]") if bits_s else " ✓"
 
         w_id, w_name = manager.last_whisper_from(character_id)
         i_from_id, i_from_name = manager.last_invite_from(character_id)
@@ -1322,25 +1344,17 @@ async def handle_message(
         emote = _peer_blob(e_id, e_name)
         bits: list[str] = []
         if whisper:
-            bits.append(
-                f"/r → {whisper['name']}"
-                + (" ✓" if whisper.get("online") else " (off)")
-            )
+            bits.append(f"/r → {whisper['name']}" + _peer_status_suffix(whisper))
         if invite_from:
             bits.append(
-                f"invite from {invite_from['name']}"
-                + (" ✓" if invite_from.get("online") else " (off)")
+                f"invite from {invite_from['name']}" + _peer_status_suffix(invite_from)
             )
         if invite_to:
             bits.append(
-                f"invite to {invite_to['name']}"
-                + (" ✓" if invite_to.get("online") else " (off)")
+                f"invite to {invite_to['name']}" + _peer_status_suffix(invite_to)
             )
         if emote:
-            bits.append(
-                f"emote → {emote['name']}"
-                + (" ✓" if emote.get("online") else " (off)")
-            )
+            bits.append(f"emote → {emote['name']}" + _peer_status_suffix(emote))
         outbound.append(
             msg(
                 "social",
@@ -2166,6 +2180,8 @@ async def handle_message(
         online = False
         peer_afk = False
         if lid is not None:
+            from network.websocket_manager import _zone_of
+
             online = manager.is_online(lid)
             pmeta = manager.get_meta(lid) if online else None
             peer_afk = bool(pmeta.get("afk")) if pmeta else False
@@ -2175,24 +2191,42 @@ async def handle_message(
                 "online": online,
                 "afk": peer_afk,
             }
-            psid = (pmeta or {}).get("session_id") if pmeta else None
-            if psid is not None:
-                peer["session_id"] = psid
-            if peer_afk and pmeta is not None:
-                pam = pmeta.get("afk_message")
-                if isinstance(pam, str) and pam.strip():
-                    peer["afk_message"] = pam.strip()[:48]
+            if pmeta is not None:
+                psid = pmeta.get("session_id")
+                if psid is not None:
+                    peer["session_id"] = psid
+                z = _zone_of(pmeta)
+                if isinstance(z, str) and z:
+                    peer["zone"] = z
+                if pmeta.get("in_combat"):
+                    peer["in_combat"] = True
+                if peer_afk:
+                    pam = pmeta.get("afk_message")
+                    if isinstance(pam, str) and pam.strip():
+                        peer["afk_message"] = pam.strip()[:48]
+        if peer:
+            status_bits: list[str] = []
+            if not online:
+                status = " (offline)"
+            else:
+                if peer.get("zone"):
+                    status_bits.append(str(peer["zone"]))
+                if peer_afk:
+                    status_bits.append("afk")
+                if peer.get("in_combat"):
+                    status_bits.append("fight")
+                status = (
+                    f" [{','.join(status_bits)}]" if status_bits else " (online)"
+                )
+            li_msg = f"Last invite from: {peer['name']}{status}"
+        else:
+            li_msg = "No meetup invite yet."
         outbound.append(
             msg(
                 "lastinvite",
                 peer=peer,
                 online=online,
-                message=(
-                    f"Last invite from: {peer['name']}"
-                    + (" (online)" if online else " (offline)" if peer else "")
-                    if peer
-                    else "No meetup invite yet."
-                ),
+                message=li_msg,
             )
         )
         return character_id, user_id, outbound, None
@@ -2207,6 +2241,8 @@ async def handle_message(
         def _peer_card(pid: int | None, pname: str | None) -> dict | None:
             if pid is None:
                 return None
+            from network.websocket_manager import _zone_of
+
             online = manager.is_online(pid)
             pmeta = manager.get_meta(pid) if online else None
             card = {
@@ -2219,11 +2255,30 @@ async def handle_message(
                 psid = pmeta.get("session_id")
                 if psid is not None:
                     card["session_id"] = psid
+                z = _zone_of(pmeta)
+                if isinstance(z, str) and z:
+                    card["zone"] = z
+                if pmeta.get("in_combat"):
+                    card["in_combat"] = True
                 if card["afk"]:
                     pam = pmeta.get("afk_message")
                     if isinstance(pam, str) and pam.strip():
                         card["afk_message"] = pam.strip()[:48]
             return card
+
+        def _pending_suffix(blob: dict | None) -> str:
+            if not blob:
+                return ""
+            if not blob.get("online"):
+                return " (offline)"
+            bits_s: list[str] = []
+            if blob.get("zone"):
+                bits_s.append(str(blob["zone"]))
+            if blob.get("afk"):
+                bits_s.append("afk")
+            if blob.get("in_combat"):
+                bits_s.append("fight")
+            return f" [{','.join(bits_s)}]" if bits_s else " (online)"
 
         from_id, from_name = manager.last_invite_from(character_id)
         to_id, to_name = manager.last_invite_to(character_id)
@@ -2231,15 +2286,9 @@ async def handle_message(
         outgoing = _peer_card(to_id, to_name)
         bits: list[str] = []
         if incoming:
-            bits.append(
-                f"from {incoming['name']}"
-                + (" (online)" if incoming.get("online") else " (offline)")
-            )
+            bits.append(f"from {incoming['name']}" + _pending_suffix(incoming))
         if outgoing:
-            bits.append(
-                f"to {outgoing['name']}"
-                + (" (online)" if outgoing.get("online") else " (offline)")
-            )
+            bits.append(f"to {outgoing['name']}" + _pending_suffix(outgoing))
         if bits:
             message = "Pending meetup · " + " · ".join(bits)
         else:
@@ -2766,46 +2815,69 @@ async def handle_message(
         combat_f = data.get("combat")
         if combat_f is None:
             combat_f = data.get("fighting")
-        # Pull zone:/in:, afk:, idle:, combat: tokens from free text (order-independent)
+        # Pull ALL zone:/in:, afk:, idle:, combat: tokens from free text.
+        # Loop until none remain — leftover tokens used to become a name prefix
+        # (e.g. "zone:town zone:field" → 0 hits). Last token of each kind wins.
         if isinstance(q_clean, str) and q_clean:
-            m_zone = re.search(r"(?:^|\s)(?:zone|in):(\w+)\b", q_clean, flags=re.I)
-            if m_zone:
-                zone_f = m_zone.group(1)
-                q_clean = (q_clean[: m_zone.start()] + q_clean[m_zone.end() :]).strip()
-            m_afk = re.search(r"(?:^|\s)afk:(\w+)\b", q_clean, flags=re.I)
-            if m_afk:
-                tok = m_afk.group(1).lower()
-                if tok not in ("yes", "no", "1", "0", "true", "false"):
-                    outbound.append(
-                        msg(ServerMessageType.ERROR, reason="invalid afk filter")
-                    )
-                    return character_id, user_id, outbound, None
-                afk_f = tok in ("yes", "1", "true")
-                q_clean = (q_clean[: m_afk.start()] + q_clean[m_afk.end() :]).strip()
-            m_idle = re.search(r"(?:^|\s)idle:(\w+)\b", q_clean, flags=re.I)
-            if m_idle:
-                tok = m_idle.group(1).lower()
-                if tok not in ("yes", "no", "1", "0", "true", "false"):
-                    outbound.append(
-                        msg(ServerMessageType.ERROR, reason="invalid idle filter")
-                    )
-                    return character_id, user_id, outbound, None
-                idle_f = tok in ("yes", "1", "true")
-                q_clean = (q_clean[: m_idle.start()] + q_clean[m_idle.end() :]).strip()
-            m_combat = re.search(
-                r"(?:^|\s)(?:combat|fighting):(\w+)\b", q_clean, flags=re.I
-            )
-            if m_combat:
-                tok = m_combat.group(1).lower()
-                if tok not in ("yes", "no", "1", "0", "true", "false"):
-                    outbound.append(
-                        msg(ServerMessageType.ERROR, reason="invalid combat filter")
-                    )
-                    return character_id, user_id, outbound, None
-                combat_f = tok in ("yes", "1", "true")
-                q_clean = (
-                    q_clean[: m_combat.start()] + q_clean[m_combat.end() :]
-                ).strip()
+            for _ in range(12):  # hard cap; filters are tiny
+                progressed = False
+                m_zone = re.search(
+                    r"(?:^|\s)(?:zone|in):(\w+)\b", q_clean, flags=re.I
+                )
+                if m_zone:
+                    zone_f = m_zone.group(1)
+                    q_clean = (
+                        q_clean[: m_zone.start()] + q_clean[m_zone.end() :]
+                    ).strip()
+                    progressed = True
+                m_afk = re.search(r"(?:^|\s)afk:(\w+)\b", q_clean, flags=re.I)
+                if m_afk:
+                    tok = m_afk.group(1).lower()
+                    if tok not in ("yes", "no", "1", "0", "true", "false"):
+                        outbound.append(
+                            msg(ServerMessageType.ERROR, reason="invalid afk filter")
+                        )
+                        return character_id, user_id, outbound, None
+                    afk_f = tok in ("yes", "1", "true")
+                    q_clean = (
+                        q_clean[: m_afk.start()] + q_clean[m_afk.end() :]
+                    ).strip()
+                    progressed = True
+                m_idle = re.search(r"(?:^|\s)idle:(\w+)\b", q_clean, flags=re.I)
+                if m_idle:
+                    tok = m_idle.group(1).lower()
+                    if tok not in ("yes", "no", "1", "0", "true", "false"):
+                        outbound.append(
+                            msg(ServerMessageType.ERROR, reason="invalid idle filter")
+                        )
+                        return character_id, user_id, outbound, None
+                    idle_f = tok in ("yes", "1", "true")
+                    q_clean = (
+                        q_clean[: m_idle.start()] + q_clean[m_idle.end() :]
+                    ).strip()
+                    progressed = True
+                m_combat = re.search(
+                    r"(?:^|\s)(?:combat|fighting):(\w+)\b", q_clean, flags=re.I
+                )
+                if m_combat:
+                    tok = m_combat.group(1).lower()
+                    if tok not in ("yes", "no", "1", "0", "true", "false"):
+                        outbound.append(
+                            msg(
+                                ServerMessageType.ERROR,
+                                reason="invalid combat filter",
+                            )
+                        )
+                        return character_id, user_id, outbound, None
+                    combat_f = tok in ("yes", "1", "true")
+                    q_clean = (
+                        q_clean[: m_combat.start()] + q_clean[m_combat.end() :]
+                    ).strip()
+                    progressed = True
+                if not progressed:
+                    break
+            # Collapse whitespace after multi-strip
+            q_clean = re.sub(r"\s+", " ", q_clean).strip()
             # Bare "afk" / "away" as whole residual query
             if q_clean.lower() in ("afk", "away"):
                 afk_f = True
@@ -2881,21 +2953,37 @@ async def handle_message(
                 return character_id, user_id, outbound, None
             card = _online_card(pmeta)
             # Apply optional filters to the single peer
+            peer_name = str(card.get("name") or lname or "Hero")
+            peer_zone = card.get("zone") if isinstance(card.get("zone"), str) else None
+            filtered_out = False
+            filter_why: str | None = None
             if zone_f and card.get("zone") != zone_f:
                 hits = []
+                filtered_out = True
+                filter_why = f"zone:{zone_f}"
             elif afk_filter is not None and bool(card.get("afk")) is not bool(afk_filter):
                 hits = []
+                filtered_out = True
+                filter_why = "afk:" + ("yes" if afk_filter else "no")
             elif idle_filter is not None and bool(card.get("idle")) is not bool(
                 idle_filter
             ):
                 hits = []
+                filtered_out = True
+                filter_why = "idle:" + ("yes" if idle_filter else "no")
             elif combat_filter is not None and bool(card.get("in_combat")) is not bool(
                 combat_filter
             ):
                 hits = []
+                filtered_out = True
+                filter_why = "combat:" + ("yes" if combat_filter else "no")
             else:
                 hits = [card]
-            q_clean = f"@{social_q}" if social_q == "pending" else "@last"
+            q_clean = (
+                "@pending"
+                if social_q == "pending"
+                else ("@last" if social_q == "last" else f"@{social_q}")
+            )
         else:
             hits = manager.find_by_prefix(
                 q_clean,
@@ -2905,6 +2993,18 @@ async def handle_message(
                 idle=idle_filter,
                 combat=combat_filter,
             )
+            # Tag self so clients can highlight "you" without dropping self-hits
+            if character_id is not None and hits:
+                for card in hits:
+                    try:
+                        if int(card.get("id") or 0) == int(character_id):
+                            card["you"] = True
+                    except (TypeError, ValueError):
+                        continue
+            filtered_out = False
+            filter_why = None
+            peer_name = None
+            peer_zone = None
         bits: list[str] = []
         if q_clean:
             bits.append(q_clean[:24])
@@ -2922,6 +3022,20 @@ async def handle_message(
             bits.append("combat:yes")
         elif combat_filter is False:
             bits.append("combat:no")
+        find_msg_extra: dict = {}
+        if filtered_out and peer_name:
+            find_msg_extra["filtered"] = True
+            find_msg_extra["filtered_peer"] = peer_name
+            if filter_why:
+                find_msg_extra["filter"] = filter_why
+            if peer_zone:
+                find_msg_extra["peer_zone"] = peer_zone
+            # Human-readable hint so clients don't show a blank "0 matches"
+            where = f" in {peer_zone}" if peer_zone else ""
+            find_msg_extra["message"] = (
+                f"{peer_name} online{where} but filtered out"
+                f" ({filter_why or 'filter'})"
+            )
         outbound.append(
             msg(
                 ServerMessageType.FIND,
@@ -2936,6 +3050,7 @@ async def handle_message(
                 combat_count=manager.combat_count(),
                 count=len(hits),
                 zones=manager.zone_counts(),
+                **find_msg_extra,
             )
         )
         return character_id, user_id, outbound, None

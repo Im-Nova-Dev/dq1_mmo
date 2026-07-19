@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.107` (`server/config.py` → `VERSION`) · **525** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.110` (`server/config.py` → `VERSION`) · **547** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.107** / **525** until the suite or `VERSION` changes.  
-Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.107** uncommitted.  
+Keep badges at **0.5.110** / **547** until the suite or `VERSION` changes.  
+Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.110** uncommitted.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.107 / 472** · soft-grace invite hygiene · protocol / reliability / test matrix **only** in this file.
+Docs pass (**this run**): badges **0.5.110 / 547** · pending/lastinvite zone · find `you` · social-find filters · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -436,9 +436,13 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 229. Tests: `test_adversarial_hunt_v05105`.
 230. **Look / ignore / unignore** resolve `@pending`/`@last` via `_social_alias` (online peers only).
 231. Tests: `test_features_v05106` + `test_mp_reliability_v05106`.
-232. **`social`/`peers`:** rate-exempt summary of whisper, invite_from/to, last emote peers.
+232. **`social`/`peers`:** rate-exempt summary of whisper, invite_from/to, last emote peers; online peers include **`zone`** / **`in_combat`** (no coords); message shows `[town,afk,fight]` badges.
 233. **`find`:** query `@pending`/`@last`/`@invite` resolves social peer → single online card (or error).
-234. Tests: `test_features_v05107` + `test_mp_reliability_v05107`.
+234. **Social find + filters:** when `@pending`/`@last` peer is online but zone/afk/idle/combat filter excludes them, FIND returns `count=0` with `filtered=true`, `filtered_peer`, `filter`, optional `peer_zone`, and `message` (never a silent empty roster).
+235. **`pending` / `lastinvite`:** online peers include **`zone`** / **`in_combat`** (no coords); offline omits zone; messages use `[town,afk,fight]` badges.
+236. **`find` prefix hits:** cards for the requesting character get **`you: true`** (self still counted).
+237. **`find` free-text filters:** strip **all** `zone:/afk:/idle:/combat:` tokens in a loop (last wins); never leave residual tokens as a name prefix.
+238. Tests: `test_features_v05107`–`v05110` + `test_mp_reliability_v05107`–`v05109` + `test_adversarial_hunt_v05110`.
 
 ## Tests (mandatory for your changes)
 
@@ -528,7 +532,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0585` | near unauth; played afk_message; version afk_count |
 | `tests.test_features_v0586` | health/pong afk_count; stuck-home clears AFK; password change; sync |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
-| `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
+| `tests.test_mp_reliability_v0547` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
 | `tests.test_features_v0543` | /zone, fairy water repel, wings zone, full_plate/silver_shield shop |

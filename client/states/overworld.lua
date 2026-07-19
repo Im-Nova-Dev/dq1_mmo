@@ -369,7 +369,19 @@ local function bind_handlers(self)
     local players = data.players or {}
     local n = #players
     if n == 0 then
-      UI.toast("No online match for " .. tostring(data.query or "?"), "info")
+      -- Social find (@pending/@last) may filter out a known online peer
+      if data.filtered and data.message then
+        UI.toast(tostring(data.message), "info")
+      elseif data.filtered and data.filtered_peer then
+        local why = data.filter and (" (" .. tostring(data.filter) .. ")") or ""
+        local where = data.peer_zone and (" in " .. tostring(data.peer_zone)) or ""
+        UI.toast(
+          tostring(data.filtered_peer) .. " online" .. where .. " but filtered out" .. why,
+          "info"
+        )
+      else
+        UI.toast("No online match for " .. tostring(data.query or "?"), "info")
+      end
       return
     end
     local names = {}
@@ -378,6 +390,9 @@ local function bind_handlers(self)
       local bit = string.format("%s Lv%d", tostring(p.name or "?"), tonumber(p.level) or 1)
       if p.zone then
         bit = bit .. " [" .. tostring(p.zone) .. "]"
+      end
+      if p.you then
+        bit = bit .. " (you)"
       end
       names[#names + 1] = bit
     end
