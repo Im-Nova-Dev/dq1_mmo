@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.118</b> · <b>601</b> tests green · meetup · two-way share · <code>@share</code> · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.118</b> · <b>601</b> tests green · meetup · <code>@share</code> · <code>@from</code> · soft reconnect · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -68,13 +68,13 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · near/far · thanks · AFK · soft reconnect.
+  Server-side 1v1 · shop · whisper · meetup · <code>@share</code> / <code>@from</code> · soft reconnect · AFK.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/social-invite_·_@share_·_near%2Ffar-8b5cf6?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_near%2Ffar-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
@@ -187,31 +187,34 @@ flowchart LR
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-meetup_·_@share_·_shop-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-meetup_·_reconnect_·_shop-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.118** — reconnect restores share · **601** tests |
+| | **v0.5.118** — soft reconnect keeps share friends · **601** tests |
 |:--|:--|
-| 🔄 | Brief disconnects restore **who you shared with** and **who shared with you** |
-| 🧩 | Who / near / zone / fighting peeks live in a dedicated module |
-| 💬 | Sync refreshes share peers for multiplayer UI |
-| 📍 | `@from` / two-way share (v0.5.116–117) still green |
+| 🔄 | Drop for a moment? **Who you shared with** and **who shared with you** come back with you |
+| 🙏 | After someone shares their spot: **`/thank @from`** (they use **`@share`** the other way) |
+| 📍 | **`/lastshare`** shows both directions · near/far badges · no map radar on lists |
+| 🤝 | Meetup invite / cancel / accept loop still solid |
 | ✅ | **601** automated tests green |
 
 ```mermaid
-flowchart LR
-  A["/share Hero"] --> B["They see your zone + spot"]
-  B --> C["/thank @share"]
-  B --> D["/w @share hi"]
-  B --> E["/invite @share"]
-  C --> F[Meetup continues]
-  D --> F
-  E --> F
+flowchart TB
+  subgraph you ["You shared with them"]
+    A["/share Hero"] --> B["They see zone + spot"]
+    B --> C["You: /thank @share · /w @share"]
+  end
+  subgraph them ["They shared with you"]
+    D["Hero /share you"] --> E["You see their spot"]
+    E --> F["You: /thank @from · /w @from"]
+  end
+  C --> G[Keep meeting up]
+  F --> G
 ```
 
 > [!TIP]
-> **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/thank @share`** or **`@last`** · **`/poke Hero`** · they **`/accept`** · **`/r`** · **`/cancel`** if plans change.  
+> **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/thank @share`** (or **`@from`** if they shared first) · **`/poke`** · **`/accept`** · **`/r`** · **`/cancel`**.  
 > **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
 
 > [!IMPORTANT]
@@ -226,9 +229,9 @@ flowchart LR
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.118** | Soft reconnect restores share peers · presence peeks module · **601** tests |
-| **0.5.117** | `@from` after someone shares with you · social peeks extract · **595** tests |
-| **0.5.116** | Bidirectional share memory · recipient `@share` · **589** tests |
+| **0.5.118** | Soft reconnect keeps share friends · **601** tests |
+| **0.5.117** | `@from` after someone shares with you · **595** tests |
+| **0.5.116** | Two-way share memory · **589** tests |
 | **0.5.115** | `@share` after you share location · **583** tests |
 | **0.5.114** | `/lastshare` · cancel only counts when delivered · **576** tests |
 | **0.5.113** | Far `/wave` reliability · `/last` near/far · **570** tests |
@@ -321,7 +324,7 @@ flowchart LR
 |:--|:--|
 | 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · **`/roll`** |
 | 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share` · `/lastshare` · `/askwhere` · `/thank` · `/poke`** — social (not a party) |
-| 📍 | After a share: **`@share`** on thank · whisper · invite · find (needs the **@**) |
+| 📍 | **`@share`** = who *you* shared with · **`@from`** = who shared *with you* (needs the **@**) |
 | 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · **`/fighting`** |
 | 🔍 | **`/find`** · **`/find combat:yes`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** |
@@ -471,8 +474,9 @@ python tests/run_tests.py
 | **/accept** · **/coming** · **/decline** · **/later** | Answer a meetup invite |
 | **/cancel** · **/uninvite** | Take back your last invite |
 | **/share Name** · **/share @last** | Privately share your zone + position |
-| **/lastshare** | Who you last shared with (near/far) |
-| **/thank @share** · **/w @share** · **/invite @share** | Reuse last share peer (needs **@**) |
+| **/lastshare** | Who you shared with **and** who shared with you (near/far) |
+| **/thank @share** · **/w @share** | Reuse who *you* last shared with (**@** required) |
+| **/thank @from** · **/w @from** | Reuse who last shared *with you* (**@** required) |
 | **/askwhere Name** · **/locate @last** | Ask where they are — they can **/share @last** |
 | **/thank Name** · **/ty @last** | Private thanks (handy after a share) |
 | **/poke Name** · **/nudge @last** | Private “trying to get your attention” |

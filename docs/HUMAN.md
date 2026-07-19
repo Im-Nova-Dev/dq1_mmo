@@ -35,9 +35,9 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · yell · whisper · `/r` · invite / cancel / pending · **share** · **`/lastshare`** · **`@share`** (thank / whisper / invite / find after a share) · askwhere · thank · poke · accept / decline · fighting · wave · lastemote · social (near/far) · emotes · roll · look · find · who |
-| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
-| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
+| **Social** | Global · nearby · zone · yell · whisper · `/r` · invite / cancel / pending · **share** · **`/lastshare`** · **`@share`** (you shared with them) · **`@from`** (they shared with you) · askwhere · thank · poke · accept / decline · fighting · wave · lastemote · social (near/far) · emotes · roll · look · find · who |
+| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat · zone population |
+| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect (mute list · last whisper · **share partners** · buffs) · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 

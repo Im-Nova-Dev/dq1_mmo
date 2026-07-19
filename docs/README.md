@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.118** (2026-07-19) · suite **601** tests · presence peeks · soft reconnect share peers
+**Last docs refresh:** **v0.5.118** (2026-07-19) · suite **601** tests · ship `b8475cb` · README @share/@from mermaid · plain-language soft reconnect
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
