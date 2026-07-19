@@ -541,6 +541,10 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "No directed emote target yet."), "info")
   end)
 
+  Network.on("lastshare", function(data)
+    UI.toast(tostring(data.message or "No location share yet."), "info")
+  end)
+
   Network.on("invite", function(data)
     local line = data.message
     if not line or line == "" then
@@ -1344,6 +1348,8 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]away%s+back%s*$")
           or text:match("^[/%!]busy%s+back%s*$")
         local wants_lastemote = text:match("^[/%!]lastemote%s*$")
+        local wants_lastshare = text:match("^[/%!]lastshare%s*$")
+          or text:match("^[/%!]last_share%s*$")
           or text:match("^[/%!]last_emote%s*$")
           or text:match("^[/%!]emote_last%s*$")
         local invite_tgt = text:match("^[/%!]invite%s+(%S+)$")
@@ -1564,6 +1570,12 @@ function Overworld:keypressed(key)
             Network.lastemote()
           else
             Network.send({ type = "lastemote" })
+          end
+        elseif wants_lastshare then
+          if Network.lastshare then
+            Network.lastshare()
+          else
+            Network.send({ type = "lastshare" })
           end
         elseif wants_lastinvite then
           if Network.lastinvite then

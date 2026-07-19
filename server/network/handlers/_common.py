@@ -105,7 +105,10 @@ def _resolve_social_peer(
             return None, None, "no pending invite"
         return lid, lname, None
     if mode == "share":
+        # Prefer who you shared TO; else who last shared WITH you (recipient)
         lid, lname = manager_obj.last_share_to(character_id)
+        if lid is None:
+            lid, lname = manager_obj.last_share_from(character_id)
         if lid is None:
             return None, None, "no share target"
         return lid, lname, None

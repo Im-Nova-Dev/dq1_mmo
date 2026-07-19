@@ -771,7 +771,7 @@ async def handle_message(
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
                     {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @pending — emote shortcuts"},
                     {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
-                    {"cmd": "lastshare", "hint": "/lastshare — last location share target"},
+                    {"cmd": "lastshare", "hint": "/lastshare — last share to + from (near/far)"},
                     {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
                     {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @share · /invite @pending"},
                     {"cmd": "cancel", "hint": "/cancel · /uninvite — cancel your last invite"},
@@ -972,6 +972,7 @@ async def handle_message(
         i_to_id, i_to_name = manager.last_invite_to(character_id)
         e_id, e_name = manager.last_emote_to(character_id)
         s_id, s_name = manager.last_share_to(character_id)
+        sf_id, sf_name = manager.last_share_from(character_id)
         whisper = social_peer_card(manager, w_id, w_name, viewer_id=character_id)
         invite_from = social_peer_card(
             manager, i_from_id, i_from_name, viewer_id=character_id
@@ -981,6 +982,9 @@ async def handle_message(
         )
         emote = social_peer_card(manager, e_id, e_name, viewer_id=character_id)
         share = social_peer_card(manager, s_id, s_name, viewer_id=character_id)
+        share_from = social_peer_card(
+            manager, sf_id, sf_name, viewer_id=character_id
+        )
         bits: list[str] = []
         if whisper:
             bits.append(f"/r → {whisper['name']}" + peer_status_suffix(whisper))
@@ -996,6 +1000,10 @@ async def handle_message(
             bits.append(f"emote → {emote['name']}" + peer_status_suffix(emote))
         if share:
             bits.append(f"share → {share['name']}" + peer_status_suffix(share))
+        if share_from:
+            bits.append(
+                f"share from {share_from['name']}" + peer_status_suffix(share_from)
+            )
         outbound.append(
             msg(
                 "social",
@@ -1004,6 +1012,7 @@ async def handle_message(
                 invite_to=invite_to,
                 emote=emote,
                 share=share,
+                share_from=share_from,
                 has_any=bool(bits),
                 message=(
                     "Social · " + " · ".join(bits) if bits else "No social peers yet."
@@ -1035,27 +1044,44 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # --- Last location-share peer (multiplayer meetup /share) ---
+    # --- Last location-share peers (outgoing + incoming, multiplayer meetup) ---
     if msg_type in ("lastshare", "last_share", "who_share", "share_last"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         manager.touch(character_id)
-        lid, lname = manager.last_share_to(character_id)
-        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
-        online = bool(peer and peer.get("online"))
-        if peer:
-            ls_msg = f"Last share: {peer['name']}{peer_status_suffix(peer)}"
+        to_id, to_name = manager.last_share_to(character_id)
+        from_id, from_name = manager.last_share_from(character_id)
+        to_peer = social_peer_card(manager, to_id, to_name, viewer_id=character_id)
+        from_peer = social_peer_card(
+            manager, from_id, from_name, viewer_id=character_id
+        )
+        bits_ls: list[str] = []
+        if to_peer:
+            bits_ls.append(f"to {to_peer['name']}" + peer_status_suffix(to_peer))
+        if from_peer:
+            bits_ls.append(
+                f"from {from_peer['name']}" + peer_status_suffix(from_peer)
+            )
+        if bits_ls:
+            ls_msg = "Last share · " + " · ".join(bits_ls)
         else:
             ls_msg = "No location share yet."
-        outbound.append(
-            msg(
-                "lastshare",
-                peer=peer,
-                online=online,
-                message=ls_msg,
-            )
-        )
+        # Back-compat: peer = outgoing (to), then incoming (from)
+        peer = to_peer or from_peer
+        online = bool(peer and peer.get("online"))
+        ls_body: dict[str, Any] = {
+            "type": "lastshare",
+            "peer": peer,
+            "to": to_peer,
+            "from": from_peer,
+            "from_peer": from_peer,
+            "online": online,
+            "has_to": to_peer is not None,
+            "has_from": from_peer is not None,
+            "message": ls_msg,
+        }
+        outbound.append(ls_body)
         return character_id, user_id, outbound, None
 
     # --- Meetup invite (lightweight multiplayer social — not a party) ---
@@ -1452,6 +1478,8 @@ async def handle_message(
         manager.note_whisper_from(character_id, target_id, tname)
         manager.note_whisper_from(target_id, character_id, name)
         manager.note_share_to(character_id, target_id, tname)
+        # Recipient remembers sharer for /thank @share · /lastshare after reconnect
+        manager.note_share_from(target_id, character_id, name)
         echo = dict(share_msg)
         echo["message"] = f"Location shared with {tname}."
         target_afk = bool((tmeta or {}).get("afk"))
