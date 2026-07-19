@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.132-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-683-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.133-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-688-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.132 · **683** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.133 · **688** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.132):** **`/afk`**, **`/busy`**, and **`/back`** confirm with zone and nearby counts · help/keys/motd still show room census · **683** tests.
+**Recent for players/ops (v0.5.133):** **`/stuck`** / **`/home`** confirm with online and nearby counts · **`/quit`** farewell may note your zone · AFK confirms still carry room context · **688** tests.
 
 > [!TIP]
 > **Step away cleanly:** **`/afk lunch`** or **`/busy meeting`** · nearby heroes may see a system line · **`/back`** when you return. Confirms mention zone and nearby counts.  
@@ -148,7 +148,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/g message** · **/global message** | Global chat |
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
 | **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon); not world-wide |
-| **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line)
+| **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line; confirm notes online/nearby) |
 | **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** · **/wave @emotedby** | List emotes, perform one, or direct an emote at a hero |
 | **/lastemote** | Who you last waved **at** and who last waved **at you** (near/far when online) |
 | **/w @emote** · **/wave @emote** | Reuse who *you* last directed an emote at (**@** required) |
@@ -182,7 +182,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/motd** · **/rules** | Message of the day + online census |
 | **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Confirmations note zone · nearby · online. Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
-| **/quit** · **/logout** | Leave the world gracefully |
+| **/quit** · **/logout** | Leave the world gracefully (farewell may note your zone) |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
@@ -327,7 +327,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 683 passed
+# expect: 688 passed
 ```
 
 ---
@@ -341,7 +341,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.132** · **683** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.133** · **688** tests).
 
 | Do | Don’t |
 |:---|:------|
