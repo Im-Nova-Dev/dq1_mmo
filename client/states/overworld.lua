@@ -632,6 +632,10 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "No pending meetup invites."), "info")
   end)
 
+  Network.on("social", function(data)
+    UI.toast(tostring(data.message or "No social peers yet."), "info")
+  end)
+
   Network.on("fighting", function(data)
     UI.toast(tostring(data.message or "No one fighting nearby."), "info")
   end)
@@ -1334,6 +1338,9 @@ function Overworld:keypressed(key)
         local wants_pending = text:match("^[/%!]pending%s*$")
           or text:match("^[/%!]invites%s*$")
           or text:match("^[/%!]meetup%s*$")
+        local wants_social = text:match("^[/%!]social%s*$")
+          or text:match("^[/%!]peers%s*$")
+          or text:match("^[/%!]contacts%s*$")
         local wants_accept = text:match("^[/%!]accept%s*$")
           or text:match("^[/%!]coming%s*$")
           or text:match("^[/%!]yes%s*$")
@@ -1549,6 +1556,12 @@ function Overworld:keypressed(key)
             Network.pending()
           else
             Network.send({ type = "pending" })
+          end
+        elseif wants_social then
+          if Network.social then
+            Network.social()
+          else
+            Network.send({ type = "social" })
           end
         elseif wants_accept then
           if Network.accept_invite then

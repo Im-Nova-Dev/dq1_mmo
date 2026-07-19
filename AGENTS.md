@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.106` (`server/config.py` → `VERSION`) · **517** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.107` (`server/config.py` → `VERSION`) · **525** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.106** / **517** until the suite or `VERSION` changes.  
-Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.106** uncommitted.  
+Keep badges at **0.5.107** / **525** until the suite or `VERSION` changes.  
+Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.107** uncommitted.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.106 / 472** · soft-grace invite hygiene · protocol / reliability / test matrix **only** in this file.
+Docs pass (**this run**): badges **0.5.107 / 472** · soft-grace invite hygiene · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -436,6 +436,9 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 229. Tests: `test_adversarial_hunt_v05105`.
 230. **Look / ignore / unignore** resolve `@pending`/`@last` via `_social_alias` (online peers only).
 231. Tests: `test_features_v05106` + `test_mp_reliability_v05106`.
+232. **`social`/`peers`:** rate-exempt summary of whisper, invite_from/to, last emote peers.
+233. **`find`:** query `@pending`/`@last`/`@invite` resolves social peer → single online card (or error).
+234. Tests: `test_features_v05107` + `test_mp_reliability_v05107`.
 
 ## Tests (mandatory for your changes)
 

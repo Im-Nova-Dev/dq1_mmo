@@ -301,6 +301,10 @@ function Network.pending()
   return Network.send({ type = "pending" })
 end
 
+function Network.social()
+  return Network.send({ type = "social" })
+end
+
 function Network.accept_invite()
   return Network.send({ type = "accept" })
 end

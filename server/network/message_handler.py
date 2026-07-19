@@ -1111,6 +1111,8 @@ async def handle_message(
                     {"cmd": "ignore", "hint": "/ignore · /ignore @pending · /unignore @last"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
+                    {"cmd": "social", "hint": "/social · /peers — whisper · invite · emote peers"},
+                    {"cmd": "find", "hint": "/find Name · /find @pending · zone:town · combat:yes"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
                     {"cmd": "version", "hint": "/version · /server · /info — server version"},
                     {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
@@ -1277,6 +1279,78 @@ async def handle_message(
                     + (" (online)" if online else " (offline)" if peer else "")
                     if peer
                     else "No one to reply to yet."
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Social peers summary (whisper · meetup · emote) ---
+    if msg_type in ("social", "peers", "contacts", "social_peers", "who_social"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+
+        def _peer_blob(pid: int | None, pname: str | None) -> dict | None:
+            if pid is None:
+                return None
+            online = manager.is_online(pid)
+            pmeta = manager.get_meta(pid) if online else None
+            card = {
+                "id": pid,
+                "name": pname or (pmeta or {}).get("name") or "Hero",
+                "online": online,
+                "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
+            }
+            if pmeta is not None:
+                psid = pmeta.get("session_id")
+                if psid is not None:
+                    card["session_id"] = psid
+                if card["afk"]:
+                    pam = pmeta.get("afk_message")
+                    if isinstance(pam, str) and pam.strip():
+                        card["afk_message"] = pam.strip()[:48]
+            return card
+
+        w_id, w_name = manager.last_whisper_from(character_id)
+        i_from_id, i_from_name = manager.last_invite_from(character_id)
+        i_to_id, i_to_name = manager.last_invite_to(character_id)
+        e_id, e_name = manager.last_emote_to(character_id)
+        whisper = _peer_blob(w_id, w_name)
+        invite_from = _peer_blob(i_from_id, i_from_name)
+        invite_to = _peer_blob(i_to_id, i_to_name)
+        emote = _peer_blob(e_id, e_name)
+        bits: list[str] = []
+        if whisper:
+            bits.append(
+                f"/r → {whisper['name']}"
+                + (" ✓" if whisper.get("online") else " (off)")
+            )
+        if invite_from:
+            bits.append(
+                f"invite from {invite_from['name']}"
+                + (" ✓" if invite_from.get("online") else " (off)")
+            )
+        if invite_to:
+            bits.append(
+                f"invite to {invite_to['name']}"
+                + (" ✓" if invite_to.get("online") else " (off)")
+            )
+        if emote:
+            bits.append(
+                f"emote → {emote['name']}"
+                + (" ✓" if emote.get("online") else " (off)")
+            )
+        outbound.append(
+            msg(
+                "social",
+                whisper=whisper,
+                invite_from=invite_from,
+                invite_to=invite_to,
+                emote=emote,
+                has_any=bool(bits),
+                message=(
+                    "Social · " + " · ".join(bits) if bits else "No social peers yet."
                 ),
             )
         )
@@ -2778,14 +2852,59 @@ async def handle_message(
             limit_i = int(limit)
         except (TypeError, ValueError):
             limit_i = 20
-        hits = manager.find_by_prefix(
-            q_clean,
-            limit=limit_i,
-            zone=zone_f,
-            afk=afk_filter,
-            idle=idle_filter,
-            combat=combat_filter,
-        )
+        # Multiplayer social aliases: /find @pending · /find @last
+        social_q = _social_alias(q_clean)
+        if social_q:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_q)
+            if lid is None:
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty
+                        if social_q == "pending"
+                        else "no one to find",
+                    )
+                )
+                return character_id, user_id, outbound, None
+            if lid not in manager.online_ids():
+                outbound.append(
+                    msg(ServerMessageType.ERROR, reason="player not online")
+                )
+                return character_id, user_id, outbound, None
+            from network.websocket_manager import _online_card
+
+            pmeta = manager.get_meta(lid)
+            if pmeta is None:
+                outbound.append(
+                    msg(ServerMessageType.ERROR, reason="player not online")
+                )
+                return character_id, user_id, outbound, None
+            card = _online_card(pmeta)
+            # Apply optional filters to the single peer
+            if zone_f and card.get("zone") != zone_f:
+                hits = []
+            elif afk_filter is not None and bool(card.get("afk")) is not bool(afk_filter):
+                hits = []
+            elif idle_filter is not None and bool(card.get("idle")) is not bool(
+                idle_filter
+            ):
+                hits = []
+            elif combat_filter is not None and bool(card.get("in_combat")) is not bool(
+                combat_filter
+            ):
+                hits = []
+            else:
+                hits = [card]
+            q_clean = f"@{social_q}" if social_q == "pending" else "@last"
+        else:
+            hits = manager.find_by_prefix(
+                q_clean,
+                limit=limit_i,
+                zone=zone_f,
+                afk=afk_filter,
+                idle=idle_filter,
+                combat=combat_filter,
+            )
         bits: list[str] = []
         if q_clean:
             bits.append(q_clean[:24])
