@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.117-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-595-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.118-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-601-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.117 · **595** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.118 · **601** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.117):** if someone shared their spot with you, **`@from`** targets them (thank / whisper) · **`@share`** is still “who I shared with” · **595** tests.
+**Recent for players/ops (v0.5.118):** soft reconnect keeps **share partners** (who you shared with / who shared with you) · **601** tests.
 
 ---
 
@@ -307,7 +307,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 595 passed
+# expect: 601 passed
 ```
 
 ---
@@ -321,7 +321,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.117** · **595** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.118** · **601** tests).
 
 | Do | Don’t |
 |:---|:------|

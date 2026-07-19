@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.117</b> · <b>595</b> tests green · meetup · two-way share · <code>@share</code> · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.118</b> · <b>601</b> tests green · meetup · two-way share · <code>@share</code> · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.117-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.118-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-595_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-601_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -83,7 +83,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-595_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-601_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -164,7 +164,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.117** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.118** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -181,8 +181,8 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.117-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/595_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.118-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/601_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -191,13 +191,13 @@ flowchart LR
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.117** — `@from` · cleaner social peeks · **595** tests |
+| | **v0.5.118** — reconnect restores share · **601** tests |
 |:--|:--|
-| 📍 | After someone **`/share`**s with you: **`/thank @from`** · **`/w @from`** (who shared *with you*) |
-| 🗺️ | **`@share`** still prefers who *you* shared with; **`@from`** is only the incoming side |
-| 🧩 | Social peeks moved into a dedicated module (same behavior) |
-| 🔧 | Flaky combat-gate test no longer races `combat_end` |
-| ✅ | **595** automated tests green |
+| 🔄 | Brief disconnects restore **who you shared with** and **who shared with you** |
+| 🧩 | Who / near / zone / fighting peeks live in a dedicated module |
+| 💬 | Sync refreshes share peers for multiplayer UI |
+| 📍 | `@from` / two-way share (v0.5.116–117) still green |
+| ✅ | **601** automated tests green |
 
 ```mermaid
 flowchart LR
@@ -226,6 +226,7 @@ flowchart LR
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.118** | Soft reconnect restores share peers · presence peeks module · **601** tests |
 | **0.5.117** | `@from` after someone shares with you · social peeks extract · **595** tests |
 | **0.5.116** | Bidirectional share memory · recipient `@share` · **589** tests |
 | **0.5.115** | `@share` after you share location · **583** tests |
@@ -345,7 +346,7 @@ flowchart LR
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **595** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **601** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -443,7 +444,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 595 passed
+# expect: 601 passed
 ```
 
 ---
@@ -714,9 +715,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-595_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-601_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.117-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.118-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -794,8 +795,8 @@ flowchart LR
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.117-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/595_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.118-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/601_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

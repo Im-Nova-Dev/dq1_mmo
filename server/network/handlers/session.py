@@ -81,8 +81,17 @@ async def handle_sync(
     last_whisper = None
     if lw_id is not None or lw_name:
         last_whisper = {"id": lw_id, "name": lw_name}
+    from network.handlers._common import social_peer_card
     from network.websocket_manager import _is_idle as _idle_chk
 
+    st_id, st_name = manager.last_share_to(character_id)
+    sf_id, sf_name = manager.last_share_from(character_id)
+    last_share_to = social_peer_card(
+        manager, st_id, st_name, viewer_id=character_id
+    )
+    last_share_from = social_peer_card(
+        manager, sf_id, sf_name, viewer_id=character_id
+    )
     you_blob = None
     if meta is not None:
         you_blob = {
@@ -118,6 +127,8 @@ async def handle_sync(
             session_id=manager.session_id(character_id),
             ignores=ignores_snap,
             last_whisper=last_whisper,
+            last_share_to=last_share_to,
+            last_share_from=last_share_from,
         )
     )
     return character_id, user_id, outbound, None

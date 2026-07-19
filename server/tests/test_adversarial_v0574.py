@@ -82,21 +82,33 @@ def test_double_combat_and_combat_gates(tmp_path, monkeypatch):
                 m = await recv_until(ws, "error", "inventory_update")
                 assert m.get("type") == "error" and m.get("reason") == "in combat", m
 
-                await ws.send(json.dumps({"type": "flee"}))
-                # Wait for battle to fully end before probing post-combat gates
-                # (avoid racing combat_end against a second flee).
-                end = await recv_until(ws, "combat_end", "error")
-                if end.get("type") == "error":
-                    # rare: flee rejected — still must leave combat eventually
-                    await recv_until(ws, "combat_end")
-                await drain(ws, 0.15)
+                # Leave combat: flee until combat_end (may take retries if flee fails)
+                for _ in range(6):
+                    await ws.send(json.dumps({"type": "flee"}))
+                    try:
+                        end = await recv_until(
+                            ws, "combat_end", "error", "combat_update", timeout=3.0
+                        )
+                    except TimeoutError:
+                        continue
+                    if end.get("type") == "combat_end":
+                        break
+                    if end.get("type") == "error" and "combat" in str(
+                        end.get("reason") or ""
+                    ):
+                        # already out of combat
+                        break
+                else:
+                    # last attempt: hard-wait for end
+                    await recv_until(ws, "combat_end", timeout=5.0)
+                await drain(ws, 0.2)
 
                 await ws.send(json.dumps({"type": "flee"}))
-                m = await recv_until(ws, "error", "combat_end")
+                m = await recv_until(ws, "error", "combat_end", timeout=5.0)
                 assert m.get("type") == "error" and "combat" in str(m.get("reason")), m
 
                 await ws.send(json.dumps({"type": "attack"}))
-                m = await recv_until(ws, "error", "combat_update")
+                m = await recv_until(ws, "error", "combat_update", timeout=5.0)
                 assert m.get("type") == "error" and "combat" in str(m.get("reason")), m
 
         asyncio.run(flow())
