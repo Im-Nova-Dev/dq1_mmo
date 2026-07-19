@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.128` (`server/config.py` → `VERSION`) · **662** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.129` (`server/config.py` → `VERSION`) · **667** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.128** / **662** until the suite or `VERSION` changes.  
-Last **pushed** ship: `5135109` / `158abc0` (v0.5.127). Shipping **0.5.128** (code local; docs this pass).
+Keep badges at **0.5.129** / **667** until the suite or `VERSION` changes.  
+Last **pushed** ship: `051bf1e` (v0.5.128). Shipping **0.5.129**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.128 / 662** · self_peeks extract · protocol only here.
+Docs pass (**this run**): badges **0.5.129 / 667** · meta_peeks extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -93,6 +93,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/look.py` | look/examine/profile/whereis (coords only if AOI-near) |
 | `server/network/handlers/status.py` | status/me/whoami/stats sheet + MP census |
 | `server/network/handlers/self_peeks.py` | gold/vitals/xp/spells/buffs (zone · combat · nearby) |
+| `server/network/handlers/meta_peeks.py` | version/played/time (census · plain message) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -519,6 +520,11 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 302. Self peeks include **zone**, **in_combat**, **online**, **nearby_count** where useful; plain **message** always.
 303. Empty buffs keep **`No active buffs.`** (optional zone suffix); non-empty may append nearby + zone bits.
 304. Tests: `test_features_v05128` + `test_mp_reliability_v05128`.
+305. **`handlers/meta_peeks.py`:** version/ver/about/server/info · played/session · time/uptime extracted from message_handler.
+306. Version includes **combat_count**, plain **message**, and when authed nearby/session/zone/in_combat.
+307. Played includes **in_combat**, **combat_count**, **nearby_combat**; message may append zone · fighting · nearby.
+308. Time includes **afk_count**, **combat_count**, **zones**, plain **message**; authed nearby/session/zone.
+309. Tests: `test_features_v05129` + `test_mp_reliability_v05129`.
 
 ## Tests (mandatory for your changes)
 
@@ -631,6 +637,8 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v05127` | status extract unit · nearby census · social summary |
 | `tests.test_features_v05128` | self peeks WS · version |
 | `tests.test_mp_reliability_v05128` | self_peeks extract · gold/vitals/buffs MP context · xp/spells zone |
+| `tests.test_features_v05129` | version/played/time WS messages + aliases |
+| `tests.test_mp_reliability_v05129` | meta_peeks extract · version/played/time census units |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

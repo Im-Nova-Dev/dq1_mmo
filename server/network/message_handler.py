@@ -36,6 +36,7 @@ from game.world_manager import (
     zone_at,
 )
 from network.handlers import look as look_handlers
+from network.handlers import meta_peeks as meta_peek_handlers
 from network.handlers import presence_peeks
 from network.handlers import self_peeks as self_peek_handlers
 from network.handlers import session as session_handlers
@@ -143,13 +144,19 @@ async def handle_message(
     if self_peek is not None:
         return self_peek
 
+    meta_peek = await meta_peek_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if meta_peek is not None:
+        return meta_peek
+
     presence_peek = await presence_peeks.handle(
         character_id, user_id, data, outbound
     )
     if presence_peek is not None:
         return presence_peek
 
-    # who/near/counts/zone · look · status · gold/hp/xp/spells/buffs via handlers
+    # who/near/counts/zone · look · status · gold/hp/xp · version/played/time via handlers
 
     # --- Controls / keybinds summary (client HUD helper) ---
     if msg_type in ("keys", "controls", "keybinds", "keymap"):
@@ -1387,98 +1394,7 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # --- Server version / about (multiplayer ops + client HUD) ---
-    if msg_type in ("version", "ver", "about", "server", "info"):
-        from config import PROCESS_STARTED_AT, VERSION as _VER
-        import time as _time
-
-        if character_id is not None:
-            manager.touch(character_id)
-        outbound.append(
-            msg(
-                "version",
-                version=_VER,
-                online=len(manager.online_ids()),
-                afk_count=manager.afk_count(),
-                zones=manager.zone_counts(),
-                uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
-                service="dq1-mmo",
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- Session play time this connection (multiplayer self snapshot) ---
-    if msg_type in ("played", "session", "session_time", "online_time"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        meta = manager.get_meta(character_id)
-        if not meta:
-            outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
-            return character_id, user_id, outbound, None
-        import time as _time
-        from network.websocket_manager import _is_idle as _idle_played
-
-        started = float(meta.get("session_started") or 0.0)
-        now = _time.monotonic()
-        age = max(0, int(now - started)) if started else 0
-        h, rem = divmod(age, 3600)
-        m, s = divmod(rem, 60)
-        if h:
-            pretty = f"{h}h {m}m {s}s"
-        elif m:
-            pretty = f"{m}m {s}s"
-        else:
-            pretty = f"{s}s"
-        you_zone = None
-        try:
-            you_zone = zone_at(int(meta["x"]), int(meta["y"]))
-        except Exception:
-            you_zone = None
-        sid = manager.session_id(character_id)
-        you_afk = bool(meta.get("afk"))
-        body = {
-            "type": "played",
-            "seconds": age,
-            "session_id": sid,
-            "name": meta.get("name"),
-            "zone": you_zone,
-            "online": len(manager.online_ids()),
-            "afk_count": manager.afk_count(),
-            "nearby_count": len(manager.ids_nearby(character_id)),
-            "nearby_afk": manager.nearby_afk_count(character_id),
-            "afk": you_afk,
-            "idle": _idle_played(meta),
-            "message": f"This session: {pretty}.",
-        }
-        if you_afk:
-            am = meta.get("afk_message")
-            if isinstance(am, str) and am.strip():
-                body["afk_message"] = am.strip()[:48]
-        outbound.append(body)
-        return character_id, user_id, outbound, None
-
-    # --- Server time / uptime ---
-    if msg_type in ("time", "uptime", "servertime", "clock"):
-        from config import PROCESS_STARTED_AT, VERSION as _VER
-        import time as _time
-
-        if character_id is not None:
-            manager.touch(character_id)
-        now = _time.time()
-        up = max(0, int(now - PROCESS_STARTED_AT))
-        outbound.append(
-            msg(
-                "time",
-                server_t=now,
-                uptime=up,
-                uptime_hms=_format_uptime(up),
-                version=_VER,
-                online=len(manager.online_ids()),
-            )
-        )
-        return character_id, user_id, outbound, None
+    # version / played / time handled via network.handlers.meta_peeks
 
     # --- Ignore / mute list (session soft-grace) ---
     if msg_type in (ClientMessageType.IGNORE, "ignore", "mute", "block"):

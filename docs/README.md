@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.128** (2026-07-19) · suite **662** tests · quick peeks with zone/fight context · humans ≠ agents
+**Last docs refresh:** **v0.5.129** (2026-07-19) · suite **667** tests · played/version/time multiplayer census · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

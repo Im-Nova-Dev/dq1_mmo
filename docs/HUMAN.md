@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.128-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-662-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.129-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-667-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.128 · **662** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.129 · **667** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.128):** quick peeks **`/gold`** · **`/hp`** · **`/xp`** · **`/spells`** · **`/buffs`** mention your zone and whether you’re fighting (and nearby heroes when it helps) · **`/status`** still has the full room census · **662** tests.
+**Recent for players/ops (v0.5.129):** **`/played`** may note zone · fighting · nearby · **`/version`** and **`/time`** show a short online census · quick peeks (`/gold` · `/hp` · `/buffs`) still mention zone/fight · **667** tests.
 
 ---
 
@@ -172,9 +172,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — stats, gear, EXP, spells, zone, buffs, nearby census |
 | **/status** or **/me** or **/whoami** | Status sheet via chat — HP/MP plus nearby counts and a plain summary |
-| **/version** · **/about** · **/server** · **/info** | Server version + online count + uptime |
-| **/time** · **/uptime** | Server clock and how long the world has been up |
-| **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — survives a brief disconnect · also shows zone and online counts |
+| **/version** · **/about** · **/server** · **/info** | Server version + online census + plain summary (nearby when you’re logged in) |
+| **/time** · **/uptime** | Server clock / uptime + online census · plain summary |
+| **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — survives a brief disconnect · zone · fighting · nearby when useful |
 | **/motd** · **/rules** | Message of the day |
 | **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 662 passed
+# expect: 667 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.128** · **662** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.129** · **667** tests).
 
 | Do | Don’t |
 |:---|:------|
