@@ -462,3 +462,56 @@ def soft_reconnect_social_snapshot(
         "has_emote": bool(last_emote_to or last_emote_from),
         "has_invite": bool(last_invite_to or last_invite_from),
     }
+
+
+def build_soft_reconnect_restored(
+    manager_obj: Any,
+    character_id: int,
+    *,
+    ignores_snap: list | set | dict | None,
+    social: dict[str, Any],
+    repel_n: int,
+    radiant_n: int,
+) -> dict[str, bool]:
+    """Auth soft-reconnect hygiene flags for multiplayer clients.
+
+    ``played`` is true only when ``session_started`` was restored from the
+    soft-grace bag (brief disconnect), not on first join or live replace.
+    """
+    n_ignores = 0
+    if ignores_snap is not None:
+        try:
+            n_ignores = len(ignores_snap)
+        except TypeError:
+            n_ignores = 0
+    meta = manager_obj.get_meta(character_id) or {}
+    return {
+        "ignores": n_ignores > 0,
+        "last_whisper": bool(social.get("has_whisper")),
+        "last_share": bool(social.get("has_share")),
+        "last_emote": bool(social.get("has_emote")),
+        "last_invite": bool(social.get("has_invite")),
+        "played": bool(meta.get("soft_restored_session")),
+        "repel": int(repel_n or 0) > 0,
+        "radiant": int(radiant_n or 0) > 0,
+    }
+
+
+def format_restored_welcome_bits(restored: dict[str, bool]) -> list[str]:
+    """Human welcome fragments for restored soft-reconnect state (plain language)."""
+    bits: list[str] = []
+    if restored.get("ignores"):
+        bits.append("mute list")
+    if restored.get("last_whisper"):
+        bits.append("last whisper")
+    if restored.get("last_share"):
+        bits.append("share peers")
+    if restored.get("last_emote"):
+        bits.append("emote peers")
+    if restored.get("last_invite"):
+        bits.append("meetup invites")
+    if restored.get("played"):
+        bits.append("session timer")
+    if restored.get("repel") or restored.get("radiant"):
+        bits.append("buffs")
+    return bits

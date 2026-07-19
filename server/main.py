@@ -408,22 +408,25 @@ async def websocket_endpoint(websocket: WebSocket):
                 cid = connect_meta["character_id"]
                 # Soft-grace social peers for multiplayer UI resync
                 # (whisper · share · emote · invite) — one snapshot for auth + sync
-                from network.handlers._common import soft_reconnect_social_snapshot
+                from network.handlers._common import (
+                    build_soft_reconnect_restored,
+                    format_restored_welcome_bits,
+                    soft_reconnect_social_snapshot,
+                )
 
                 social = soft_reconnect_social_snapshot(manager, cid)
                 last_whisper = social["last_whisper"]
                 repel_n = manager.repel_remaining(cid)
                 radiant_n = manager.radiant_remaining(cid)
                 # Explicit soft-reconnect hygiene flags for multiplayer clients
-                restored = {
-                    "ignores": len(ignores_snap) > 0,
-                    "last_whisper": social["has_whisper"],
-                    "last_share": social["has_share"],
-                    "last_emote": social["has_emote"],
-                    "last_invite": social["has_invite"],
-                    "repel": repel_n > 0,
-                    "radiant": radiant_n > 0,
-                }
+                restored = build_soft_reconnect_restored(
+                    manager,
+                    cid,
+                    ignores_snap=ignores_snap,
+                    social=social,
+                    repel_n=repel_n,
+                    radiant_n=radiant_n,
+                )
                 restored_any = any(restored.values())
                 outbound.append(
                     msg(
@@ -470,19 +473,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}{near_bit}{afk_bit}."
                 )
                 if restored_any:
-                    bits = []
-                    if restored["ignores"]:
-                        bits.append("mute list")
-                    if restored["last_whisper"]:
-                        bits.append("last whisper")
-                    if restored["last_share"]:
-                        bits.append("share peers")
-                    if restored["last_emote"]:
-                        bits.append("emote peers")
-                    if restored["last_invite"]:
-                        bits.append("meetup invites")
-                    if restored["repel"] or restored["radiant"]:
-                        bits.append("buffs")
+                    bits = format_restored_welcome_bits(restored)
                     if bits:
                         welcome += " Restored: " + ", ".join(bits) + "."
                 for o in outbound:

@@ -350,6 +350,8 @@ class ConnectionManager:
             session_started = now
             if grace_session_started > 0:
                 session_started = grace_session_started
+            # Soft-grace rejoin (not live replace): flag for auth restored.played / welcome
+            soft_restored_session = old_meta is None and grace_session_started > 0
             self._connections[character_id] = websocket
             self._meta[character_id] = {
                 "id": character_id,
@@ -371,6 +373,7 @@ class ConnectionManager:
                 "radiant_steps": grace_radiant,
                 "session_id": session_id,
                 "session_started": session_started,  # monotonic — for /played session age
+                "soft_restored_session": soft_restored_session,
                 "visible": set(),  # peer ids currently in AOI
                 "ignore": grace_ignore,  # cid set — do not receive chat/emotes from these
                 "ignore_names": grace_ignore_names,  # tid -> name for offline display
