@@ -6,13 +6,14 @@
 
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
-  <sub>Share one overworld · classic 1v1 combat · Love2D client · FastAPI server</sub>
+  <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.66-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.69-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-301_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-318_passing-059669?style=for-the-badge" />
+  <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -44,14 +45,17 @@
 
 ---
 
-Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
-Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag · discard), and socialize — global / nearby / zone chat, whispers (unique name prefixes), **`/r`**, **`/find`**, **`/who`** · **`/counts`** · **`/zone`**, **`/roll`**, **`/gold`**, **`/spells`**, emotes, **`/afk`**, and look.
+<p align="center">
+Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on a shared grid.<br/>
+Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</b> · shop for gear · chat and whisper.
+</p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
+  <img alt="peeks" src="https://img.shields.io/badge/peeks-/hp_/xp_/buffs_/keys-f97316?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_drop--in_PNGs-10b981?style=flat-square" />
 </p>
@@ -79,11 +83,31 @@ swap PNGs anytime
 
 ### 🤖 Agents / LLMs
 [AGENTS.md](AGENTS.md) **only**  
-protocol · tests · not for players
+protocol · tests · **not** for players
 
 </td>
 </tr>
 </table>
+
+<p align="center">
+  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_chat-334155?style=for-the-badge" />
+</p>
+
+```text
+  Register  →  Create hero  →  Town (safe)  →  Field / Dungeon
+      ↑              │                │              │
+      └──────── logout ◄── shop · inn · chat · whisper · AFK
+```
+
+<p align="center">
+  <sub>
+    <b>Docs:</b>
+    <a href="docs/HUMAN.md">players</a> ·
+    <a href="client/assets/ATTRIBUTION.md">artists</a> ·
+    <a href="AGENTS.md">agents only</a> ·
+    <a href="docs/README.md">map</a>
+  </sub>
+</p>
 
 ---
 
@@ -91,7 +115,7 @@ protocol · tests · not for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.66** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.69** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -99,7 +123,7 @@ protocol · tests · not for players
 | 👥 | [Multiplayer tools](#-multiplayer-tools) |
 | ⚙️ | [Configuration](#️-configuration) |
 | 📁 | [Project layout](#-project-layout) |
-| 📚 | [Documentation](#-documentation) — humans vs agents |
+| 📚 | [Documentation](#-documentation) — **humans ≠ agents** |
 | 🙏 | [Credits](#-credits) |
 
 ---
@@ -107,18 +131,16 @@ protocol · tests · not for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.66-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-301_passing-059669?style=flat-square" />
-  <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.69-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/318_tests_green-059669?style=for-the-badge" />
 </p>
 
-| | **v0.5.66** |
+| | **v0.5.69** |
 |:--|:--|
-| ❤️ | **`/hp`** · **`/vitals`** — quick HP/MP check |
-| ⭐ | **`/xp`** · **`/level`** — level and XP to next |
-| 🛡 | **`/unequip`** · **`/takeoff`** gear by slot · clear equip toasts |
-| 📬 | **`/last`** shows who **`/r`** targets · whisper AFK tip fixed |
-| ✅ | **301** automated tests |
+| ✨ | **`/buffs`** — repel, radiant, AFK at a glance |
+| ⌨️ | **`/keys`** · **`/controls`** — keybind cheat sheet |
+| 👁 | **`/inspect Name`** · **`/blocklist`** aliases |
+| ✅ | **318** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -127,6 +149,9 @@ protocol · tests · not for players
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.68** | Shout=zone · bare buy/sell · invalid afk filter |
+| **0.5.67** | Join refreshes roster · `/find afk` · session on roll/counts |
+| **0.5.66** | `/hp` · `/xp` · `/unequip` · `/last` · equip toasts |
 | **0.5.65** | AFK on rosters · whisper AFK tip · lastwhisper soft reconnect |
 | **0.5.64** | `/gold` · `/spells` · bag aliases · status AFK |
 | **0.5.63** | Fast leave roster · session hygiene on chat/look |
@@ -152,7 +177,7 @@ protocol · tests · not for players
 <tr>
 <td width="50%" valign="top">
 
-### World & combat
+### 🗺️ World & combat
 
 | | |
 |:--|:--|
@@ -164,14 +189,15 @@ protocol · tests · not for players
 </td>
 <td width="50%" valign="top">
 
-### Social & meta
+### 💬 Social & meta
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · whisper (prefix) · **`/r`** · emotes · **`/roll`** |
-| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/version`** · look |
-| 🔄 | Soft reconnect — mute list · **`/r`** · buffs · AFK clears when you talk or walk · fast leave roster |
-| 🦸 | Up to **3 heroes** · create / delete · XP to next |
+| 💬 | Global · nearby · **zone** · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** |
+| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · look · **`/inspect`** |
+| 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/spells`** · **`/bag`** · **`/keys`** |
+| 🔄 | Soft reconnect · mute list · AFK · fast leave roster |
+| 🦸 | Up to **3 heroes** · create / delete |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
 </td>
@@ -182,12 +208,12 @@ protocol · tests · not for players
 |:-----|:--|
 | **Items** | Herb · wings · fairy water · weapons · armor · helmets · Full Plate · Silver Shield |
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
-| **HUD** | HP/MP · gold · zone · your position · nearby/online · repel · light · **F** status |
+| **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · presence repair · **301** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **318** tests |
 
 > [!TIP]
-> **Docs stay split on purpose.** Players start with this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
+> **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -225,15 +251,15 @@ love client
 
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
-3. **Enter World** — spawn in **town** · welcome toast with online / nearby
-4. **R** inn (quote → confirm) · **I** bag (**D** discard) · **`/counts`** · **`/roll`** · **`/w Name`**
+3. **Enter World** — spawn in **town** · welcome toast with online count
+4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/buffs`** · **`/w Name`**
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 301 passed
+# expect: 318 passed
 ```
 
 ---
@@ -253,23 +279,29 @@ python tests/run_tests.py
 | **/g** · **/global** | Global chat |
 | **/w Name msg** | Whisper (unique **prefix** OK) |
 | **/z msg** | Zone chat |
+| **/r message** | Reply last whisper |
+| **/last** | Who `/r` will target |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice |
 | **/counts** · **/census** | Online + zone totals |
-| **/find Name** · **/find zone:town** | Search online (no map coords) |
+| **/find Name** · **/find zone:town** · **/find afk** | Search online (no map coords) |
 | **/who** · **/players** | Online + nearby + zones (**O**) |
 | **/near** · **/here** | Heroes in view |
-| **/zone** · **/where** | Your area + who is here |
+| **/zone** · **/where** · **/whereami** | Your area + who is here |
 | **/status** · **/me** · **/whoami** · **/stats** · **F** | Status sheet |
+| **/hp** · **/vitals** | HP / MP peek |
+| **/xp** · **/level** | Level + XP to next |
+| **/buffs** · **/effects** | Repel · radiant · AFK |
+| **/keys** · **/controls** | Keybind summary |
 | **/gold** · **/money** | Wallet peek |
 | **/spells** · **/magic** | Known battle + field spells |
 | **/bag** · **/inv** · **/items** · **I** | Inventory / bag |
+| **/inspect Name** · **/look Name** | Examine a hero |
+| **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
 | **/version** · **/about** | Server version + uptime |
 | **/time** · **/uptime** | Server clock + uptime |
 | **/motd** · **/afk** · **/back** · **/quit** | Welcome · AFK · leave world |
-| **/whereami** · **/coords** | Same as **/zone** (position + who is here) |
-| **/block** · **/unblock** | Same as ignore / unignore |
+| **/block** · **/blocklist** · **/unblock** | Mute list helpers |
 | **/ignore** · **/unignore** · **/ignores** | Mute list |
-| **/r message** | Reply last whisper |
 | **/inn** · **/rest** | Inn cost quote |
 | **E** | Cycle emotes |
 | **R** | Inn quote → **R** again to stay *(town)* |
@@ -331,18 +363,22 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | Command | Effect |
 |:--------|:-------|
 | `/w Name message` | Whisper — full name or **unique prefix** |
+| `/r message` | Reply last whisper |
+| `/last` · `/lastwhisper` | See who `/r` targets |
 | `/say` · `/s` · `/g` · `/z` | Nearby · global · zone chat |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |
 | `/counts` · `/census` | Online + zone population |
-| `/find Name` · `/find zone:field` | Search (zone type only, no coords) |
+| `/find Name` · `/find zone:field` · `/find afk` | Search (zone / AFK filters, no coords) |
 | `/who` · `/players` · `/near` · `/zone` | Rosters & area info |
-| `/version` · `/about` · `/time` · `/whoami` · `/stats` | Server info · self sheet |
+| `/hp` · `/vitals` · `/xp` · `/level` | HP/MP · level + XP |
+| `/buffs` · `/effects` | Repel · radiant · AFK flags |
+| `/keys` · `/controls` | Keybind cheat sheet |
 | `/gold` · `/spells` · `/bag` · `/inv` | Wallet · magic list · inventory |
-| `/whereami` · `/coords` · `/pos` | Zone + map position |
+| `/inspect Name` · `/look Name` | Examine a hero |
+| `/unequip weapon` · `/takeoff armor` | Unequip a gear slot |
+| `/version` · `/about` · `/time` · `/whoami` · `/stats` | Server info · self sheet |
 | `/motd` · `/afk` · `/back` · `/quit` | Welcome blurb · AFK badge · leave world |
-| `/block` · `/unblock` | Same as ignore / unignore |
-| `/ignore` · `/unignore` · `/ignores` | Mute list |
-| `/r message` | Reply last whisper |
+| `/block` · `/blocklist` · `/ignore` · `/unignore` · `/ignores` | Mute list |
 | `/inn` · `/rest` | Inn cost quote |
 | `/help` · **?** | Command list |
 
@@ -378,11 +414,11 @@ Licenses → **[client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md)**
 
 ## 👥 Multiplayer tools
 
-```bash
-./tools/mp_sim.sh
-./tools/mp_sim.sh -n 5 --scenario wander --seconds 30
-./tools/mp_love.sh 2
-```
+| Tool | Purpose |
+|:-----|:--------|
+| `./tools/mp_sim.sh` | Headless multiplayer bots |
+| `./tools/mp_sim.sh -n 5 --scenario wander --seconds 30` | Custom load |
+| `./tools/mp_love.sh 2` | Two Love2D windows on one machine |
 
 ---
 
@@ -430,7 +466,7 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-301_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-318_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -441,7 +477,8 @@ dq1_mmo/
 > [!IMPORTANT]
 > **Two audiences, two trees.**  
 > Play / host / art → this README + [docs/HUMAN.md](docs/HUMAN.md) + [ATTRIBUTION](client/assets/ATTRIBUTION.md).  
-> Code agents → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).
+> Code agents → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).  
+> **Never** paste WebSocket catalogs or test matrices into player-facing pages.
 
 <table>
 <tr>
@@ -468,8 +505,9 @@ dq1_mmo/
 | | Protocol · hot paths · tests · reliability |
 
 ```text
-Humans → README · HUMAN · ATTRIBUTION
-Agents → AGENTS.md ONLY
+┌──────── HUMANS ────────┐     ┌────── AGENTS ──────┐
+│ README · HUMAN · Art   │  ≠  │ AGENTS.md ONLY     │
+└────────────────────────┘     └────────────────────┘
 ```
 
 </td>
@@ -488,6 +526,7 @@ Agents → AGENTS.md ONLY
 | Keep install & controls in human docs | Paste protocol catalogs into README / HUMAN |
 | Put protocol, reliability, tests in `AGENTS.md` | Treat `plan.md` as the live backlog |
 | Keep slash-commands accurate for players | Document unfinished features as shipped |
+| Bump version badges when `VERSION` changes | Leave HUMAN / README out of date |
 
 ---
 
@@ -503,16 +542,21 @@ Agents → AGENTS.md ONLY
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.66-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/301_tests-059669?style=flat-square" />
-  <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=flat-square" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.69-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/318_tests-059669?style=for-the-badge" />
+  <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <sub>
-    <a href="docs/HUMAN.md">Player guide</a> ·
-    <a href="AGENTS.md">Agent contract</a> ·
-    <a href="docs/README.md">Docs map</a> ·
-    <a href="client/assets/ATTRIBUTION.md">Art</a>
-  </sub>
+  <a href="docs/HUMAN.md"><img alt="player" src="https://img.shields.io/badge/📖_Player_guide-2563eb?style=for-the-badge" /></a>
+  &nbsp;
+  <a href="AGENTS.md"><img alt="agent" src="https://img.shields.io/badge/🤖_Agents_only-7c3aed?style=for-the-badge" /></a>
+  &nbsp;
+  <a href="docs/README.md"><img alt="map" src="https://img.shields.io/badge/🗺_Docs_map-475569?style=for-the-badge" /></a>
+  &nbsp;
+  <a href="client/assets/ATTRIBUTION.md"><img alt="art" src="https://img.shields.io/badge/🎨_Art-10b981?style=for-the-badge" /></a>
+</p>
+
+<p align="center">
+  <sub>Made for <b>people</b> first · coding agents use <b>AGENTS.md only</b> · fan project, not Square Enix</sub>
 </p>

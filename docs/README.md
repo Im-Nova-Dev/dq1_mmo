@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.66** (2026-07-19) · suite green **301** tests · `VERSION` in `server/config.py`  
+**Last docs refresh:** **v0.5.69** (2026-07-19) · suite green **318** tests · `VERSION` in `server/config.py`  
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -16,6 +16,9 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 |:-----|:--|
 | **Humans** | never need protocol / test-matrix files |
 | **Agents** | never treat README or HUMAN as the contract |
+| **README** | GitHub face — badges, install, controls — **no** WS catalogs |
+| **AGENTS.md** | Single source of truth for coding agents |
+| **Cross-link** | OK to *link* the other tree · never *copy* protocol into human pages |
 
 ---
 
@@ -65,10 +68,16 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - Failed private messages do not block your next chat line
 - `/version` · `/time` · `/whoami` · `/stats` · `/whereami` · `/motd` · `/afk` · `/quit`
 - `/gold` · `/spells` · `/bag` · `/inv` · `/items`
-- Bare **L** looks at yourself; AFK on status sheet; AFK clears on chat, emote, or walk
-- Zone chat only in town/field/dungeon; online lists update promptly when people leave
-- Safer buy/sell/discard quantities (0 and fractions rejected)
+- `/hp` · `/vitals` · `/xp` · `/level` · `/last` · `/unequip` · `/takeoff`
+- `/buffs` · `/effects` · `/keys` · `/controls` · `/inspect` · `/blocklist`
+- `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
+- Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, or walk
+- Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up
+- Zone chat only in town/field/dungeon; shout = zone (not world-wide)
+- Online lists update promptly when people leave
+- Safer buy/sell/discard quantities (0 and fractions rejected); bare buy/sell/discard need an item
 - Soft reconnect keeps mute list and last whisper partner
+- Equip / unequip show clear toasts
 - CC0 pixel art + SVG companions
 
 ---

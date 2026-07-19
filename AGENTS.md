@@ -17,15 +17,16 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · auth welcome | Binary protocol |
+| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs · vitals/xp/buffs peeks · keys/controls · unequip aliases | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/buffs` · `/keys` · `/last` · `/inspect` · auth welcome | Binary protocol |
 
-**Version:** `0.5.66` (`server/config.py` → `VERSION`) · **301** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.69` (`server/config.py` → `VERSION`) · **318** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
-GitHub README may use badges and callouts; still **no** protocol dumps.
+GitHub README may use badges and callouts; still **no** protocol dumps.  
+**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
 
 ## Documentation map (do not mix)
 
@@ -287,6 +288,14 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 116. `player_left` (out_of_range) carries `session_id` when known (both sides).
 117. Lightweight peeks: `hp`/`mp`/`vitals`/`life` → `vitals`; `xp`/`exp`/`level`/`experience` → `xp` (uses combat HP when fighting).
 118. Equip/unequip return `inventory_update` with `equipped`/`unequipped` + `message`; unequip aliases `takeoff`/`remove`; rest alias `sleep`.
+119. Auth join uses `broadcast_online_force` so roster `session_id`/AFK cards refresh immediately (not debounced).
+120. `find` supports `afk:yes|no` (and bare `afk`) plus zone combos; `find_by_prefix(..., afk=)`.
+121. `counts` and `roll` stamp speaker `session_id`; join `player_joined` includes `afk:false`.
+122. Chat `channel=shout` maps to **zone** (area shout, not global).
+123. Buy/sell bare or empty `item` → `item required` (not `unknown item`).
+124. Find `afk:` token only accepts yes/no/1/0/true/false; else `invalid afk filter`.
+125. `buffs`/`effects`/`debuffs` → repel/radiant/combat/AFK peek; `keys`/`controls`/`keybinds` → control summary.
+126. `inspect` aliases look; `blocklist`/`blocks` alias ignores list; discard bare → `item required`.
 
 ## Tests (mandatory for your changes)
 
@@ -352,6 +361,9 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v0563` | force online on leave; session_id on chat/emote; look/who afk |
 | `tests.test_mp_reliability_v0565` | afk on presence/online; whisper target_afk; lastwhisper; soft-grace last peer |
 | `tests.test_features_v0566` | vitals/xp peeks; equip message; takeoff/remove; sleep; help cmds |
+| `tests.test_mp_reliability_v0567` | force join online; find afk; roll/counts session_id; zone ignore; replace count |
+| `tests.test_adversarial_v0568` | bare buy/sell; shout=zone; invalid afk filter; sell equipped; ignore self |
+| `tests.test_features_v0569` | buffs/repel; keys; inspect; blocklist; discard bare; help |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |

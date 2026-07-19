@@ -137,6 +137,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "population",
                 "look",
                 "examine",
+                "inspect",
                 "status",
                 "me",
                 "whoami",
@@ -153,6 +154,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 "exp",
                 "level",
                 "experience",
+                "buffs",
+                "effects",
+                "debuffs",
+                "status_effects",
+                "keys",
+                "controls",
+                "keybinds",
+                "keymap",
                 "spells",
                 "magic",
                 "spell_list",
@@ -179,6 +188,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "block",
                 "unblock",
                 "ignore_list",
+                "blocklist",
+                "blocks",
                 "reply",
                 "lastwhisper",
                 "last_whisper",
@@ -258,6 +269,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     level=connect_meta["level"],
                     in_combat=bool(connect_meta.get("in_combat")),
                     idle=False,
+                    afk=False,
                 )
                 if join_zone:
                     join_payload["zone"] = join_zone
@@ -347,11 +359,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         )
                     except Exception:
                         log.exception("publish_status on combat reconnect failed")
-                # Roster pulse after the joiner already received auth_ok + world_state
+                # Force roster pulse so peers get fresh session_id/AFK cards immediately
+                # (debounced pulse can hide reconnect hygiene under join storms).
                 try:
-                    await manager.broadcast_online()
+                    await manager.broadcast_online_force()
                 except Exception:
-                    log.exception("broadcast_online failed")
+                    log.exception("broadcast_online_force failed")
 
     except WebSocketDisconnect:
         pass

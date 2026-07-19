@@ -404,19 +404,21 @@ async def handle_message(
         zones = manager.zone_counts()
         online_n = len(manager.online_ids())
         nearby_n = len(manager.ids_nearby(character_id))
-        outbound.append(
-            msg(
-                "counts",
-                online=online_n,
-                nearby_count=nearby_n,
-                zones=zones,
-                message=(
-                    f"{online_n} online · nearby {nearby_n} · "
-                    f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
-                    f"dungeon {zones.get('dungeon', 0)}"
-                ),
-            )
-        )
+        sid = manager.session_id(character_id)
+        body = {
+            "type": "counts",
+            "online": online_n,
+            "nearby_count": nearby_n,
+            "zones": zones,
+            "message": (
+                f"{online_n} online · nearby {nearby_n} · "
+                f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
+                f"dungeon {zones.get('dungeon', 0)}"
+            ),
+        }
+        if sid is not None:
+            body["session_id"] = sid
+        outbound.append(body)
         return character_id, user_id, outbound, None
 
     # --- Where am I / zone population (multiplayer social) ---
@@ -458,8 +460,14 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # --- Look / examine (public card; full coords only if nearby) ---
-    if msg_type in (ClientMessageType.LOOK, ClientMessageType.EXAMINE, "look", "examine"):
+    # --- Look / examine / inspect (public card; full coords only if nearby) ---
+    if msg_type in (
+        ClientMessageType.LOOK,
+        ClientMessageType.EXAMINE,
+        "look",
+        "examine",
+        "inspect",
+    ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -722,6 +730,75 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
+    # --- Active buffs / effects (repel, radiant, combat, AFK) ---
+    if msg_type in ("buffs", "effects", "debuffs", "status_effects"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        meta = manager.get_meta(character_id)
+        repel = manager.repel_remaining(character_id)
+        radiant = manager.radiant_remaining(character_id)
+        in_combat = combat_engine.is_in_combat(character_id)
+        afk = bool(meta.get("afk")) if meta else False
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        idle = _idle_chk(meta) if meta else False
+        bits: list[str] = []
+        if repel > 0:
+            bits.append(f"Repel {repel}")
+        if radiant > 0:
+            bits.append(f"Radiant {radiant}")
+        if in_combat:
+            bits.append("In combat")
+        if afk:
+            bits.append("AFK")
+        elif idle:
+            bits.append("Idle")
+        outbound.append(
+            msg(
+                "buffs",
+                repel=repel,
+                radiant=radiant,
+                in_combat=in_combat,
+                afk=afk,
+                idle=idle,
+                session_id=manager.session_id(character_id),
+                message=(
+                    " · ".join(bits) if bits else "No active buffs."
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Controls / keybinds summary (client HUD helper) ---
+    if msg_type in ("keys", "controls", "keybinds", "keymap"):
+        if character_id is not None:
+            manager.touch(character_id)
+        outbound.append(
+            msg(
+                "controls",
+                overworld=[
+                    "WASD move",
+                    "T global chat · Y nearby",
+                    "E emote · F status · L look · O who",
+                    "I bag · R inn · H/M field magic · K spells",
+                    "Esc disconnect",
+                ],
+                combat=["↑↓ menu · Enter", "1–9 jump", "A attack · F flee · H herb"],
+                inventory=["Enter use/equip", "S sell · D discard · U unequip · Tab shop"],
+                slash=[
+                    "/w /r /last · /say /g /z · /find · /who /near /zone",
+                    "/hp /xp /gold /spells /bag /buffs · /afk /quit",
+                ],
+                message=(
+                    "WASD · T/Y chat · E emote · F status · L look · "
+                    "R inn · I bag · H/M magic · O who · Esc"
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
     # --- Help (slash/key command list for clients) ---
     if msg_type in (ClientMessageType.HELP, "help", "commands"):
         if character_id is not None:
@@ -734,9 +811,9 @@ async def handle_message(
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
                     {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
-                    {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
+                    {"cmd": "find", "hint": "/find Name · zone:town · afk:yes"},
                     {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
-                    {"cmd": "look", "hint": "L — examine a player (bare = yourself)"},
+                    {"cmd": "look", "hint": "L · /look · /inspect — examine (bare = yourself)"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /whereami · /coords"},
@@ -747,12 +824,14 @@ async def handle_message(
                     {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
                     {"cmd": "hp", "hint": "/hp · /vitals — HP/MP peek"},
                     {"cmd": "xp", "hint": "/xp · /level — level + XP to next"},
+                    {"cmd": "buffs", "hint": "/buffs · /effects — repel · radiant · AFK"},
+                    {"cmd": "keys", "hint": "/keys · /controls — keybind summary"},
                     {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
                     {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
                     {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
-                    {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
+                    {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores · /blocklist"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
@@ -1024,7 +1103,13 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    if msg_type in (ClientMessageType.IGNORES, "ignores", "ignore_list"):
+    if msg_type in (
+        ClientMessageType.IGNORES,
+        "ignores",
+        "ignore_list",
+        "blocklist",
+        "blocks",
+    ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -1046,18 +1131,28 @@ async def handle_message(
         manager.touch(character_id)
         q = data.get("q") or data.get("query") or data.get("name") or data.get("prefix") or ""
         zone_f = data.get("zone") or data.get("area")
+        afk_f = data.get("afk")
         q_clean = q.strip() if isinstance(q, str) else ""
-        # "/find bob zone:field" or "/find zone:town" (zone-only list)
+        # Pull zone:/in: and afk: tokens from free text (order-independent)
         if isinstance(q_clean, str) and q_clean:
-            m = re.search(
-                r"^(?:(.+?)\s+)?(?:zone|in):(\w+)\s*$",
-                q_clean,
-                flags=re.I,
-            )
-            if m:
-                name_part = (m.group(1) or "").strip()
-                zone_f = m.group(2)
-                q_clean = name_part
+            m_zone = re.search(r"(?:^|\s)(?:zone|in):(\w+)\b", q_clean, flags=re.I)
+            if m_zone:
+                zone_f = m_zone.group(1)
+                q_clean = (q_clean[: m_zone.start()] + q_clean[m_zone.end() :]).strip()
+            m_afk = re.search(r"(?:^|\s)afk:(\w+)\b", q_clean, flags=re.I)
+            if m_afk:
+                tok = m_afk.group(1).lower()
+                if tok not in ("yes", "no", "1", "0", "true", "false"):
+                    outbound.append(
+                        msg(ServerMessageType.ERROR, reason="invalid afk filter")
+                    )
+                    return character_id, user_id, outbound, None
+                afk_f = tok in ("yes", "1", "true")
+                q_clean = (q_clean[: m_afk.start()] + q_clean[m_afk.end() :]).strip()
+            # Bare "afk" / "away" as whole residual query
+            if q_clean.lower() in ("afk", "away"):
+                afk_f = True
+                q_clean = ""
         # Validate zone first so "zone:moon" → invalid zone (not "find query required")
         if isinstance(zone_f, str) and zone_f.strip():
             znorm = zone_f.strip().lower()
@@ -1067,8 +1162,20 @@ async def handle_message(
             zone_f = znorm
         else:
             zone_f = None
-        # Bare zone field with empty name is OK (list everyone in zone)
-        if not q_clean and zone_f is None:
+        # Normalize afk filter: True / False / None (no filter)
+        afk_filter: bool | None = None
+        if isinstance(afk_f, bool):
+            afk_filter = afk_f
+        elif isinstance(afk_f, (int, float)) and not isinstance(afk_f, bool):
+            afk_filter = bool(int(afk_f))
+        elif isinstance(afk_f, str) and afk_f.strip():
+            s = afk_f.strip().lower()
+            if s in ("yes", "1", "true", "afk", "away"):
+                afk_filter = True
+            elif s in ("no", "0", "false", "back"):
+                afk_filter = False
+        # Bare zone and/or afk with empty name is OK
+        if not q_clean and zone_f is None and afk_filter is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="find query required"))
             return character_id, user_id, outbound, None
         limit = data.get("limit") or 20
@@ -1076,12 +1183,24 @@ async def handle_message(
             limit_i = int(limit)
         except (TypeError, ValueError):
             limit_i = 20
-        hits = manager.find_by_prefix(q_clean, limit=limit_i, zone=zone_f)
+        hits = manager.find_by_prefix(
+            q_clean, limit=limit_i, zone=zone_f, afk=afk_filter
+        )
+        bits: list[str] = []
+        if q_clean:
+            bits.append(q_clean[:24])
+        if zone_f:
+            bits.append(f"zone:{zone_f}")
+        if afk_filter is True:
+            bits.append("afk:yes")
+        elif afk_filter is False:
+            bits.append("afk:no")
         outbound.append(
             msg(
                 ServerMessageType.FIND,
-                query=q_clean[:24] if q_clean else (f"zone:{zone_f}" if zone_f else ""),
+                query=" ".join(bits),
                 zone=zone_f,
+                afk=afk_filter,
                 players=hits,
                 online=len(manager.online_ids()),
                 count=len(hits),
@@ -1848,8 +1967,9 @@ async def handle_message(
             channel = "nearby"
         if channel == "area":
             channel = "zone"
+        # Shout = same-zone broadcast (multiplayer area shout, not global spam)
         if channel == "shout":
-            channel = "global"
+            channel = "zone"
         # chat with channel=whisper and `to` name/id → private path
         # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
         if channel == "whisper":
@@ -2042,6 +2162,10 @@ async def handle_message(
             system=True,
             roll={"sides": sides_i, "value": value, "name": name},
         )
+        sid_r = manager.session_id(character_id)
+        if sid_r is not None:
+            roll_msg["session_id"] = sid_r
+            roll_msg["roll"]["session_id"] = sid_r
         await manager.broadcast_nearby(
             character_id, roll_msg, include_self=False, respect_ignore=False
         )
@@ -2387,6 +2511,9 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
+        if not item_id or not str(item_id).strip():
+            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+            return character_id, user_id, outbound, None
         # Explicit quantity parse — do not use `or 1` (qty=0 must not discard one)
         if "quantity" in data:
             raw_qty = data.get("quantity")
@@ -2428,6 +2555,9 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
+        if not item_id or not str(item_id).strip():
+            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+            return character_id, user_id, outbound, None
         # quantity: never use `or 1` — qty=0 must not buy one unit
         if "quantity" in data:
             raw_qty = data.get("quantity")
@@ -2445,7 +2575,7 @@ async def handle_message(
             return character_id, user_id, outbound, None
         async with db_write() as db:
             ok, reason, bought = await buy_item(
-                db, char, str(item_id or ""), quantity=buy_qty
+                db, char, str(item_id).strip(), quantity=buy_qty
             )
         if not ok:
             # Surface cost when short on gold (mirrors inn not-enough path)
@@ -2486,6 +2616,9 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
+        if not item_id or not str(item_id).strip():
+            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+            return character_id, user_id, outbound, None
         # quantity: never use `or 1` — qty=0 must not sell one unit
         if "quantity" in data:
             raw_qty = data.get("quantity")
@@ -2503,7 +2636,7 @@ async def handle_message(
             return character_id, user_id, outbound, None
         async with db_write() as db:
             ok, reason, sold = await sell_item(
-                db, char, str(item_id or ""), quantity=sell_qty
+                db, char, str(item_id).strip(), quantity=sell_qty
             )
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))

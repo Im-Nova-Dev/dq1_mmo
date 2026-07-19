@@ -1,39 +1,41 @@
 # DQ1 MMO — Human guide
 
-For **people**: players, operators, and human contributors.
+<p align="center">
+  <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.69-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-318-059669?style=for-the-badge" />
+</p>
+
+For **people**: players, operators, and human contributors.  
+Coding agents use **[AGENTS.md](../AGENTS.md) only** — you do **not** need that file to play or host.
 
 | You want… | Open this |
 |:----------|:----------|
 | Install & overview | [../README.md](../README.md) |
 | Docs map (human vs agent) | [README.md](README.md) |
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
-| Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
+| Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-<p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.66-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-301-059669?style=flat-square" />
-  <img alt="audience" src="https://img.shields.io/badge/audience-humans-2563eb?style=flat-square" />
-</p>
-
-**Version:** 0.5.66 · **301** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.69 · **318** tests · matches `server/config.py` → `VERSION`
 
 ---
 
 ## What is this?
 
-A multiplayer **Dragon Quest I–style** game:
+A multiplayer **Dragon Quest I–style** game on one shared map.
 
-- Account + hero (starting gold + **3 herbs**)
-- Shared **town / field / dungeon** on one map
-- Server-side combat (attack, magic, flee, herbs)
-- Town **inn** and **field magic**
-- Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · fights · defeats)
-- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, **`/last`** (who reply targets), **`/hp`** · **`/xp`**, **`/unequip`**, **`/version`** · **`/time`**, online roster (idle/AFK on lists · clears when you chat), status sheet (**F** / `/status` / `/whoami`)
-- Join toast with **online count** when you enter the world
-- Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each · **D** discard), swappable PNG art
-- Up to **3 heroes** per account (create / delete)
+| Pillar | What you get |
+|:-------|:-------------|
+| **Hero** | Account · up to **3** heroes · start with gold + **3 herbs** |
+| **World** | **Town** (safe) · **field** · **dungeon** · shared grid |
+| **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
+| **Town life** | Inn · shop · equip · sell · discard (bag **12×8**) |
+| **Magic** | Field heal · return · repel · radiant · outside |
+| **Social** | Global · nearby · zone · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** · look · inspect · find · who |
+| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/spells`** · **`/bag`** · **`/keys`** · **`/status`** |
+| **Meta** | AFK roster · soft reconnect · join welcome · mute list · swappable PNG art |
 
-**Not in the MVP:** parties, PvP, trade, quests, multi-map worlds.
+**Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 
 ---
 
@@ -138,6 +140,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/g message** · **/global message** | Global chat |
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
 | **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
+| **channel `shout`** | Same as zone chat (area shout, not world-wide) |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
 | **/counts** · **/census** | Online + nearby + zone population totals |
@@ -153,19 +156,27 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
+| **/find afk** · **/find afk:yes** | List heroes marked AFK (combine with `zone:…`) |
 | **/help** or **?** | Server list of commands / keys |
 | **/ignore Name** | Mute chat/emotes from that hero |
 | **/unignore Name** | Stop ignoring |
-| **/ignores** | List who you are ignoring (names stay if they log off) |
+| **/ignores** · **/blocklist** | List who you are ignoring (names stay if they log off) |
+| **/inspect Name** | Same as look / examine |
 | **/who** | Online / nearby + zone counts (same as **O**) |
 | **/players** | Same as `/who` |
 | **/near** · **/here** | List heroes nearby (view range) |
 | **/zone** · **/where** · **/whereami** · **/coords** | Your zone, map position, **who is here**, population by area |
 | **/stats** · **/sheet** | Same as **/status** |
 | **/gold** · **/money** | How much gold you have |
+| **/hp** · **/vitals** · **/mp** | Quick HP / MP check |
+| **/xp** · **/level** · **/exp** | Level and XP toward the next level |
+| **/buffs** · **/effects** | Repel, radiant, AFK flags |
+| **/keys** · **/controls** | Keybind summary |
 | **/spells** · **/magic** | Known battle + field spells |
 | **/bag** · **/inv** · **/items** | Open bag (same as **I**) |
+| **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
+| **/last** · **/lastwhisper** | See who **/r** will reply to |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* · `/players` same as `/who` |
 | **L** | Look at a nearby (or roster) adventurer — alone, looks at yourself |
@@ -195,9 +206,10 @@ Chat tags in the log:
 | `[*]` | System (nearby level-up · zone-enter) |
 
 Only **online** characters can be whispered (`/w Name message`). A **unique prefix** of the name is enough; if several players match, you get an error instead of a wrong target.  
-**`/find`** never reveals map positions — only names, levels, combat flag, and **zone type** (town/field/dungeon).  
+**`/find`** never reveals map positions — only names, levels, combat flag, **zone type**, and AFK — never map coordinates of others.  
 Filter with **`zone:town`**, **`zone:field`**, or **`zone:dungeon`** (also `in:field`).  
-Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names are rejected with an error.
+Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names are rejected with an error.  
+Whispering someone who is AFK still delivers the message; you get a short note that they may be away.
 
 ---
 
@@ -206,7 +218,7 @@ Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names a
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /counts · /find · /who · /players · /near · /zone · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /counts · /find · /who · /near · /zone · /hp · /xp · /last · /unequip · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · D discard · U unequip · Tab shop |
 
@@ -267,7 +279,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 301 passed
+# expect: 318 passed
 ```
 
 ---
@@ -281,11 +293,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.66** · **301** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.69** · **318** tests).
 
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/counts` `/find` `/who` `/players` `/near` `/zone` `/version` `/time` `/ignore` `/status`) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/r` `/last` `/hp` `/xp` `/gold` `/unequip` `/zone` `/who` …) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

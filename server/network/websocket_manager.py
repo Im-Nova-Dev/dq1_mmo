@@ -622,7 +622,9 @@ class ConnectionManager:
                         "level": 0,
                         "in_combat": False,
                         "idle": False,
+                        "afk": False,
                         "offline": True,
+                        "online": False,
                     }
                 )
         return out
@@ -973,11 +975,13 @@ class ConnectionManager:
         *,
         limit: int = 20,
         zone: str | None = None,
+        afk: bool | None = None,
     ) -> list[dict[str, Any]]:
         """Case-insensitive name prefix search over online roster (no coordinates).
 
         Optional zone filter: town | field | dungeon (never returns x/y).
-        Empty prefix + zone lists everyone in that zone (multiplayer overview).
+        Optional afk filter: True = only AFK, False = only not-AFK, None = all.
+        Empty prefix + zone and/or afk lists matching online heroes.
         """
         key = ""
         if isinstance(prefix, str):
@@ -992,8 +996,8 @@ class ConnectionManager:
             else:
                 # Invalid zone → no hits (caller may surface error)
                 return []
-        # Need a name prefix and/or a valid zone filter
-        if not key and not zone_key:
+        # Need a name prefix and/or a valid zone/afk filter
+        if not key and zone_key is None and afk is None:
             return []
         try:
             lim = int(limit)
@@ -1013,6 +1017,8 @@ class ConnectionManager:
                 continue
             card = _online_card(meta)
             if zone_key and card.get("zone") != zone_key:
+                continue
+            if afk is not None and bool(card.get("afk")) is not bool(afk):
                 continue
             hits.append(card)
         hits.sort(

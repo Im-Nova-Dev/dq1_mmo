@@ -389,6 +389,20 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "XP updated"), "info")
   end)
 
+  Network.on("buffs", function(data)
+    UI.toast(tostring(data.message or "No active buffs."), "info")
+    if data.repel ~= nil then
+      self.repel = tonumber(data.repel) or 0
+    end
+    if data.radiant ~= nil then
+      self.radiant = tonumber(data.radiant) or 0
+    end
+  end)
+
+  Network.on("controls", function(data)
+    UI.toast(tostring(data.message or "Controls updated"), "info")
+  end)
+
   Network.on("lastwhisper", function(data)
     UI.toast(tostring(data.message or "No one to reply to yet."), "info")
   end)
@@ -1063,6 +1077,17 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]lastwhisper%s*$")
           or text:match("^[/%!]last_whisper%s*$")
           or text:match("^[/%!]reply_to%s*$")
+        local wants_buffs = text:match("^[/%!]buffs%s*$")
+          or text:match("^[/%!]effects%s*$")
+          or text:match("^[/%!]debuffs%s*$")
+        local wants_keys = text:match("^[/%!]keys%s*$")
+          or text:match("^[/%!]controls%s*$")
+          or text:match("^[/%!]keybinds%s*$")
+        local wants_blocklist = text:match("^[/%!]blocklist%s*$")
+          or text:match("^[/%!]blocks%s*$")
+        local inspect_name = text:match("^[/%!]inspect%s+(%S+)$")
+          or text:match("^[/%!]look%s+(%S+)$")
+          or text:match("^[/%!]examine%s+(%S+)$")
         local unequip_slot = text:match("^[/%!]unequip%s+(%S+)$")
           or text:match("^[/%!]takeoff%s+(%S+)$")
           or text:match("^[/%!]remove%s+(%S+)$")
@@ -1149,6 +1174,14 @@ function Overworld:keypressed(key)
           Network.send({ type = "inventory" })
         elseif wants_last then
           Network.send({ type = "lastwhisper" })
+        elseif wants_buffs then
+          Network.send({ type = "buffs" })
+        elseif wants_keys then
+          Network.send({ type = "keys" })
+        elseif wants_blocklist then
+          Network.send({ type = "blocklist" })
+        elseif inspect_name and inspect_name ~= "" then
+          Network.send({ type = "inspect", name = inspect_name })
         elseif unequip_slot and unequip_slot ~= "" then
           Network.send({ type = "unequip", slot = unequip_slot:lower() })
         elseif wants_back then
