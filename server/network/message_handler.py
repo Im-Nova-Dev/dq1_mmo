@@ -1013,6 +1013,7 @@ async def handle_message(
                     {"cmd": "share", "hint": "/share Name — privately share your zone + coords"},
                     {"cmd": "poke", "hint": "/poke Name · /nudge @last — get their attention"},
                     {"cmd": "askwhere", "hint": "/askwhere Name · /locate @last — ask them to /share"},
+                    {"cmd": "thank", "hint": "/thank Name · /ty @last — private thanks"},
                     {"cmd": "fighting", "hint": "/fighting · /combats — nearby heroes in combat"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
@@ -1422,11 +1423,10 @@ async def handle_message(
         if tid in manager.online_ids():
             tmeta = manager.get_meta(tid)
             live_name = (tmeta or {}).get("name") or tname or "Hero"
-            # Only notify + clear if invite is still pending from us
+            # Only notify if invite is still pending from us
             # (prevents spam cancel after accept/decline)
             from_id, _ = manager.last_invite_from(tid)
             if from_id == character_id:
-                manager.clear_last_invite(tid)
                 cancel_msg = {
                     "type": "invite_cancel",
                     "from": name,
@@ -1440,6 +1440,9 @@ async def handle_message(
                     cancel_msg["session_id"] = sid_c
                 await manager.send(tid, cancel_msg)
                 notified = True
+        # Always drop peer pointer (live + soft-grace) so offline guests
+        # do not rehydrate a zombie invite after reconnect.
+        manager.clear_invite_from_peer(tid, character_id)
         manager.clear_last_invite_to(character_id)
         outbound.append(
             msg(
@@ -1852,6 +1855,127 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
+    # --- Thank (private multiplayer ack — e.g. after /share) ---
+    if msg_type in ("thank", "thanks", "ty", "thx", "thankyou", "thank_you"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        want_last = bool(data.get("reply")) or (
+            isinstance(target_name, str)
+            and target_name.strip().lower() in ("@last", "last", "!")
+        )
+        raw_pid = None
+        if data.get("to_id") is not None:
+            raw_pid = data.get("to_id")
+        elif data.get("player_id") is not None:
+            raw_pid = data.get("player_id")
+        target_id = (
+            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
+        )
+        if raw_pid is not None and target_id is None:
+            from network.websocket_manager import coerce_character_id
+
+            if coerce_character_id(raw_pid) is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if want_last and target_id is None:
+            lid, lname = manager.last_whisper_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_emote_to(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_to(character_id)
+            if lid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to thank"))
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            if not want_last:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
+        if target_id is None:
+            if not (
+                isinstance(target_name, str) and target_name.strip()
+            ) and raw_pid is None and not want_last:
+                outbound.append(msg(ServerMessageType.ERROR, reason="thank target required"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if target_id == character_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot thank yourself"))
+            return character_id, user_id, outbound, None
+        if target_id not in manager.online_ids():
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(target_id, character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(character_id, target_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+            return character_id, user_id, outbound, None
+        meta_pre = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
+        ok_chat, retry = manager.allow_chat(character_id)
+        if not ok_chat:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        tmeta = manager.get_meta(target_id)
+        name = (meta or {}).get("name") or "Hero"
+        tname = (tmeta or {}).get("name") or (
+            target_name.strip() if isinstance(target_name, str) else "Hero"
+        )
+        thank_line = f"{name} thanks you."
+        thank_msg: dict = {
+            "type": "thank",
+            "from": name,
+            "from_id": character_id,
+            "to": tname,
+            "to_id": target_id,
+            "message": thank_line,
+        }
+        sid_t = manager.session_id(character_id)
+        if sid_t is not None:
+            thank_msg["session_id"] = sid_t
+        delivered = await manager.send(target_id, thank_msg)
+        if not delivered:
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        manager.note_whisper_from(character_id, target_id, tname)
+        manager.note_whisper_from(target_id, character_id, name)
+        echo = dict(thank_msg)
+        echo["message"] = f"You thanked {tname}."
+        target_afk = bool((tmeta or {}).get("afk"))
+        if target_afk:
+            echo["target_afk"] = True
+            am = (tmeta or {}).get("afk_message")
+            if isinstance(am, str) and am.strip():
+                echo["target_afk_message"] = am.strip()[:48]
+        outbound.append(echo)
+        if was_idle:
+            await manager.publish_status(character_id)
+        return character_id, user_id, outbound, None
+
     # --- Last meetup inviter (who invited you) ---
     if msg_type in ("lastinvite", "last_invite", "who_invite", "invite_last"):
         if character_id is None:
@@ -1913,7 +2037,20 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="no invite to answer"))
             return character_id, user_id, outbound, None
         if lid not in manager.online_ids():
-            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            # Inviter left — clear stuck invite so /accept|/decline cannot loop forever
+            # Also clear inviter soft-grace last_invite_to so they do not rehydrate
+            # a zombie outgoing invite after reconnect.
+            manager.clear_last_invite(character_id)
+            manager.clear_invite_to_peer(lid, character_id)
+            live = lname or "Hero"
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="player not online",
+                    invite_cleared=True,
+                    message=f"Invite from {live} cleared (player offline).",
+                )
+            )
             return character_id, user_id, outbound, None
         if manager.is_ignored_by(lid, character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))

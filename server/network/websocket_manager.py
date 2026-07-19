@@ -887,6 +887,51 @@ class ConnectionManager:
         meta["last_invite_from_id"] = None
         meta["last_invite_from_name"] = None
 
+    @staticmethod
+    def _ids_equal(a: Any, b: Any) -> bool:
+        try:
+            return a is not None and b is not None and int(a) == int(b)
+        except (TypeError, ValueError):
+            return False
+
+    def clear_invite_from_peer(self, guest_id: int, inviter_id: int) -> bool:
+        """Clear guest's last_invite_from if it points at inviter (live + soft-grace).
+
+        Needed when inviter /cancel's while guest is offline — otherwise soft-grace
+        restores a zombie invite on guest reconnect.
+        """
+        cleared = False
+        meta = self._meta.get(guest_id)
+        if meta is not None and self._ids_equal(meta.get("last_invite_from_id"), inviter_id):
+            meta["last_invite_from_id"] = None
+            meta["last_invite_from_name"] = None
+            cleared = True
+        bag = self._soft_grace.get(guest_id)
+        if bag is not None and self._ids_equal(bag.get("last_invite_from_id"), inviter_id):
+            bag["last_invite_from_id"] = None
+            bag["last_invite_from_name"] = None
+            cleared = True
+        return cleared
+
+    def clear_invite_to_peer(self, inviter_id: int, guest_id: int) -> bool:
+        """Clear inviter's last_invite_to if it points at guest (live + soft-grace).
+
+        Needed when guest answers while inviter is offline — otherwise soft-grace
+        restores a zombie outgoing invite on inviter reconnect.
+        """
+        cleared = False
+        meta = self._meta.get(inviter_id)
+        if meta is not None and self._ids_equal(meta.get("last_invite_to_id"), guest_id):
+            meta["last_invite_to_id"] = None
+            meta["last_invite_to_name"] = None
+            cleared = True
+        bag = self._soft_grace.get(inviter_id)
+        if bag is not None and self._ids_equal(bag.get("last_invite_to_id"), guest_id):
+            bag["last_invite_to_id"] = None
+            bag["last_invite_to_name"] = None
+            cleared = True
+        return cleared
+
     def note_invite_to(
         self, inviter_id: int, target_id: int, target_name: str | None = None
     ) -> None:

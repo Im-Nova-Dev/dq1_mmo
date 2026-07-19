@@ -608,6 +608,18 @@ local function bind_handlers(self)
     UI.toast(tostring(line), "info")
   end)
 
+  Network.on("thank", function(data)
+    local line = data.message or "Thanks."
+    if data.target_afk then
+      if data.target_afk_message and data.target_afk_message ~= "" then
+        line = line .. " (AFK: " .. tostring(data.target_afk_message) .. ")"
+      else
+        line = line .. " (they are AFK)"
+      end
+    end
+    UI.toast(tostring(line), "ok")
+  end)
+
   Network.on("lastinvite", function(data)
     UI.toast(tostring(data.message or "No meetup invite yet."), "info")
   end)
@@ -1341,6 +1353,14 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]askpos%s*$")
           or text:match("^[/%!]locate%s*$")
           or text:match("^[/%!]whereru%s*$")
+        local thank_tgt = text:match("^[/%!]thank%s+(%S+)$")
+          or text:match("^[/%!]thanks%s+(%S+)$")
+          or text:match("^[/%!]ty%s+(%S+)$")
+          or text:match("^[/%!]thx%s+(%S+)$")
+        local wants_thank_last = text:match("^[/%!]thank%s*$")
+          or text:match("^[/%!]thanks%s*$")
+          or text:match("^[/%!]ty%s*$")
+          or text:match("^[/%!]thx%s*$")
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
@@ -1572,6 +1592,18 @@ function Overworld:keypressed(key)
             Network.askwhere("@last")
           else
             Network.send({ type = "askwhere", to = "@last" })
+          end
+        elseif thank_tgt and thank_tgt ~= "" then
+          if Network.thank then
+            Network.thank(thank_tgt)
+          else
+            Network.send({ type = "thank", to = thank_tgt })
+          end
+        elseif wants_thank_last then
+          if Network.thank then
+            Network.thank("@last")
+          else
+            Network.send({ type = "thank", to = "@last" })
           end
         elseif wants_stuck then
           Network.send({ type = "stuck" })

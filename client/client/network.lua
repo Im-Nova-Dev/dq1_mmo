@@ -335,6 +335,14 @@ function Network.askwhere(to_name)
   return Network.send({ type = "askwhere", to = tostring(to_name) })
 end
 
+--- Private thanks (e.g. after someone /share'd with you).
+function Network.thank(to_name)
+  if to_name == nil or tostring(to_name) == "" then
+    return Network.send({ type = "thank", to = "@last" })
+  end
+  return Network.send({ type = "thank", to = tostring(to_name) })
+end
+
 function Network.look(name_or_id)
   if name_or_id == nil or name_or_id == "" then
     -- bare look → server examines self

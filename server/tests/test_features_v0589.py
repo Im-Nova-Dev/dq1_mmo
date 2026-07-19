@@ -129,17 +129,31 @@ def test_emote_blocked_in_combat(tmp_path, monkeypatch):
                 cat = await recv_until(ws, "emotes", "error")
                 assert cat.get("type") == "emotes", cat  # list still ok
 
-                await ws.send(json.dumps({"type": "flee"}))
-                end = time.monotonic() + 3
-                while time.monotonic() < end:
-                    try:
-                        m = json.loads(
-                            await asyncio.wait_for(ws.recv(), max(0.05, end - time.monotonic()))
-                        )
-                        if m.get("type") == "combat_end":
+                # Flee can fail (DQ1 chance) — keep trying until combat ends
+                fled = False
+                for _ in range(12):
+                    await ws.send(json.dumps({"type": "flee"}))
+                    end = time.monotonic() + 1.5
+                    while time.monotonic() < end:
+                        try:
+                            m = json.loads(
+                                await asyncio.wait_for(
+                                    ws.recv(), max(0.05, end - time.monotonic())
+                                )
+                            )
+                            if m.get("type") == "combat_end":
+                                fled = True
+                                break
+                            if m.get("type") == "error" and "combat" not in str(
+                                m.get("reason") or ""
+                            ).lower():
+                                # unexpected; keep trying flee
+                                pass
+                        except (asyncio.TimeoutError, TimeoutError):
                             break
-                    except (asyncio.TimeoutError, TimeoutError):
+                    if fled:
                         break
+                assert fled, "expected combat_end after flee attempts"
 
                 await asyncio.sleep(0.85)
                 await ws.send(json.dumps({"type": "emote", "emote": "wave"}))
