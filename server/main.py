@@ -204,6 +204,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "blocklist",
                 "blocks",
                 "reply",
+                "r",
                 "lastwhisper",
                 "last_whisper",
                 "last",

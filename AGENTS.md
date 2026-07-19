@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.110` (`server/config.py` → `VERSION`) · **547** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.111` (`server/config.py` → `VERSION`) · **556** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.110** / **547** until the suite or `VERSION` changes.  
-Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.110** uncommitted.  
+Keep badges at **0.5.111** / **556** until the suite or `VERSION` changes.  
+Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.111** uncommitted.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.110 / 547** · pending/lastinvite zone · find `you` · social-find filters · protocol / reliability / test matrix **only** in this file.
+Docs pass (**this run**): badges **0.5.111 / 556** · accept zone · r alias · lastemote badges · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -86,7 +86,8 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | Path | Role |
 |:-----|:-----|
 | `server/main.py` | WS accept loop, connect meta, send |
-| `server/network/message_handler.py` | All game messages + combat + chat |
+| `server/network/message_handler.py` | All game messages + combat + chat (dispatcher; helpers in `handlers/_common.py`) |
+| `server/network/handlers/_common.py` | Shared message helpers (social aliases, qty parse, private delivery, combat UI msgs) |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
 | `server/network/presence.py` | Position flush, idle kick, combat grace expiry |
@@ -129,7 +130,7 @@ All messages are JSON objects with a `type` string.
 | `chat` / `g` | `text`, optional `channel` | Default **global**; `nearby` AOI; `zone` same tile-zone; `whisper` + `to`/`to_id`. Type `g` forces global. |
 | `say` / `s` / `nearby_chat` | `text` | **Nearby** (AOI) chat |
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
-| `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
+| `reply` / `r` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace). Raw type `r` is reply-only, not a separate channel. |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `wave` / `bow` / `cheer` / `dance` / `cry` / `laugh` / `point` / `sit` / `think` | optional `to`/`to_id` | Emote shortcuts (same as `emote` + that name); directed + `@last` / `reply` |
 | `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
@@ -442,7 +443,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 235. **`pending` / `lastinvite`:** online peers include **`zone`** / **`in_combat`** (no coords); offline omits zone; messages use `[town,afk,fight]` badges.
 236. **`find` prefix hits:** cards for the requesting character get **`you: true`** (self still counted).
 237. **`find` free-text filters:** strip **all** `zone:/afk:/idle:/combat:` tokens in a loop (last wins); never leave residual tokens as a name prefix.
-238. Tests: `test_features_v05107`–`v05110` + `test_mp_reliability_v05107`–`v05109` + `test_adversarial_hunt_v05110`.
+238. **`invite_reply` (accept/decline):** includes accepter **zone** + **nearby** (coords only if AOI-near); message says `from the field`.
+239. Whisper/reply also accepts type **`r`** as alias for **`reply`**.
+240. **`lastemote`:** peer zone/afk/in_combat badges like pending/lastinvite.
+241. Tests: `test_features_v05107`–`v05111` + `test_mp_reliability_v05107`–`v05111` + `test_adversarial_hunt_v05110`.
 
 ## Tests (mandatory for your changes)
 
@@ -532,7 +536,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0585` | near unauth; played afk_message; version afk_count |
 | `tests.test_features_v0586` | health/pong afk_count; stuck-home clears AFK; password change; sync |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
-| `tests.test_mp_reliability_v0547` | zone on presence, live zone chat, roster sort, /players alias |
+| `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
 | `tests.test_features_v0543` | /zone, fairy water repel, wings zone, full_plate/silver_shield shop |

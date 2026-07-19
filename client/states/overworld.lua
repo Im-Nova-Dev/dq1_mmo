@@ -568,7 +568,12 @@ local function bind_handlers(self)
   end)
 
   Network.on("invite_reply", function(data)
-    UI.toast(tostring(data.message or "Invite reply."), "info")
+    local line = tostring(data.message or "Invite reply.")
+    -- zone already in message; extra badge if present without coords spam
+    if data.zone and type(data.zone) == "string" and not line:find(data.zone, 1, true) then
+      line = line .. " [" .. tostring(data.zone) .. "]"
+    end
+    UI.toast(line, "info")
   end)
 
   Network.on("invite_cancel", function(data)
