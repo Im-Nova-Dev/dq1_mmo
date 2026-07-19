@@ -39,6 +39,7 @@ from network.handlers import look as look_handlers
 from network.handlers import presence_peeks
 from network.handlers import session as session_handlers
 from network.handlers import social_peeks
+from network.handlers import status as status_handlers
 from network.handlers._common import (  # noqa: F401 — re-export for tests
     _afk_snap,
     _announce_combat_outcome,
@@ -129,95 +130,19 @@ async def handle_message(
     if look_peek is not None:
         return look_peek
 
+    status_peek = await status_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if status_peek is not None:
+        return status_peek
+
     presence_peek = await presence_peeks.handle(
         character_id, user_id, data, outbound
     )
     if presence_peek is not None:
         return presence_peek
 
-    # who/near/counts/zone/fighting via presence_peeks · look via handlers.look
-
-    # --- Self status (lightweight sheet; no inventory dump) ---
-    if msg_type in (
-        ClientMessageType.STATUS,
-        ClientMessageType.ME,
-        "status",
-        "me",
-        "whoami",
-        "stats",
-        "sheet",
-    ):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        char = await get_character(character_id)
-        meta = manager.get_meta(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        x = int(meta["x"]) if meta else int(char.get("world_x") or SPAWN_X)
-        y = int(meta["y"]) if meta else int(char.get("world_y") or SPAWN_Y)
-        try:
-            z = zone_at(x, y)
-        except Exception:
-            z = None
-        from game.progression import xp_to_next_level
-
-        xp_prog = xp_to_next_level(
-            int(char.get("experience") or 0),
-            int(char.get("level") or 1),
-        )
-        bonuses = equipment_bonuses(char)
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        you_afk = bool(meta.get("afk")) if meta else False
-        you_idle = _idle_chk(meta) if meta else False
-        you_status: dict = {
-            "x": x,
-            "y": y,
-            "zone": z,
-            "in_combat": combat_engine.is_in_combat(character_id),
-            "repel": manager.repel_remaining(character_id),
-            "radiant": manager.radiant_remaining(character_id),
-            "session_id": manager.session_id(character_id),
-            "afk": you_afk,
-            "idle": you_idle,
-        }
-        if you_afk and meta is not None:
-            am = meta.get("afk_message")
-            if isinstance(am, str) and am.strip():
-                you_status["afk_message"] = am.strip()[:48]
-        outbound.append(
-            msg(
-                ServerMessageType.STATUS,
-                character={
-                    "id": character_id,
-                    "name": char.get("name"),
-                    "level": char.get("level"),
-                    "current_hp": char.get("current_hp"),
-                    "max_hp": char.get("max_hp"),
-                    "current_mp": char.get("current_mp"),
-                    "max_mp": char.get("max_mp"),
-                    "gold": char.get("gold"),
-                    "strength": char.get("strength"),
-                    "agility": char.get("agility"),
-                    "experience": char.get("experience"),
-                    "xp_progress": xp_prog,
-                    "equipment_weapon": char.get("equipment_weapon"),
-                    "equipment_armor": char.get("equipment_armor"),
-                    "equipment_shield": char.get("equipment_shield"),
-                    "equipment_helmet": char.get("equipment_helmet"),
-                    "bonuses": bonuses,
-                    "known_spells": battle_spells_at(int(char.get("level") or 1)),
-                    "field_spells": field_spells_at(int(char.get("level") or 1)),
-                },
-                you=you_status,
-                online=len(manager.online_ids()),
-                afk_count=manager.afk_count(),
-            )
-        )
-        return character_id, user_id, outbound, None
+    # who/near/counts/zone/fighting · look · status via handlers
 
     # --- Gold only (lightweight wallet peek) ---
     if msg_type in ("gold", "money", "wallet"):
