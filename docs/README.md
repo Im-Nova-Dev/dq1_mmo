@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.123** (2026-07-19) · suite **635** tests · soft reconnect `/played` · Session README card · humans ≠ agents
+**Last docs refresh:** **v0.5.124** (2026-07-19) · suite **642** tests · restored.played / session timer welcome · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -68,7 +68,7 @@ flowchart TB
 - Shop town-only · not in combat · gold toasts · high-tier gear
 - Join welcome may mention nearby heroes
 - Soft reconnect: mute list, **last whisper partner** (near/far when online), **share partners**, **emote partners**, **meetup invite peers**, buffs, and **`/played` age** survive a brief disconnect
-- Brief reconnect **keeps** `/played` / `/session` age; after grace expires (or a full leave) the timer starts fresh
+- Brief reconnect **keeps** `/played` / `/session` age; welcome may list **session timer** among Restored bits; after grace expires (or a full leave) the timer starts fresh
 - Failed private messages do not block your next chat line
 - `/version` · `/time` · `/whoami` · `/stats` · `/whereami` · `/motd` · `/afk` · `/quit`
 - `/gold` · `/spells` · `/bag` · `/inv` · `/items`

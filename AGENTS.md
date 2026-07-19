@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.123` (`server/config.py` → `VERSION`) · **635** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.124` (`server/config.py` → `VERSION`) · **642** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.123** / **635** until the suite or `VERSION` changes.  
-Last **pushed** ship: `0e72039` (**v0.5.123** soft reconnect `/played` age).  
+Keep badges at **0.5.124** / **642** until the suite or `VERSION` changes.  
+Last **pushed** ship: `0e72039` (v0.5.123) / `a411d13` (docs). Shipping **0.5.124**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.123 / 635** · human Session card · plain-language reconnect · protocol only here.
+Docs pass (**this run**): badges **0.5.124 / 642** · restored.played · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -499,6 +499,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 285. Soft-grace bag stashes **`session_started`**; always bag if session stamp present.
 286. Soft reconnect restores `/played` age; expired grace does not.
 287. Tests: `test_features_v05123` + `test_mp_reliability_v05123` (+ v0573 continue).
+288. **`soft_restored_session`** meta flag on soft-grace rejoin only (not live replace / first join).
+289. **`build_soft_reconnect_restored` / `format_restored_welcome_bits`:** shared auth restored flags + welcome bits.
+290. **`restored.played`** + welcome **session timer**; first join stays all-false for played.
+291. Tests: `test_features_v05124` + `test_mp_reliability_v05124`.
 
 ## Tests (mandatory for your changes)
 
