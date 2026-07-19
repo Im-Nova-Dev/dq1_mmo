@@ -57,7 +57,6 @@ def battle_spells_at(level: int) -> list[str]:
 
 
 def field_enemies() -> list[str]:
-    # early/mid overworld set
     ids = [
         "slime",
         "red_slime",

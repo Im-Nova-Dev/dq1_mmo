@@ -27,6 +27,9 @@ local function zone_name(x, y)
   if t == 0 then
     return "field"
   end
+  if t == 4 then
+    return "dungeon"
+  end
   if t == 3 then
     return "water"
   end
@@ -49,6 +52,13 @@ local function bind_handlers(self)
     if World.local_player then
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
+    -- combat_resume may follow in same batch
+  end)
+
+  Network.on("combat_resume", function(data)
+    self.locked = true
+    World.pending = {}
+    State.switch("combat", data)
   end)
 
   Network.on("auth_fail", function(data)
@@ -278,7 +288,7 @@ function Overworld:draw()
   love.graphics.print(self.net_info, 16, 116)
   love.graphics.setColor(0.8, 0.85, 0.9)
   love.graphics.print(
-    "WASD move  |  I inventory  |  field battles  |  B debug fight  |  Esc quit",
+    "WASD  |  I bag  |  field/dungeon fights  |  east=dungeon  |  B debug  |  Esc",
     16,
     love.graphics.getHeight() - 28
   )

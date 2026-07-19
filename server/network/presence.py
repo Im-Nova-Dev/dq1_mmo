@@ -37,13 +37,9 @@ async def kick_idle() -> int:
     n = 0
     for cid in manager.stale_ids():
         meta = manager.get_meta(cid)
-        ws = None
-        # close socket if present
         try:
-            # disconnect handles meta removal
             if combat_engine.is_in_combat(cid):
                 await handle_disconnect(cid)
-            # flush position first
             if meta:
                 async with db_write() as db:
                     await db.execute(
@@ -60,6 +56,20 @@ async def kick_idle() -> int:
     return n
 
 
+async def expire_combats() -> int:
+    from game.combat_engine import combat_engine
+    from network.message_handler import expire_combat_grace
+
+    n = 0
+    for cid in combat_engine.expired_grace():
+        try:
+            await expire_combat_grace(cid)
+            n += 1
+        except Exception as exc:
+            log.warning("combat grace expire failed for %s: %s", cid, exc)
+    return n
+
+
 async def _loop() -> None:
     ticks = 0
     while True:
@@ -69,13 +79,14 @@ async def _loop() -> None:
             flushed = await flush_dirty_positions()
             if flushed:
                 log.debug("flushed %s positions", flushed)
-            # idle check less often
+            expired = await expire_combats()
+            if expired:
+                log.info("expired %s orphaned combats", expired)
             if ticks % max(1, int(HEARTBEAT_CHECK_INTERVAL // FLUSH_INTERVAL)) == 0:
                 kicked = await kick_idle()
                 if kicked:
                     log.info("kicked %s idle connections", kicked)
         except asyncio.CancelledError:
-            # final flush
             try:
                 await flush_dirty_positions()
             except Exception:

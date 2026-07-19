@@ -601,6 +601,8 @@ class Battle:
 class CombatEngine:
     def __init__(self) -> None:
         self.active: dict[int, Battle] = {}
+        # character_id -> monotonic deadline while disconnected
+        self.grace_until: dict[int, float] = {}
 
     def is_in_combat(self, character_id: int) -> bool:
         return character_id in self.active
@@ -609,12 +611,29 @@ class CombatEngine:
         return self.active.get(character_id)
 
     def start(self, character_id: int, hero: dict, enemy_id: str, seed: int | None = None) -> Battle:
+        self.grace_until.pop(character_id, None)
         battle = Battle(hero, enemy_id, seed=seed)
         self.active[character_id] = battle
         return battle
 
     def end(self, character_id: int) -> Battle | None:
+        self.grace_until.pop(character_id, None)
         return self.active.pop(character_id, None)
+
+    def mark_disconnected(self, character_id: int, grace_seconds: float) -> None:
+        import time
+
+        if character_id in self.active:
+            self.grace_until[character_id] = time.monotonic() + grace_seconds
+
+    def clear_disconnect(self, character_id: int) -> None:
+        self.grace_until.pop(character_id, None)
+
+    def expired_grace(self) -> list[int]:
+        import time
+
+        now = time.monotonic()
+        return [cid for cid, until in list(self.grace_until.items()) if now >= until]
 
 
 combat_engine = CombatEngine()

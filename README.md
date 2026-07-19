@@ -2,7 +2,7 @@
 
 Love2D client + FastAPI/WebSocket server. Server-authoritative DQ1 combat.
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 
 ## Quick start
 
@@ -33,13 +33,14 @@ Default login fields work after you register once (`hero@example.com` / `passwor
 ## Features
 
 - Email/password auth + JWT (Google OAuth optional via env)
-- Grid overworld (town / field / water / walls)
+- Grid world: **town / field / water / dungeon**
 - Multiplayer presence (nearby players)
-- Random field encounters, DQ1 combat formulas
+- Zone encounters (field + harder dungeon table)
+- DQ1 combat; **60s reconnect grace** resumes mid-fight
 - XP, level-ups, spells by level
 - Equipment, inventory, town shop
 - Defeat → town respawn, half gold
-- Client reconnect + HP/MP bars
+- Heartbeats, move acks, prediction, prod `ENV` guards
 
 ## Tests
 

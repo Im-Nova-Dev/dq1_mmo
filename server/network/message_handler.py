@@ -1,7 +1,7 @@
 from typing import Any
 
 from auth.jwt_handler import decode_access_token
-from config import ALLOW_DEBUG
+from config import ALLOW_DEBUG, COMBAT_GRACE_SECONDS
 from database.db import db_write, get_db
 from game.combat_engine import combat_engine
 from game.data_loader import battle_spells_at, get_enemy
@@ -35,7 +35,7 @@ async def _inventory_msg(character_id: int) -> dict:
 
 
 async def handle_disconnect(character_id: int) -> None:
-    """Persist position + any in-flight battle when a client disconnects."""
+    """Persist position; keep combat alive for a grace period so reconnect can resume."""
     meta = manager.get_meta(character_id)
     patch: dict = {}
     if meta is not None:
@@ -44,13 +44,30 @@ async def handle_disconnect(character_id: int) -> None:
         manager.mark_clean(character_id)
 
     battle = combat_engine.get(character_id)
-    if battle is not None:
+    if battle is not None and battle.outcome == "ongoing":
+        # Soft-save HP/MP but do not end the fight yet
         patch["current_hp"] = max(1, int(battle.hero["hp"]))
         patch["current_mp"] = max(0, int(battle.hero["mp"]))
+        combat_engine.mark_disconnected(character_id, COMBAT_GRACE_SECONDS)
+    elif battle is not None:
         combat_engine.end(character_id)
 
     if patch:
         await apply_character_patch(character_id, patch)
+
+
+async def expire_combat_grace(character_id: int) -> None:
+    """Called when reconnect grace expires — end battle without rewards."""
+    battle = combat_engine.get(character_id)
+    if battle is None:
+        combat_engine.clear_disconnect(character_id)
+        return
+    patch = {
+        "current_hp": max(1, int(battle.hero["hp"])),
+        "current_mp": max(0, int(battle.hero["mp"])),
+    }
+    await apply_character_patch(character_id, patch)
+    combat_engine.end(character_id)
 
 
 def _combat_update(battle, events: list | None = None) -> dict:
@@ -171,12 +188,19 @@ async def handle_message(
             character["world_x"] = x
             character["world_y"] = y
 
-        # Drop stale combat if reconnecting
-        if combat_engine.is_in_combat(character["id"]):
-            await handle_disconnect(character["id"])
-
         character["known_spells"] = battle_spells_at(int(character["level"]))
         character["bonuses"] = equipment_bonuses(character)
+
+        resume_battle = combat_engine.get(character["id"])
+        if resume_battle is not None and resume_battle.outcome == "ongoing":
+            combat_engine.clear_disconnect(character["id"])
+            character["current_hp"] = resume_battle.hero["hp"]
+            character["current_mp"] = resume_battle.hero["mp"]
+            character["in_combat"] = True
+        else:
+            character["in_combat"] = False
+            if resume_battle is not None:
+                combat_engine.end(character["id"])
 
         connect_meta = {
             "character_id": character["id"],
@@ -193,9 +217,26 @@ async def handle_message(
                 player_id=character["id"],
                 character=character,
                 map=map_payload(),
+                in_combat=bool(character.get("in_combat")),
             )
         )
         outbound.append(msg(ServerMessageType.WORLD_STATE, players=[], enemies=[], map=map_payload()))
+
+        if resume_battle is not None and resume_battle.outcome == "ongoing":
+            snap = resume_battle.snapshot()
+            outbound.append(
+                msg(
+                    ServerMessageType.COMBAT_RESUME,
+                    enemy=snap["enemy"],
+                    hero=snap["hero"],
+                    legal_actions=snap["legal_actions"],
+                    turn=snap["turn"],
+                    phase=snap["phase"],
+                    events=[{"kind": "message", "message": "Battle resumed!"}],
+                )
+            )
+            outbound.append(_combat_update(resume_battle, []))
+
         return character["id"], payload["user_id"], outbound, connect_meta
 
     if character_id is None:

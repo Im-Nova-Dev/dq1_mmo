@@ -124,14 +124,36 @@ function Combat:enter(payload)
     end
   end)
 
+  Network.on("combat_resume", function(data)
+    -- already in combat UI; refresh snapshot after reconnect
+    self.waiting = false
+    self.ended = false
+    if data.enemy then
+      self.enemy = data.enemy
+    end
+    if data.hero then
+      self.hero = data.hero
+    end
+    self.legal = data.legal_actions or self.legal
+    apply_events(self, data.events)
+    rebuild_menu(self)
+    self.status = "Battle resumed — your turn"
+  end)
+
   Network.on("auth_ok", function(data)
-    -- reconnect mid-fight: battle was cleared server-side; return to world
     if data.character then
       Session.character = data.character
     end
-    push_log(self, "Reconnected — battle ended.")
+    if data.in_combat then
+      -- combat_resume should arrive next; stay in combat UI
+      push_log(self, "Reconnected — restoring battle...")
+      self.status = "Reconnecting battle..."
+      return
+    end
+    push_log(self, "Reconnected — battle was lost.")
     self.ended = true
-    self.status = "Reconnected (Enter: continue)"
+    self.waiting = false
+    self.status = "Battle ended while away (Enter: continue)"
   end)
 end
 
