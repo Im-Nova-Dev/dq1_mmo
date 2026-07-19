@@ -47,6 +47,7 @@ from network.handlers._common import (  # noqa: F401 — re-export for tests
     _resolve_item_arg,
     _resolve_social_peer,
     _social_alias,
+    best_effort_send,
     peer_status_suffix,
     private_social_delivery,
     sanitize_chat,
@@ -388,7 +389,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to look at",
+                        reason=empty if social_mode in ("pending", "share") else "no one to look at",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -759,7 +760,7 @@ async def handle_message(
                 commands=[
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
-                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @pending message"},
+                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @pending · /w @share message"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · zone:town · afk:yes · combat:yes · idle:yes"},
                     {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
@@ -772,16 +773,16 @@ async def handle_message(
                     {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
                     {"cmd": "lastshare", "hint": "/lastshare — last location share target"},
                     {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
-                    {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @pending"},
+                    {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @share · /invite @pending"},
                     {"cmd": "cancel", "hint": "/cancel · /uninvite — cancel your last invite"},
                     {"cmd": "accept", "hint": "/accept · /coming — reply to last invite"},
                     {"cmd": "decline", "hint": "/decline · /later — decline last invite"},
                     {"cmd": "lastinvite", "hint": "/lastinvite — who invited you last"},
                     {"cmd": "pending", "hint": "/pending · /invites — pending meetup in + out"},
-                    {"cmd": "share", "hint": "/share Name · /share @pending — share zone + coords"},
+                    {"cmd": "share", "hint": "/share Name · /share @pending · /share @last — share zone + coords"},
                     {"cmd": "poke", "hint": "/poke Name · /nudge @last · /poke @pending"},
                     {"cmd": "askwhere", "hint": "/askwhere Name · /locate @pending"},
-                    {"cmd": "thank", "hint": "/thank Name · /ty @last · /ty @pending"},
+                    {"cmd": "thank", "hint": "/thank Name · /ty @last · /ty @share · /ty @pending"},
                     {"cmd": "fighting", "hint": "/fighting · /combats — nearby heroes in combat"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
@@ -806,7 +807,7 @@ async def handle_message(
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
                     {"cmd": "social", "hint": "/social · /peers — whisper · invite · emote peers"},
-                    {"cmd": "find", "hint": "/find Name · /find @pending · zone:town · combat:yes"},
+                    {"cmd": "find", "hint": "/find Name · /find @pending · /find @share · zone:town"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
                     {"cmd": "version", "hint": "/version · /server · /info — server version"},
                     {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
@@ -1201,32 +1202,34 @@ async def handle_message(
         if prev_inviter is not None and prev_inviter in manager.online_ids():
             # Informational about the guest — still skip if they muted us (no spam)
             if not manager.is_ignored_by(prev_inviter, character_id):
-                await manager.send(
-                    prev_inviter,
-                    {
-                        "type": "invite_superseded",
-                        "to": tname,
-                        "to_id": target_id,
-                        "message": f"{tname} received another meetup invite.",
-                    },
-                )
+                sup: dict[str, Any] = {
+                    "type": "invite_superseded",
+                    "to": tname,
+                    "to_id": target_id,
+                    "message": f"{tname} received another meetup invite.",
+                }
+                sid_sup = manager.session_id(character_id)
+                if sid_sup is not None:
+                    sup["session_id"] = sid_sup
+                await best_effort_send(prev_inviter, sup)
         if prev_guest is not None and prev_guest in manager.online_ids():
             # Respect ignore: do not push cancel toast to someone who muted us
             if not manager.is_ignored_by(prev_guest, character_id):
                 prev_meta = manager.get_meta(prev_guest)
                 prev_name = (prev_meta or {}).get("name") or "Hero"
-                await manager.send(
-                    prev_guest,
-                    {
-                        "type": "invite_cancel",
-                        "from": name,
-                        "from_id": character_id,
-                        "to": prev_name,
-                        "to_id": prev_guest,
-                        "message": f"{name} cancelled their meetup invite.",
-                        "reason": "retarget",
-                    },
-                )
+                retarget_msg: dict[str, Any] = {
+                    "type": "invite_cancel",
+                    "from": name,
+                    "from_id": character_id,
+                    "to": prev_name,
+                    "to_id": prev_guest,
+                    "message": f"{name} cancelled their meetup invite.",
+                    "reason": "retarget",
+                }
+                sid_rt = manager.session_id(character_id)
+                if sid_rt is not None:
+                    retarget_msg["session_id"] = sid_rt
+                await best_effort_send(prev_guest, retarget_msg)
         echo = dict(invite_msg)
         echo["message"] = f"Invite sent to {tname}."
         target_afk = bool((tmeta or {}).get("afk"))
@@ -1291,7 +1294,7 @@ async def handle_message(
                     if sid_c is not None:
                         cancel_msg["session_id"] = sid_c
                     # Honest notified flag — dead sockets must not claim success
-                    notified = bool(await manager.send(tid, cancel_msg))
+                    notified = await best_effort_send(tid, cancel_msg)
                 else:
                     muted_skip = True
                 # still clear their pending pointer even if muted / send failed
@@ -1350,7 +1353,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to share with",
+                        reason=empty if social_mode in ("pending", "share") else "no one to share with",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1491,7 +1494,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to poke",
+                        reason=empty if social_mode in ("pending", "share") else "no one to poke",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1619,7 +1622,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to ask",
+                        reason=empty if social_mode in ("pending", "share") else "no one to ask",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1738,7 +1741,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to thank",
+                        reason=empty if social_mode in ("pending", "share") else "no one to thank",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -2266,7 +2269,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to ignore",
+                        reason=empty if social_mode in ("pending", "share") else "no one to ignore",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -2316,7 +2319,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to unignore",
+                        reason=empty if social_mode in ("pending", "share") else "no one to unignore",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -2538,7 +2541,7 @@ async def handle_message(
                     msg(
                         ServerMessageType.ERROR,
                         reason=empty
-                        if social_q == "pending"
+                        if social_q in ("pending", "share")
                         else "no one to find",
                     )
                 )
@@ -2586,7 +2589,7 @@ async def handle_message(
                 hits = [card]
             q_clean = (
                 "@pending"
-                if social_q == "pending"
+                if social_q in ("pending", "share")
                 else ("@last" if social_q == "last" else f"@{social_q}")
             )
         else:
@@ -3356,11 +3359,12 @@ async def handle_message(
                 manager, character_id, social_mode, chain=chain
             )
             if lid is None:
-                reason = empty or (
-                    "no one to reply to" if is_reply_cmd or social_mode == "last" else "no pending invite"
-                )
-                if social_mode == "last" and is_reply_cmd:
+                if social_mode == "share":
+                    reason = empty or "no share target"
+                elif is_reply_cmd or social_mode == "last":
                     reason = "no one to reply to"
+                else:
+                    reason = empty or "no pending invite"
                 outbound.append(msg(ServerMessageType.ERROR, reason=reason))
                 return character_id, user_id, outbound, None
             target_id = lid
@@ -3864,7 +3868,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode == "pending" else "no one to emote",
+                        reason=empty if social_mode in ("pending", "share") else "no one to emote",
                     )
                 )
                 return character_id, user_id, outbound, None

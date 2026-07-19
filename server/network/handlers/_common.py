@@ -30,6 +30,8 @@ _CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _LAST_TOKENS = frozenset({"@last", "last", "!"})
 # Require @ prefix so a hero named "pending" / "meetup" stays addressable by name
 _PENDING_TOKENS = frozenset({"@pending", "@invite", "@meetup"})
+# Require @ prefix so a hero named "share" stays addressable by name
+_SHARE_TOKENS = frozenset({"@share", "@lastshare"})
 
 
 def _format_uptime(seconds: int) -> str:
@@ -62,14 +64,17 @@ def _afk_snap(meta: dict[str, Any] | None) -> tuple[bool, str | None]:
 
 
 def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str | None:
-    """Return 'last' | 'pending' | None from to/name token or flags.
+    """Return 'last' | 'pending' | 'share' | None from to/name token or flags.
 
     @last  — last whisper / emote / invite peer (command-specific chain)
     @pending / @invite — pending meetup peer (incoming then outgoing)
+    @share / @lastshare — last location-share target
     """
     if data:
         if data.get("pending") or data.get("invite_peer"):
             return "pending"
+        if data.get("share_peer") or data.get("lastshare"):
+            return "share"
         if data.get("reply"):
             return "last"
     if not isinstance(target_name, str):
@@ -79,6 +84,8 @@ def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str |
         return "last"
     if t in _PENDING_TOKENS:
         return "pending"
+    if t in _SHARE_TOKENS:
+        return "share"
     return None
 
 
@@ -89,13 +96,18 @@ def _resolve_social_peer(
     *,
     chain: tuple[str, ...] = ("whisper", "emote", "invite_from", "invite_to"),
 ) -> tuple[int | None, str | None, str | None]:
-    """Resolve @last / @pending peer. Returns (id, name, empty_reason)."""
+    """Resolve @last / @pending / @share peer. Returns (id, name, empty_reason)."""
     if mode == "pending":
         lid, lname = manager_obj.last_invite_from(character_id)
         if lid is None:
             lid, lname = manager_obj.last_invite_to(character_id)
         if lid is None:
             return None, None, "no pending invite"
+        return lid, lname, None
+    if mode == "share":
+        lid, lname = manager_obj.last_share_to(character_id)
+        if lid is None:
+            return None, None, "no share target"
         return lid, lname, None
     # mode == last
     for step in chain:
@@ -107,11 +119,18 @@ def _resolve_social_peer(
             lid, lname = manager_obj.last_invite_from(character_id)
         elif step == "invite_to":
             lid, lname = manager_obj.last_invite_to(character_id)
+        elif step == "share":
+            lid, lname = manager_obj.last_share_to(character_id)
         else:
             continue
         if lid is not None:
             return lid, lname, None
     return None, None, "no one"
+
+
+async def best_effort_send(target_id: int, payload: dict) -> bool:
+    """Fire-and-forget multiplayer notify; returns delivery success (no chat refund)."""
+    return bool(await manager.send(target_id, payload))
 
 
 def _parse_positive_qty(raw: Any) -> int | None:

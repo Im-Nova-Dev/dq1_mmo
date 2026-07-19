@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.114-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-576-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.115-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-583-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.114 · **576** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.115 · **583** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.114):** **`/lastshare`** remembers who got your location · cancel only counts as sent when it arrived · **576** tests.
+**Recent for players/ops (v0.5.115):** after **`/share`**, use **`@share`** with thank / whisper / invite / find · bare **share** is still a name · **583** tests.
 
 ---
 
@@ -35,7 +35,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/pending` · `/share` · **`/lastshare`** · `/askwhere` · `/thank` · `/poke` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · **`/social`** (near/far) · emotes · **`/roll`** · look · find · who |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/pending` · `/share` · **`/lastshare`** · **`@share`** · `/askwhere` · `/thank` · `/poke` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · **`/social`** (near/far) · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
 | **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
@@ -307,7 +307,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 576 passed
+# expect: 583 passed
 ```
 
 ---
@@ -321,7 +321,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.114** · **576** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.115** · **583** tests).
 
 | Do | Don’t |
 |:---|:------|

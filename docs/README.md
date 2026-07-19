@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.114** (2026-07-19) · suite **576** tests · lastshare · cancel notify honesty · session extract
+**Last docs refresh:** **v0.5.115** (2026-07-19) · suite **583** tests · `@share` social alias · best-effort invite notifies
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.114` (`server/config.py` → `VERSION`) · **576** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.115` (`server/config.py` → `VERSION`) · **583** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.114** / **576** until the suite or `VERSION` changes.  
-Last **pushed** ship: `f10b681` (v0.5.113). Shipping **0.5.114**.
+Keep badges at **0.5.115** / **583** until the suite or `VERSION` changes.  
+Last **pushed** ship: `679572e` (v0.5.114). Shipping **0.5.115**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.114 / 576** · lastshare · cancel notified honesty · session extract · protocol only here.
+Docs pass (**this run**): badges **0.5.115 / 583** · @share alias · best_effort_send · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -136,6 +136,7 @@ All messages are JSON objects with a `type` string.
 | `wave` / `bow` / `cheer` / `dance` / `cry` / `laugh` / `point` / `sit` / `think` | optional `to`/`to_id` | Emote shortcuts (same as `emote` + that name); directed + `@last` / `reply` |
 | `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
 | `lastshare` / `last_share` / `who_share` / `share_last` | — | Last `/share` target (soft-grace, near/far card). Rate-exempt. |
+| social `to` tokens | `@share` / `@lastshare` | Resolve last share peer for whisper/thank/invite/find/… (not bare `share`) |
 | `busy` | optional reason | AFK alias (same as `afk`/`away`). |
 | `invite` / `meet` / `beckon` / `come` | `to`/`to_id` or `@last` | Private meetup invite (zone; coords only if nearby). Not a party. Chat-rate. |
 | `cancel` / `uninvite` / `invite_cancel` | — | Cancel your last outgoing invite. Chat-rate. |
@@ -460,6 +461,9 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 250. **Invite cancel:** `notified` is true only when `manager.send` succeeds; echo may include **`nearby`**.
 251. **`lastshare` / `note_share_to`:** soft-grace restore; social peers include **share** card; rate-exempt peeks.
 252. Tests: `test_features_v05114` + `test_mp_reliability_v05114`.
+253. **`@share` / `@lastshare`:** `_social_alias` → mode share; `_resolve_social_peer` uses `last_share_to`; bare `share` not an alias.
+254. **`best_effort_send`:** invite supersede / retarget / cancel notify (no chat refund).
+255. Tests: `test_features_v05115` + `test_mp_reliability_v05115`.
 
 ## Tests (mandatory for your changes)
 
