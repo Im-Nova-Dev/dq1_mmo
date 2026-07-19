@@ -613,6 +613,22 @@ function UI.stats_sheet(x, y, w, h, char, opts)
     line("EXP", xp)
   end
   line("Gold", tostring(c.gold or "0") .. " G", "gold")
+  local zone = opts.zone or c.zone
+  if zone then
+    line("Zone", tostring(zone):upper(), "accent")
+  end
+  local px, py = opts.x, opts.y
+  if px ~= nil and py ~= nil then
+    line("Pos", string.format("%d, %d", tonumber(px) or 0, tonumber(py) or 0), "muted")
+  end
+  local repel = opts.repel or c.repel
+  local radiant = opts.radiant or c.radiant
+  if repel and tonumber(repel) and tonumber(repel) > 0 then
+    line("Repel", tostring(repel) .. " steps", "ok")
+  end
+  if radiant and tonumber(radiant) and tonumber(radiant) > 0 then
+    line("Light", tostring(radiant) .. " steps", "accent")
+  end
   row = row + 4
   local hp = tonumber(c.current_hp) or 0
   local mhp = math.max(1, tonumber(c.max_hp) or 1)

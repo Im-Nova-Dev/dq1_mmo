@@ -41,6 +41,11 @@ function Inventory:enter()
       local name = data.sold.item_name or data.sold.item_id or "item"
       self.status = string.format("Sold %s +%d G · total %s G", tostring(name), gained, gold)
       UI.toast(self.status, "ok")
+    elseif data.bought and data.bought.gold_spent then
+      local spent = tonumber(data.bought.gold_spent) or 0
+      local name = data.bought.item_name or data.bought.item_id or "item"
+      self.status = string.format("Bought %s −%d G · total %s G", tostring(name), spent, gold)
+      UI.toast(self.status, "ok")
     elseif data.message then
       self.status = tostring(data.message)
       UI.toast(self.status, "ok")
@@ -58,8 +63,13 @@ function Inventory:enter()
     self.status = "Town shop — Enter buy · prices show sell-back"
   end)
   Network.on("error", function(data)
-    self.status = tostring(data.reason or "error")
-    UI.toast(tostring(data.reason or "error"), "danger")
+    local r = tostring(data.reason or "error")
+    -- Mirror overworld inn/shop path: show how much gold is needed
+    if data.cost and r == "not enough gold" then
+      r = string.format("not enough gold (need %s G)", tostring(data.cost))
+    end
+    self.status = r
+    UI.toast(r, "danger")
   end)
   Network.on("item_used", function(data)
     local line = data.message or ("Used " .. tostring(data.name or data.item_id or "item"))

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="ghost">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/ghost.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <path d="M40,90 Q40,40 64,28 Q88,40 88,90 Q80,80 72,90 Q64,80 56,90 Q48,80 40,90 Z"
+        fill="#b9b9c0" stroke="#3d3d40" stroke-width="2" opacity="0.9"/>
+  <ellipse cx="54" cy="52" rx="4" ry="6" fill="#1a1010"/>
+  <ellipse cx="74" cy="52" rx="4" ry="6" fill="#1a1010"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Ghost</text>
+</svg>

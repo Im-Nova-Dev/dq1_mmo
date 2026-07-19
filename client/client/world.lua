@@ -182,6 +182,12 @@ function World.update_player(id, x, y, extras)
     if extras.in_combat ~= nil then
       p.in_combat = extras.in_combat and true or false
     end
+    if extras.idle ~= nil then
+      p.idle = extras.idle and true or false
+    end
+    if extras.zone then
+      p.zone = extras.zone
+    end
   else
     World.players[id] = {
       id = id,
@@ -192,6 +198,8 @@ function World.update_player(id, x, y, extras)
       ty = y or 0,
       level = extras.level or 1,
       in_combat = extras.in_combat and true or false,
+      idle = extras.idle and true or false,
+      zone = extras.zone,
     }
   end
 end

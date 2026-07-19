@@ -1,24 +1,70 @@
 # Documentation index
 
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
+Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-| Document | Audience | Purpose |
-|:---------|:---------|:--------|
-| [../README.md](../README.md) | Everyone (GitHub) | Install, features, controls — polished human entry |
-| [HUMAN.md](HUMAN.md) | Players, operators | Gameplay, inn, magic, social, hosting |
-| [../AGENTS.md](../AGENTS.md) | Coding agents / LLMs | Protocol matrices, hot paths, tests, reliability rules |
-| [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG names & licenses |
-| [../plan.md](../plan.md) | Historical only | Original roadmap — **not** live source of truth |
+**Last docs refresh:** **v0.5.40** (2026-07-19) · suite green **172** tests · `VERSION` in `server/config.py`
 
-**Last docs refresh:** **v0.5.34** (2026-07-19) · suite green **156** tests  
+---
 
-| Human docs cover | Agent docs cover |
-|:-----------------|:-----------------|
-| Install, controls, gameplay, hosting | WebSocket protocol, reliability rules |
-| `/r` reconnect reply · find zone types · sell prices | Soft-grace whisper peer · idle on move · AOI self-heal |
-| Zone counts on roster / health (ops) | Test matrix · hot paths · presence loop |
+## Start here by audience
 
-Protocol tables stay **only** in `AGENTS.md`. Never paste them into README / HUMAN.
+| You are… | Open this | Then |
+|:---------|:----------|:-----|
+| **Player / operator** | [../README.md](../README.md) | [HUMAN.md](HUMAN.md) for gameplay & hosting |
+| **Artist** | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Drop PNGs; names are the contract |
+| **Coding agent / LLM** | [../AGENTS.md](../AGENTS.md) **only** | Protocol, hot paths, tests, reliability |
+| **Curious about history** | [../plan.md](../plan.md) | Original roadmap — **not** live truth |
+
+```text
+┌─────────────────────────┐          ┌─────────────────────────┐
+│         HUMANS          │          │     AGENTS / LLMs       │
+├─────────────────────────┤          ├─────────────────────────┤
+│ README.md  (GitHub)     │          │ AGENTS.md  (only file)  │
+│ docs/HUMAN.md           │          │  · WebSocket catalog    │
+│ docs/README.md (map)    │          │  · reliability rules    │
+│ client/assets/          │          │  · test matrix          │
+│   ATTRIBUTION.md        │          │  · hot paths            │
+└────────────┬────────────┘          └────────────┬────────────┘
+             │                                    │
+             └──────── never mix contents ────────┘
+```
+
+---
+
+## Human docs (plain language)
+
+| Document | Purpose |
+|:---------|:--------|
+| [../README.md](../README.md) | Install, features, controls, polish for GitHub |
+| [HUMAN.md](HUMAN.md) | Gameplay, inn, magic, social, hosting, art swap |
+| [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | PNG paths, CC0 sources, how to replace art |
+
+**Covered for players (current):**
+
+- Install & quick start · overworld / combat / inventory keys
+- Zones (town / field / dungeon) · zone badge · zone-enter chat notes
+- Shop buy/sell gold toasts · need-N-G when short · helmets in shop · inn · field magic
+- Social: `/w` · `/z` · `/find` (+ `zone:`) · `/who` · `/ignore` · `/r` · `/status`
+- Status sheet: **own** position + zone + repel/light; online roster shows **zone type** only (never others’ coords)
+- CC0 pixel art + optional SVG companions under `client/assets/`
+
+---
+
+## Agent docs (technical contract)
+
+| Document | Purpose |
+|:---------|:--------|
+| [../AGENTS.md](../AGENTS.md) | **Single** agent source of truth |
+
+**Belongs only in AGENTS.md** (do not paste into README / HUMAN):
+
+- Full WebSocket message catalogs (client ↔ server)
+- Reliability rules (AOI, soft grace, rates, reconnect, finite coords, …)
+- Test module matrix (`server/tests/run_tests.py`)
+- Hot paths, architecture, coding constraints
+
+Agents: prefer AGENTS.md over guessing; treat `plan.md` as history only.
 
 ---
 
@@ -26,34 +72,13 @@ Protocol tables stay **only** in `AGENTS.md`. Never paste them into README / HUM
 
 | Do | Don’t |
 |:---|:------|
-| Put install & controls in README / HUMAN | Dump full WS protocol tables into README or HUMAN |
-| Put protocol, tests, agent constraints in `AGENTS.md` | Put “how to install Love2D for players” only in AGENTS |
+| Put install & controls in README / HUMAN | Dump WS protocol tables into README or HUMAN |
+| Put protocol, tests, agent constraints in `AGENTS.md` | Put player install steps only in AGENTS |
 | Treat `plan.md` as history | Treat `plan.md` as the current backlog |
-| Bump `VERSION` in `server/config.py` with user-visible changes | Leave README / HUMAN version badges out of date |
-| Link across audiences (README → HUMAN / AGENTS) | Mix long agent protocol into human prose |
-| Keep slash-commands accurate in HUMAN | Claim client features that only exist on the server |
-| Use plain language in README “What’s new” | Leak `session_id`, message type catalogs, or test matrices to players |
-
-### Quick map
-
-```text
-Humans  ──►  README.md  +  docs/HUMAN.md
-Agents  ──►  AGENTS.md   (protocol + tests + hot paths ONLY)
-Art     ──►  client/assets/ATTRIBUTION.md
-History ──►  plan.md     (outdated; do not treat as backlog)
-```
-
-```text
-┌─────────────────┐              ┌──────────────────┐
-│     Humans      │              │  Agents / LLMs   │
-└────────┬────────┘              └────────┬─────────┘
-         │                                │
-         ▼                                ▼
-    README.md                         AGENTS.md
-    docs/HUMAN.md                     · WebSocket catalog
-                                      · reliability rules
-                                      · test matrix
-```
+| Bump `VERSION` with user-visible changes | Leave badges / HUMAN version out of date |
+| Link across audiences | Mix agent-only tables into player prose |
+| Keep slash-commands accurate in HUMAN | Claim unfinished features as shipped |
+| Use plain language in README “What’s new” | Leak internal IDs, message types, or test matrices to players |
 
 ---
 
@@ -63,7 +88,7 @@ Checklist for contributors (human or agent):
 
 - [ ] `server/config.py` → `VERSION`
 - [ ] [README.md](../README.md) version badge · features · controls · test count
-- [ ] [HUMAN.md](HUMAN.md) gameplay if player-facing
-- [ ] [AGENTS.md](../AGENTS.md) protocol / tests / reliability if agent-facing
+- [ ] [HUMAN.md](HUMAN.md) if player-facing
+- [ ] [AGENTS.md](../AGENTS.md) if protocol / tests / reliability changed
 - [ ] This index “last refresh” line
-- [ ] Keep human prose free of protocol dumps
+- [ ] Human prose stays free of protocol dumps

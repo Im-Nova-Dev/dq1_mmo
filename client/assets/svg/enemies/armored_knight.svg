@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="armored_knight">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/armored_knight.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <ellipse cx="64" cy="100" rx="22" ry="8" fill="#3d3d40" opacity="0.3"/>
+  <rect x="42" y="48" width="44" height="40" rx="6" fill="#b9b9c0" stroke="#3d3d40" stroke-width="3"/>
+  <circle cx="64" cy="36" r="16" fill="#e1e1e8" stroke="#3d3d40" stroke-width="2"/>
+  <rect x="52" y="30" width="20" height="10" fill="#3d3d40" opacity="0.5"/>
+  <ellipse cx="58" cy="36" rx="2" ry="2" fill="#1a1010"/>
+  <ellipse cx="70" cy="36" rx="2" ry="2" fill="#1a1010"/>
+  <rect x="86" y="52" width="8" height="28" fill="#3d3d40"/>
+  <polygon points="90,48 100,56 90,64" fill="#e1e1e8" stroke="#3d3d40" stroke-width="1"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Armored Knight</text>
+</svg>

@@ -16,7 +16,7 @@ These are **not** official Dragon Quest art. Swap freely.
 | `sprites/enemies/*.png` (17) | Kenney **Tiny Dungeon** monsters/characters, tinted per enemy id | CC0 |
 | `sprites/enemies/*.png` (23) | [Tiny Creatures](https://opengameart.org/content/tiny-creatures) by Clint Bellanger (Kenney-compatible 16×16) | CC0 |
 | `src/tiny-creatures/*.png` | Vendored Tiny Creatures tiles used above | CC0 |
-| `svg/` | Optional tile/hero/enemy SVG sources (fallback only) | Project |
+| `svg/` + `svg/enemies/*.svg` | Editable SVG companions for every enemy + tile/hero outlines (PNG is what the game loads) | Project |
 
 **Credit (optional, appreciated):**
 - [Kenney.nl](https://kenney.nl) — Kenney Vleugels, CC0
@@ -29,13 +29,15 @@ These are **not** official Dragon Quest art. Swap freely.
 | Slimes | `slime`, `red_slime`, `metal_slime` | Kenney slime + color tint |
 | Scorpions | `scorpion`, `metal_scorpion`, `rogue_scorpion` | Kenney crab |
 | Undead (bones) | `skeleton`, `wraith`, `wraith_knight` | Kenney skull + tint |
-| Ghosts | `ghost`, `specter`, `poltergeist` | Tiny Creatures spirits |
-| Beasts | `wolf`, `wolflord`, `werewolf` | Tiny Creatures wolves |
+| Ghosts | `ghost`, `specter`, `poltergeist` | Tiny Creatures ghosts (distinct tiles) |
+| Beasts | `wolf`, `wolflord`, `werewolf` | Tiny Creatures wolves / dark beast |
 | Constructs | `golem`, `stoneman`, `goldman` | Tiny Creatures golems |
 | Knights | `knight`, `armored_knight`, … | Kenney knight characters |
 | Casters | `magician`, `wizard`, `warlock` | Kenney mage |
-| Dragons / drakes / wyverns | `blue_dragon`, `drakee`, `wyvern`, … | Tiny Creatures dragons / bats |
-| Misc beasts | `droll`, `druin`, `druinlord` | Tiny Creatures blobs / foxes / beasts |
+| Dragons / drakes / wyverns | `blue_dragon`, `drakee`, `wyvern`, … | Distinct Tiny Creatures dragons / bats / worm-drake |
+| Misc beasts | `droll`, `druin`, `druinlord` | Tiny Creatures blobs / fox / large beast |
+
+Each enemy also has `svg/enemies/<id>.svg` — silhouette templates you can edit and rasterize if you prefer vectors over the CC0 pixel art.
 
 ## Replacing art yourself
 

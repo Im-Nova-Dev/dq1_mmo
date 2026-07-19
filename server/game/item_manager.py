@@ -190,19 +190,20 @@ async def unequip_item(db, character: dict, slot: str) -> tuple[bool, str]:
     return True, "ok"
 
 
-async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str]:
+async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
+    """Buy one shop item. Returns (ok, reason, info) with gold_spent on success."""
     defn = get_item_def(item_id)
     if not defn:
-        return False, "unknown item"
+        return False, "unknown item", {}
     price = int(defn.get("price", 0))
     if price <= 0:
-        return False, "not for sale"
+        return False, "not for sale", {}
     shop_ids = set(load_data().get("shop") or [])
     if item_id not in shop_ids:
-        return False, "not in shop"
+        return False, "not in shop", {}
     gold = _safe_gold(character)
     if gold < price:
-        return False, "not enough gold"
+        return False, "not enough gold", {"cost": price, "gold": gold}
     gold -= price
     await db.execute(
         "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -211,7 +212,16 @@ async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     await add_item(db, character["id"], item_id, 1)
     await db.commit()
     character["gold"] = str(gold)
-    return True, "ok"
+    return (
+        True,
+        "ok",
+        {
+            "gold_spent": price,
+            "item_id": item_id,
+            "item_name": defn.get("name") or item_id,
+            "gold": str(gold),
+        },
+    )
 
 
 async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:

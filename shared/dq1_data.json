@@ -1682,6 +1682,20 @@
       "defense": 20,
       "price": 14800
     },
+    "leather_helmet": {
+      "id": "leather_helmet",
+      "name": "Leather Helmet",
+      "slot": "helmet",
+      "defense": 2,
+      "price": 80
+    },
+    "iron_helmet": {
+      "id": "iron_helmet",
+      "name": "Iron Helmet",
+      "slot": "helmet",
+      "defense": 4,
+      "price": 1000
+    },
     "dragons_scale": {
       "id": "dragons_scale",
       "name": "Dragon's Scale",
@@ -1732,6 +1746,8 @@
     "chain_mail",
     "small_shield",
     "large_shield",
+    "leather_helmet",
+    "iron_helmet",
     "dragons_scale",
     "herb",
     "fairy_water",

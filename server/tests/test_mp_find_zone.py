@@ -67,6 +67,14 @@ def test_find_by_prefix_zone_filter():
         assert "x" not in town[0]
         dung = mgr.find_by_prefix("Alice", zone="dungeon")
         assert dung == []
+        # Invalid zone → empty
+        assert mgr.find_by_prefix("Alice", zone="moon") == []
+        # Zone-only list (empty prefix)
+        town_all = mgr.find_by_prefix("", zone="town")
+        assert len(town_all) == 2
+        assert {p["name"] for p in town_all} == {"AliceTown", "BobTown"}
+        # Empty prefix without zone → empty
+        assert mgr.find_by_prefix("") == []
 
     asyncio.run(scenario())
 
@@ -101,6 +109,60 @@ def test_player_moved_includes_idle():
         assert moves[0]["idle"] is False
 
     asyncio.run(scenario())
+
+
+def test_find_zone_only_and_invalid_zone_ws(tmp_path, monkeypatch):
+    """ /find zone:town lists zone; invalid zone errors. """
+    db_path = tmp_path / "fz2.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, port, base, ws_url = start_server()
+    try:
+        ta, ca = register_char(base, "za@ex.com", "Za", "ZoneA")
+        tb, cb = register_char(base, "zb@ex.com", "Zb", "ZoneB")
+
+        async def flow():
+            import websockets
+
+            async with (
+                websockets.connect(ws_url) as wa,
+                websockets.connect(ws_url) as wb,
+            ):
+                for ws, tok, ch in ((wa, ta, ca), (wb, tb, cb)):
+                    await ws.send(
+                        json.dumps(
+                            {"type": "auth", "token": tok, "character_id": ch["id"]}
+                        )
+                    )
+                    await recv_until(ws, "auth_ok")
+                    await drain(ws, 0.08)
+
+                await wa.send(json.dumps({"type": "find", "q": "zone:town"}))
+                f = await recv_until(wa, "find", "error")
+                assert f.get("type") == "find", f
+                assert f.get("zone") == "town"
+                assert int(f.get("count") or 0) >= 2
+                names = {p.get("name") for p in (f.get("players") or [])}
+                assert "ZoneA" in names and "ZoneB" in names
+
+                await wa.send(json.dumps({"type": "find", "q": "Adv", "zone": "moon"}))
+                err = await recv_until(wa, "error", "find")
+                assert err.get("type") == "error", err
+                assert err.get("reason") == "invalid zone"
+
+                await wa.send(json.dumps({"type": "find", "q": "  zone:town"}))
+                f2 = await recv_until(wa, "find", "error")
+                assert f2.get("type") == "find", f2
+                assert int(f2.get("count") or 0) >= 2
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
 
 
 def test_find_zone_filter_ws(tmp_path, monkeypatch):

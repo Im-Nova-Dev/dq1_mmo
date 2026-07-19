@@ -4,16 +4,16 @@
   <!-- Project placeholder — replace client/assets/sprites/enemies/blue_dragon.png anytime -->
   <rect width="128" height="128" fill="none"/>
   
-  <ellipse cx="64" cy="100" rx="30" ry="10" fill="#2c364a" opacity="0.3"/>
-  <polygon points="20,70 8,40 28,55" fill="#84a2de" stroke="#2c364a" stroke-width="2"/>
-  <polygon points="108,70 120,40 100,55" fill="#84a2de" stroke="#2c364a" stroke-width="2"/>
-  <ellipse cx="64" cy="72" rx="34" ry="26" fill="#84a2de" stroke="#2c364a" stroke-width="3"/>
-  <ellipse cx="64" cy="48" rx="18" ry="16" fill="#84a2de" stroke="#2c364a" stroke-width="2"/>
-  <polygon points="50,38 44,18 58,32" fill="#accaff" stroke="#2c364a" stroke-width="2"/>
-  <polygon points="78,38 84,18 70,32" fill="#accaff" stroke="#2c364a" stroke-width="2"/>
+  <ellipse cx="64" cy="100" rx="30" ry="10" fill="#314055" opacity="0.3"/>
+  <polygon points="20,70 8,40 28,55" fill="#93c0ff" stroke="#314055" stroke-width="2"/>
+  <polygon points="108,70 120,40 100,55" fill="#93c0ff" stroke="#314055" stroke-width="2"/>
+  <ellipse cx="64" cy="72" rx="34" ry="26" fill="#93c0ff" stroke="#314055" stroke-width="3"/>
+  <ellipse cx="64" cy="48" rx="18" ry="16" fill="#93c0ff" stroke="#314055" stroke-width="2"/>
+  <polygon points="50,38 44,18 58,32" fill="#bbe8ff" stroke="#314055" stroke-width="2"/>
+  <polygon points="78,38 84,18 70,32" fill="#bbe8ff" stroke="#314055" stroke-width="2"/>
   <ellipse cx="56" cy="48" rx="3" ry="4" fill="#1a1010"/>
   <ellipse cx="72" cy="48" rx="3" ry="4" fill="#1a1010"/>
-  <polygon points="60,56 64,62 68,56" fill="#2c364a"/>
+  <polygon points="60,56 64,62 68,56" fill="#314055"/>
 
   <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Blue Dragon</text>
 </svg>

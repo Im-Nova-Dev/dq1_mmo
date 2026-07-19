@@ -115,6 +115,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "pong",
                 "sync",
                 "who",
+                "players",
+                "online_list",
                 "look",
                 "examine",
                 "status",
@@ -169,6 +171,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 ]
 
                 # Notify peers that can see us (AOI already linked in connect)
+                # Full snapshot for joining client
+                from game.world_manager import zone_at as _zone_at
+
+                try:
+                    join_zone = _zone_at(int(connect_meta["x"]), int(connect_meta["y"]))
+                except Exception:
+                    join_zone = None
                 join_payload = msg(
                     ServerMessageType.PLAYER_JOINED,
                     player_id=connect_meta["character_id"],
@@ -179,20 +188,25 @@ async def websocket_endpoint(websocket: WebSocket):
                     in_combat=bool(connect_meta.get("in_combat")),
                     idle=False,
                 )
+                if join_zone:
+                    join_payload["zone"] = join_zone
                 for p in peers:
                     await manager.send(p["id"], join_payload)
-
-                # Full snapshot for joining client
                 outbound.append(
                     msg(
                         ServerMessageType.WORLD_STATE,
                         players=peers,
                         enemies=[],
                         map=map_payload(),
-                        you={"x": connect_meta["x"], "y": connect_meta["y"]},
+                        you={
+                            "x": connect_meta["x"],
+                            "y": connect_meta["y"],
+                            "zone": join_zone,
+                        },
                         online=len(manager.online_ids()),
                         repel=manager.repel_remaining(connect_meta["character_id"]),
                         radiant=manager.radiant_remaining(connect_meta["character_id"]),
+                        zone=join_zone,
                     )
                 )
                 # Stamp session id on auth_ok for reconnect hygiene

@@ -21,8 +21,24 @@ HEARTBEAT_CHECK_INTERVAL = 15.0
 IGNORE_MAX = 32
 
 
+def _zone_of(meta: dict[str, Any]) -> str | None:
+    """Walkable zone name for presence payloads (town/field/dungeon) or None."""
+    from game.world_manager import zone_at
+
+    try:
+        x, y = float(meta["x"]), float(meta["y"])
+        if not math.isfinite(x) or not math.isfinite(y):
+            return None
+        z = zone_at(int(x), int(y))
+        if z in ("town", "field", "dungeon"):
+            return z
+    except Exception:
+        return None
+    return None
+
+
 def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
-    return {
+    pub = {
         "id": meta["id"],
         "name": meta["name"],
         "world_x": meta["x"],
@@ -34,6 +50,10 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
         "in_combat": bool(meta.get("in_combat")),
         "idle": _is_idle(meta),
     }
+    z = _zone_of(meta)
+    if z:
+        pub["zone"] = z
+    return pub
 
 
 def _is_idle(meta: dict[str, Any], now: float | None = None) -> bool:
@@ -47,17 +67,6 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
 
     Zone name is OK (town/field/dungeon) without x/y — helps social find/who.
     """
-    from game.world_manager import zone_at
-
-    zone = None
-    try:
-        x, y = float(meta["x"]), float(meta["y"])
-        if math.isfinite(x) and math.isfinite(y):
-            z = zone_at(int(x), int(y))
-            if z in ("town", "field", "dungeon"):
-                zone = z
-    except Exception:
-        zone = None
     card = {
         "id": meta["id"],
         "name": meta["name"],
@@ -65,6 +74,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
         "in_combat": bool(meta.get("in_combat")),
         "idle": _is_idle(meta),
     }
+    zone = _zone_of(meta)
     if zone:
         card["zone"] = zone
     return card
@@ -273,13 +283,18 @@ class ConnectionManager:
         return list(self._connections.keys())
 
     def online_roster(self) -> list[dict[str, Any]]:
-        """All online players as public cards (id/name/level/in_combat)."""
+        """All online players as public cards; sorted by name then id for stable UI."""
         out: list[dict[str, Any]] = []
         for cid in self._connections:
             meta = self._meta.get(cid)
             if meta:
                 out.append(_online_card(meta))
-        out.sort(key=lambda p: str(p.get("name") or "").lower())
+        out.sort(
+            key=lambda p: (
+                str(p.get("name") or "").lower(),
+                int(p.get("id") or 0),
+            )
+        )
         return out
 
     # Coalesce rapid join/leave pulses (reconnect storms), but flush soon.
@@ -570,7 +585,12 @@ class ConnectionManager:
             "in_combat": bool(me.get("in_combat")),
             "idle": _is_idle(me),
         }
+        z = _zone_of(me)
+        if z:
+            payload["zone"] = z
         targets = set(self.ids_nearby(character_id)) | set(me.get("visible") or set())
+        # Only live sockets (cached visible can hold ghosts briefly)
+        targets = {oid for oid in targets if oid in self._connections}
         for oid in targets:
             if oid == character_id:
                 continue
@@ -725,18 +745,19 @@ class ConnectionManager:
                 other.setdefault("visible", set()).add(character_id)
                 other_pub = _public_meta(other)
                 join_peer.append((oid, other_pub))
-                to_self.append(
-                    {
-                        "type": "player_joined",
-                        "player_id": other_pub["id"],
-                        "name": other_pub["name"],
-                        "x": other_pub["x"],
-                        "y": other_pub["y"],
-                        "level": other_pub["level"],
-                        "in_combat": other_pub["in_combat"],
-                        "idle": bool(other_pub.get("idle")),
-                    }
-                )
+                join_self = {
+                    "type": "player_joined",
+                    "player_id": other_pub["id"],
+                    "name": other_pub["name"],
+                    "x": other_pub["x"],
+                    "y": other_pub["y"],
+                    "level": other_pub["level"],
+                    "in_combat": other_pub["in_combat"],
+                    "idle": bool(other_pub.get("idle")),
+                }
+                if other_pub.get("zone"):
+                    join_self["zone"] = other_pub["zone"]
+                to_self.append(join_self)
 
             for oid in left:
                 other = self._meta.get(oid)
@@ -756,20 +777,20 @@ class ConnectionManager:
             stay_ids = list(stayed)
 
         assert me_pub is not None
+        join_them = {
+            "type": "player_joined",
+            "player_id": character_id,
+            "name": me_pub["name"],
+            "x": me_pub["x"],
+            "y": me_pub["y"],
+            "level": me_pub["level"],
+            "in_combat": me_pub["in_combat"],
+            "idle": bool(me_pub.get("idle")),
+        }
+        if me_pub.get("zone"):
+            join_them["zone"] = me_pub["zone"]
         for oid, _other_pub in join_peer:
-            await self.send(
-                oid,
-                {
-                    "type": "player_joined",
-                    "player_id": character_id,
-                    "name": me_pub["name"],
-                    "x": me_pub["x"],
-                    "y": me_pub["y"],
-                    "level": me_pub["level"],
-                    "in_combat": me_pub["in_combat"],
-                    "idle": bool(me_pub.get("idle")),
-                },
-            )
+            await self.send(oid, join_them)
 
         for oid, name in leave_peer:
             await self.send(
@@ -793,6 +814,8 @@ class ConnectionManager:
             "in_combat": me_pub["in_combat"],
             "idle": bool(me_pub.get("idle")),
         }
+        if me_pub.get("zone"):
+            move_msg["zone"] = me_pub["zone"]
         for oid in stay_ids:
             await self.send(oid, move_msg)
 
@@ -808,11 +831,23 @@ class ConnectionManager:
         """Case-insensitive name prefix search over online roster (no coordinates).
 
         Optional zone filter: town | field | dungeon (never returns x/y).
+        Empty prefix + zone lists everyone in that zone (multiplayer overview).
         """
-        if not prefix or not isinstance(prefix, str):
+        key = ""
+        if isinstance(prefix, str):
+            key = prefix.strip().lower()
+        if len(key) > 24:
             return []
-        key = prefix.strip().lower()
-        if not key or len(key) > 24:
+        zone_key = None
+        if isinstance(zone, str) and zone.strip():
+            z = zone.strip().lower()
+            if z in ("town", "field", "dungeon"):
+                zone_key = z
+            else:
+                # Invalid zone → no hits (caller may surface error)
+                return []
+        # Need a name prefix and/or a valid zone filter
+        if not key and not zone_key:
             return []
         try:
             lim = int(limit)
@@ -823,23 +858,23 @@ class ConnectionManager:
             lim = 1
         if lim > 50:
             lim = 50
-        zone_key = None
-        if isinstance(zone, str) and zone.strip():
-            z = zone.strip().lower()
-            if z in ("town", "field", "dungeon"):
-                zone_key = z
         hits: list[dict[str, Any]] = []
         for cid, meta in self._meta.items():
             if cid not in self._connections:
                 continue
             name = str(meta.get("name") or "")
-            if not name.lower().startswith(key):
+            if key and not name.lower().startswith(key):
                 continue
             card = _online_card(meta)
             if zone_key and card.get("zone") != zone_key:
                 continue
             hits.append(card)
-        hits.sort(key=lambda p: str(p.get("name") or "").lower())
+        hits.sort(
+            key=lambda p: (
+                str(p.get("name") or "").lower(),
+                int(p.get("id") or 0),
+            )
+        )
         return hits[:lim]
 
     async def publish_level(self, character_id: int, level: int) -> None:
@@ -1030,26 +1065,35 @@ class ConnectionManager:
             await self.disconnect(cid, ws)
 
     def ids_in_zone(self, character_id: int) -> list[int]:
-        """Players on the same map whose tile zone matches the source (town/field/dungeon)."""
+        """Live sockets on the same map whose tile zone matches the source."""
         from game.world_manager import zone_at
 
         me = self._meta.get(character_id)
         if me is None:
             return []
+        me_xy = self._finite_xy(me)
+        if me_xy is None:
+            return []
         try:
-            my_zone = zone_at(int(me["x"]), int(me["y"]))
+            my_zone = zone_at(int(me_xy[0]), int(me_xy[1]))
         except Exception:
             return []
-        if my_zone in ("blocked",):
+        if my_zone not in ("town", "field", "dungeon"):
             return []
         out: list[int] = []
         for cid, meta in self._meta.items():
             if cid == character_id:
                 continue
+            # Only live sockets — orphan meta must never get zone chat
+            if cid not in self._connections:
+                continue
             if meta.get("map_id") != me.get("map_id"):
                 continue
+            other_xy = self._finite_xy(meta)
+            if other_xy is None:
+                continue
             try:
-                z = zone_at(int(meta["x"]), int(meta["y"]))
+                z = zone_at(int(other_xy[0]), int(other_xy[1]))
             except Exception:
                 continue
             if z == my_zone:

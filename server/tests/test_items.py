@@ -150,7 +150,7 @@ def test_buy_not_enough_gold():
         char["gold"] = "0"
         from game.item_manager import buy_item
 
-        ok, reason = await buy_item(db, char, "club")
+        ok, reason, _bought = await buy_item(db, char, "club")
         assert ok is False
         assert reason == "not enough gold"
         await db.close()

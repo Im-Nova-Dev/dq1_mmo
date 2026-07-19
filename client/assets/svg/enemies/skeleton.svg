@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="skeleton">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/skeleton.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <ellipse cx="64" cy="100" rx="18" ry="7" fill="#3d3d40" opacity="0.3"/>
+  <circle cx="64" cy="40" r="18" fill="#e1e1e8" stroke="#3d3d40" stroke-width="2"/>
+  <ellipse cx="56" cy="38" rx="3" ry="4" fill="#1a1010"/>
+  <ellipse cx="72" cy="38" rx="3" ry="4" fill="#1a1010"/>
+  <rect x="50" y="58" width="28" height="32" rx="4" fill="#b9b9c0" stroke="#3d3d40" stroke-width="2"/>
+  <line x1="50" y1="70" x2="40" y2="90" stroke="#3d3d40" stroke-width="3"/>
+  <line x1="78" y1="70" x2="88" y2="90" stroke="#3d3d40" stroke-width="3"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Skeleton</text>
+</svg>

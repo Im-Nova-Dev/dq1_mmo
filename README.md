@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.34-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.40-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-156_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-172_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -46,9 +46,33 @@ Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.
 Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`**, **`/ignore`**, emotes, and look.
 
 > [!NOTE]
-> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.  
-> **Players** start here and in [docs/HUMAN.md](docs/HUMAN.md).  
-> **Coding agents / LLMs** use [AGENTS.md](AGENTS.md) only (protocol & tests — not for players).
+> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
+
+<table>
+<tr>
+<td width="33%" valign="top" align="center">
+
+### 👤 Players
+[docs/HUMAN.md](docs/HUMAN.md)  
+play · controls · hosting
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### 🎨 Artists
+[ATTRIBUTION.md](client/assets/ATTRIBUTION.md)  
+swap PNGs anytime
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### 🤖 Agents / LLMs
+[AGENTS.md](AGENTS.md) **only**  
+protocol · tests · not for players
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -56,7 +80,7 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.34** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.40** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -64,7 +88,7 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 | 👥 | [Multiplayer tools](#-multiplayer-tools) |
 | ⚙️ | [Configuration](#️-configuration) |
 | 📁 | [Project layout](#-project-layout) |
-| 📚 | [Documentation](#-documentation) — **humans vs agents** |
+| 📚 | [Documentation](#-documentation) — humans vs agents |
 | 🙏 | [Credits](#-credits) |
 
 ---
@@ -72,17 +96,19 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.34-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-156_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.40-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-172_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.34** |
+| | **v0.5.40** |
 |:--|:--|
-| 🔍 | **`/find Name zone:field`** — search people in a zone (still no map coords) |
-| 🚶 | Chat and walk both keep you **active** (no false AFK) |
-| 👥 | Nearby peers get **idle** updates as you move |
-| ✅ | **156** automated tests |
+| 👥 | Presence shows **zone** on join/move · `/players` alias for who |
+| 🛡️ | Zone chat only reaches **live** players (no ghost targets) |
+| 🧭 | Movement rejects **fractional** coordinates (no silent 3.7→3 desync) |
+| 🪖 | Shop **Leather Helmet** + **Iron Helmet** |
+| 📍 | Status sheet shows **your position**, zone, repel/light |
+| ✅ | **172** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -91,11 +117,12 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.33** | Sell gold toast · online roster panel with zone |
-| **0.5.32** | Server `/r` reply · find zone type · walk clears AFK |
-| **0.5.31** | Shop/bag sell-back prices |
-| **0.5.29–30** | Presence self-heal · safe coordinates |
-| **0.5.19–28** | Zone chat · `/who` · status sheet · open art |
+| **0.5.39** | Invalid find zones · integer-only moves |
+| **0.5.38** | Helmets in shop · status position · shop need-N-G toast |
+| **0.5.37** | Zone-enter system notes · CC0 art polish · status zone |
+| **0.5.36** | Buy gold toast · status zone badge |
+| **0.5.35** | `/find zone:town` zone list · invalid zones rejected |
+| **0.5.19–34** | Zone chat · `/r` · presence self-heal · open art |
 
 </details>
 
@@ -130,7 +157,7 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 | | |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · whisper · **`/r` reply** · emotes |
-| 🔍 | **`/find`** (zone type) · **`/who`** · **`/ignore`** · look |
+| 🔍 | **`/find`** · zone filter · **`/who`** · **`/ignore`** · look |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -141,8 +168,9 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 | Also | |
 |:-----|:--|
 | **Items** | Herb · wings · fairy water · weapons & armor |
-| **HUD** | HP/MP · gold · nearby/online · repel · light · status (**F**) |
-| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **156** tests |
+| **HUD** | HP/MP · gold · zone · nearby/online · repel · light · status (**F**) |
+| **Shop UX** | Buy/sell gold toasts · sell-back prices on bag & catalog |
+| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **166** tests |
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -188,7 +216,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 156 passed
+# expect: 172 passed
 ```
 
 ---
@@ -207,6 +235,7 @@ python tests/run_tests.py
 | **/w Name msg** | Whisper (also `/tell`) |
 | **/z msg** | Zone chat (same area type: town / field / dungeon) |
 | **/find Name** | Search online players by name prefix |
+| **/find zone:town** | List everyone online in that zone |
 | **/who** | Online + nearby + zone counts (same as **O**) |
 | **/status** · **/me** | Status sheet (same as **F**) |
 | **/help** · **?** | Command / key hints |
@@ -216,7 +245,7 @@ python tests/run_tests.py
 | **/r message** | Reply to last whisper |
 | **/** | Open chat with `/` draft |
 | **E** | Cycle emotes |
-| **F** | Status sheet (server refresh) |
+| **F** | Status sheet (server refresh · shows zone) |
 | **R** | Inn rest *(town)* |
 | **H** / **M** | Field Heal · cycle field spells |
 | **K** | List known spells |
@@ -280,10 +309,11 @@ python tests/run_tests.py
 | `/z message` | Zone chat (everyone in town *or* field *or* dungeon) |
 | `/find Name` | Online search by prefix — zone type only, **no map positions** |
 | `/find Name zone:field` | Limit search to town / field / dungeon |
+| `/find zone:town` | List everyone online in that zone (no coords) |
 | `/who` | Online roster + nearby + town/field/dungeon counts |
 | `/ignore Name` · `/unignore Name` | Mute / unmute chat & emotes |
 | `/ignores` | List who you are ignoring |
-| `/status` · `/me` | Status sheet (stats, gear, EXP, buffs) |
+| `/status` · `/me` | Status sheet (stats, gear, EXP, zone, buffs) |
 | `/r message` | Reply to last whisper (works after a brief reconnect) |
 | `/help` · **?** | Server command list |
 
@@ -304,13 +334,14 @@ Missing files fall back to procedural drawing.
 |:-----|:------|
 | `tiles/` | `field` · `wall` · `town` · `water` · `dungeon` |
 | `sprites/heroes/` | `hero.png` · `hero_battle.png` · `other.png` |
-| `sprites/enemies/` | `{enemy_id}.png` e.g. `slime.png` |
-| `src/kenney/` | 16×16 Kenney masters (optional regen) |
-| `src/tiny-creatures/` | 16×16 Tiny Creatures masters (dragons, wolves, …) |
+| `sprites/enemies/` | `{enemy_id}.png` e.g. `slime.png` (**40** enemies) |
+| `svg/enemies/` | Editable SVG companions (optional; game loads PNG) |
+| `src/kenney/` | 16×16 Kenney masters (regen) |
+| `src/tiny-creatures/` | 16×16 Tiny Creatures masters |
 
 | Source | Used for | License |
 |:-------|:---------|:--------|
-| [Kenney.nl](https://kenney.nl) | Tiles, heroes, many enemies | **CC0** |
+| [Kenney.nl](https://kenney.nl) | Tiles, heroes, slimes, knights, mages, … | **CC0** |
 | [Tiny Creatures](https://opengameart.org/content/tiny-creatures) | Dragons, wolves, golems, ghosts, … | **CC0** |
 
 ```bash
@@ -362,10 +393,10 @@ dq1_mmo/
 ├── docs/
 │   ├── README.md             ← docs map & audience rules
 │   └── HUMAN.md              ← players & operators
-├── client/                   ← Love2D + assets
+├── client/                   ← Love2D + assets (PNG / SVG companions)
 ├── server/                   ← FastAPI · combat · WebSocket
 ├── shared/                   ← dq1_data.json (canonical game data)
-└── tools/                    ← multiplayer sims · asset gen
+└── tools/                    ← multiplayer sims · asset import
 ```
 
 ---
@@ -378,30 +409,30 @@ dq1_mmo/
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
-<p align="center"><b>Human</b> docs and <b>agent / LLM</b> docs stay separate on purpose. Do not mix them.</p>
+<p align="center">
+  <b>Human</b> docs and <b>agent / LLM</b> docs stay separate on purpose.<br/>
+  <sub>Players never need the protocol file. Agents should not treat the README as the contract.</sub>
+</p>
 
-| Audience | Document | Contents |
-|:---------|:---------|:---------|
-| 👤 **Everyone (GitHub)** | [README.md](README.md) | Install · features · controls *(this page)* |
-| 🎮 **Players / operators** | [docs/HUMAN.md](docs/HUMAN.md) | Gameplay · inn · magic · social · hosting |
-| 🤖 **Coding agents / LLMs** | [AGENTS.md](AGENTS.md) | Protocol · hot paths · tests · reliability |
-| 🗂 **Docs index** | [docs/README.md](docs/README.md) | Audience rules & contributor checklist |
-| 🎨 **Artists** | [client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md) | PNG names & licenses |
-| 📜 **History only** | [plan.md](plan.md) | Original roadmap — **not** live truth |
+### For people
+
+| Document | Contents |
+|:---------|:---------|
+| **[README.md](README.md)** *(this page)* | Install · features · controls |
+| **[docs/HUMAN.md](docs/HUMAN.md)** | Gameplay · inn · magic · social · hosting |
+| **[client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md)** | PNG names · CC0 licenses · how to swap art |
+| **[docs/README.md](docs/README.md)** | Docs map & contributor checklist |
+| [plan.md](plan.md) | Historical roadmap only — **not** live truth |
+
+### For coding agents / LLMs
+
+| Document | Contents |
+|:---------|:---------|
+| **[AGENTS.md](AGENTS.md)** | **Only** agent entry — protocol · hot paths · tests · reliability |
 
 ```text
-┌──────────────────────┐           ┌──────────────────────┐
-│       Humans         │           │   Agents / LLMs      │
-└──────────┬───────────┘           └──────────┬───────────┘
-           │                                  │
-           ▼                                  ▼
-      README.md  (this page)              AGENTS.md only
-      docs/HUMAN.md                       · protocol tables
-      docs/README.md                      · reliability rules
-      ATTRIBUTION.md                      · test matrix
-      (play · host · swap art)            · hot paths
-           │                                  │
-           └──── never mix these two ─────────┘
+Humans  →  README.md  ·  docs/HUMAN.md  ·  ATTRIBUTION.md
+Agents  →  AGENTS.md  (protocol / tests / reliability ONLY)
 ```
 
 | Role | Start here |
@@ -433,7 +464,7 @@ dq1_mmo/
 
 <p align="center">
   <sub>
-    <b>v0.5.34</b> · 156 tests ·
+    <b>v0.5.40</b> · 172 tests ·
     <a href="docs/HUMAN.md">Player guide</a> ·
     <a href="AGENTS.md">Agent contract</a> ·
     <a href="docs/README.md">Docs map</a>

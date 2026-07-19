@@ -199,6 +199,13 @@ local function bind_handlers(self)
       if data.you.zone then
         self.zone = data.you.zone
       end
+      -- Self coords for meetup / navigation (own position only)
+      if data.you.x ~= nil then
+        self.status_x = tonumber(data.you.x)
+      end
+      if data.you.y ~= nil then
+        self.status_y = tonumber(data.you.y)
+      end
     end
     if data.online ~= nil then
       self.online = tonumber(data.online) or self.online
@@ -268,7 +275,12 @@ local function bind_handlers(self)
     World.apply_move_ok(data)
     if World.local_player then
       local prev = self.zone
-      self.zone = zone_name(World.local_player.x, World.local_player.y)
+      -- Prefer server zone (authoritative); fall back to local tile map
+      if data.zone and data.zone ~= "" then
+        self.zone = tostring(data.zone)
+      else
+        self.zone = zone_name(World.local_player.x, World.local_player.y)
+      end
       -- Soft notice when entering a different area type
       if data.ok ~= false and prev and self.zone and prev ~= self.zone then
         if self.zone == "dungeon" then
@@ -291,6 +303,7 @@ local function bind_handlers(self)
       level = data.level,
       in_combat = data.in_combat,
       idle = data.idle,
+      zone = data.zone,
     })
   end)
 
@@ -307,9 +320,11 @@ local function bind_handlers(self)
       level = data.level or (existing and existing.level) or 1,
       in_combat = data.in_combat and true or false,
       idle = data.idle and true or false,
+      zone = data.zone or (existing and existing.zone),
     }
     if not existing then
-      UI.toast((data.name or "Hero") .. " appeared nearby", "join")
+      local zbit = data.zone and (" [" .. tostring(data.zone) .. "]") or ""
+      UI.toast((data.name or "Hero") .. " appeared nearby" .. zbit, "join")
     end
   end)
 
@@ -754,7 +769,20 @@ function Overworld:draw()
 
   -- Character status sheet (F)
   if self.show_stats and Session.character then
-    UI.stats_sheet(math.floor(w / 2 - 160), 80, 320, math.min(420, h - 140), Session.character)
+    local sx = self.status_x
+    local sy = self.status_y
+    if (sx == nil or sy == nil) and World.local_player then
+      sx = World.local_player.x
+      sy = World.local_player.y
+    end
+    UI.stats_sheet(
+      math.floor(w / 2 - 160),
+      80,
+      320,
+      math.min(460, h - 120),
+      Session.character,
+      { zone = self.zone, x = sx, y = sy, repel = self.repel, radiant = self.radiant }
+    )
   end
 
   -- Chat panel
@@ -807,9 +835,11 @@ function Overworld:keypressed(key)
         end
         local wants_status = text:match("^[/%!]status%s*$") or text:match("^[/%!]me%s*$")
         local wants_who = text:match("^[/%!]who%s*$")
+          or text:match("^[/%!]players%s*$")
+          or text:match("^[/%!]online%s*$")
         local wants_ignores = text:match("^[/%!]ignores%s*$") or text:match("^[/%!]ignorelist%s*$")
         local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
-        -- /find Name zone:field or /find Name in:dungeon
+        -- supports: /find Name · /find Name zone:field · /find zone:town
         local wants_help = text:match("^[/%!]help%s*$") or text:match("^[/%!]commands%s*$") or text:match("^%?%s*$")
         local ign_name = text:match("^[/%!]ignore%s+(%S+)$") or text:match("^[/%!]mute%s+(%S+)$")
         local unign_name = text:match("^[/%!]unignore%s+(%S+)$") or text:match("^[/%!]unmute%s+(%S+)$")

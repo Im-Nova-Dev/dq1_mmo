@@ -80,7 +80,7 @@ def test_sell_equipped_weapon_clears_slot():
 
     async def scenario():
         db, char = await _db_char(gold="300")
-        ok, reason = await buy_item(db, char, "club")
+        ok, reason, _bought = await buy_item(db, char, "club")
         assert ok, reason
         ok, reason = await equip_item(db, char, "weapon", "club")
         assert ok, reason

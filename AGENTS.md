@@ -14,12 +14,12 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who + idle roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones | Binary protocol |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat | Binary protocol |
 
-**Version:** `0.5.34` (`server/config.py` → `VERSION`) · **156** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.40` (`server/config.py` → `VERSION`) · **172** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
-Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`.  
+Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.
 
@@ -88,7 +88,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `client/client/assets.lua` | PNG loader (`client/assets/…`); missing → procedural fallback |
 | `client/client/renderer.lua` | Overworld tiles + actors |
 | `client/assets/` | `tiles/`, `sprites/heroes/`, `sprites/enemies/`, `src/kenney/`, `src/tiny-creatures/`, `svg/`, `ATTRIBUTION.md` |
-| `tools/import_open_assets.py` | Kenney + Tiny Creatures CC0 import; SVG only as last-resort fallback |
+| `tools/import_open_assets.py` | Kenney + Tiny Creatures CC0 import; punches TC black mats; SVG companions always written |
 | `tools/gen_placeholder_assets.sh` | Thin wrapper around import / scale path |
 | `client/client/network.lua` | WS client, reconnect · `request_status()` (sheet) ≠ `link_status()` (HUD) |
 | `client/client/world.lua` | Prediction queue, remote players |
@@ -122,7 +122,7 @@ All messages are JSON objects with a `type` string.
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
 | `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
-| `who` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
+| `who` / `players` / `online_list` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
 | `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
 | `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
 | `find` / `search` | `q`/`query`/`name`, optional `limit`, optional `zone` | Online roster prefix search (no coords); zone filter town/field/dungeon. Rate-exempt. |
@@ -137,8 +137,8 @@ All messages are JSON objects with a `type` string.
 | type | Purpose |
 |:-----|:--------|
 | `auth_ok` / `auth_fail` | Session (`session_id`, `online` on success) |
-| `world_state` | `players`, `map`, optional `you`, `online`, `repel`, `radiant`, `zone` |
-| `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `duplicate`/`reason` |
+| `world_state` | `players`, `map`, optional `you` (`x`/`y`/`zone`), `online`, `repel`, `radiant`, `zone` (on auth + sync) |
+| `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `zone`, `duplicate`/`reason` |
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
 | `player_update` | `level`, `in_combat`, position |
 | `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby` \| `zone` \| `whisper` \| `system`); system level-up nearby; whisper has `to` / `to_id` |
@@ -153,7 +153,7 @@ All messages are JSON objects with a `type` string.
 | `rest_ok` | Inn result or preview (`cost`, `character`, `message`) |
 | `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `radiant_steps`, `character`) |
 | `emote` | Nearby emote broadcast |
-| `who` | `players`, `online`, `roster`, `zones` (town/field/dungeon counts), `you` (incl. `repel`, `radiant`, `zone`) |
+| `who` | `players`, `online`, `roster`, `zones` (town/field/dungeon counts), `you` (`id`, `name`, `level`, `x`/`y`, `idle`, `in_combat`, `repel`, `radiant`, `zone`) |
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
 | `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
 | `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
@@ -202,6 +202,21 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 35. Successful **sell** includes `sold` + `message` on `inventory_update` (`gold_gained`).
 36. Chat and move both refresh **`last_seen`** (idle badges).
 37. **`player_moved` includes `idle`**; find accepts **`zone`** filter / `zone:field` query suffix.
+38. Find: empty name + zone lists zone roster; invalid zone → `invalid zone` error (not silent ignore).
+39. Successful **buy** includes `bought` + `message` (`gold_spent`); not-enough-gold may include `cost`.
+40. **Auth / sync `world_state`** always includes top-level `zone` and `you.zone` when position is known.
+41. Successful **`move_ok` includes `zone`** (current tile zone after the step).
+42. Crossing zone types (town↔field↔dungeon) emits nearby **system** chat: `"{name} entered the {zone}."` (same-zone steps stay quiet).
+43. **`who.you`** includes `name`, `level`, `idle` (not only coords/buffs).
+44. Open art: Kenney + Tiny Creatures CC0 via `tools/import_open_assets.py`; TC black mats punched to alpha; SVG companions in `svg/enemies/` for every enemy id (PNG is what the client loads).
+45. Shop includes **leather_helmet** / **iron_helmet** (helmet slot); buy shortfalls include `cost` (client inventory toast shows need N G).
+46. Status sheet may show **own** map position (`you.x`/`you.y`) — never leak other players’ coords via find/online.
+47. Find: invalid zone token (`zone:moon`, field `zone=space`) → **`invalid zone`** even when name is empty (never `find query required`).
+48. Move coords must be **finite integer-valued** (reject `3.7`; allow `3` / `3.0`). Truncation would desync clients.
+49. Presence events (`player_joined` / `player_moved` / `player_update` / public meta) include **zone** when known.
+50. `ids_in_zone` / zone chat only **live sockets** (orphan meta never receives zone traffic).
+51. Online roster + find results sorted by name then id (stable multiplayer UI).
+52. `/players` and msg types `players` / `online_list` alias **who** (rate-exempt).
 
 ## Tests (mandatory for your changes)
 
@@ -242,6 +257,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reply_zone` | server reply whisper, roster zone, move clears idle, soft reconnect reply |
 | `tests.test_features_v0533` | sell gold_gained + sold payload on inventory_update |
 | `tests.test_mp_find_zone` | find zone filter, chat clears idle, player_moved idle |
+| `tests.test_features_v0536` | buy gold_spent + cost on not-enough-gold |
+| `tests.test_features_v0538` | leather/iron helmet shop, world_state/who.you zone, move_ok.zone + zone-enter system chat |
+| `tests.test_adversarial_v0539` | find zone:moon → invalid zone; non-integer move rejected; whisper self blocked |
+| `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

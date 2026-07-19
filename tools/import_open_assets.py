@@ -75,21 +75,21 @@ ENEMY_MAP: dict[str, tuple[str, tuple[float, float, float] | None]] = {
     "slime": ("enemy_slime", None),
     "red_slime": ("enemy_slime", (1.35, 0.35, 0.35)),
     "metal_slime": ("enemy_slime", (0.75, 0.95, 1.15)),
-    # scorpions / crustaceans
+    # scorpions / crustaceans — Kenney crab
     "scorpion": ("enemy_crab", None),
     "metal_scorpion": ("enemy_crab", (0.7, 0.85, 1.1)),
     "rogue_scorpion": ("enemy_crab", (0.55, 0.9, 0.55)),
-    # undead / spectral — mix Kenney skull + Tiny Creatures ghosts
+    # undead / spectral — Kenney skull + Tiny Creatures ghosts
     "skeleton": ("enemy_skull", None),
     "wraith": ("enemy_skull", (0.65, 0.55, 0.95)),
     "wraith_knight": ("enemy_skull", (0.85, 0.75, 0.55)),
-    "ghost": ("tc:0044", None),
-    "specter": ("tc:0049", None),
-    "poltergeist": ("tc:0050", (1.05, 0.75, 1.1)),
-    # beasts — Tiny Creatures wolves / foxes
+    "ghost": ("tc:0031", None),            # white ghost
+    "specter": ("tc:0032", None),          # blue ghost
+    "poltergeist": ("tc:0044", (1.1, 0.8, 1.15)),  # pale spirit
+    # beasts — Tiny Creatures wolves / beasts
     "wolf": ("tc:0024", None),
     "wolflord": ("tc:0025", (0.95, 0.65, 0.5)),
-    "werewolf": ("tc:0167", None),
+    "werewolf": ("tc:0167", None),         # dark beast
     # constructs — Tiny Creatures golems
     "golem": ("tc:0128", None),
     "stoneman": ("tc:0129", None),
@@ -104,26 +104,42 @@ ENEMY_MAP: dict[str, tuple[str, tuple[float, float, float] | None]] = {
     "wizard": ("hero_mage", (0.55, 0.55, 1.15)),
     "warlock": ("hero_mage", (0.9, 0.35, 0.85)),
     "drollmagi": ("hero_mage", (0.45, 0.95, 0.55)),
-    # dragons / drakes / wyverns — Tiny Creatures (CC0)
-    "drakee": ("tc:0078", (0.55, 0.9, 1.15)),
-    "drakeema": ("tc:0080", (1.05, 0.55, 1.05)),
-    "magidrakee": ("tc:0077", (0.55, 1.15, 0.7)),
-    "droll": ("tc:0015", (0.55, 0.95, 0.6)),
-    "druin": ("tc:0055", (0.9, 0.6, 0.45)),
-    "druinlord": ("tc:0166", (0.7, 0.4, 0.55)),
-    "blue_dragon": ("tc:0078", None),
+    # dragons / drakes / wyverns — distinct Tiny Creatures tiles
+    "drakee": ("tc:0009", (0.55, 0.95, 1.15)),   # small worm-drake
+    "drakeema": ("tc:0077", (1.05, 0.55, 1.1)),  # green dragon + tint
+    "magidrakee": ("tc:0027", (0.55, 1.15, 0.75)),  # green scaly
+    "droll": ("tc:0015", (0.55, 0.95, 0.6)),     # brown blob
+    "druin": ("tc:0042", (0.95, 0.7, 0.5)),      # fox-beast
+    "druinlord": ("tc:0166", (0.75, 0.45, 0.55)),  # large beast
+    "blue_dragon": ("tc:0041", (0.45, 0.75, 1.35)),  # dragon + blue
     "green_dragon": ("tc:0041", None),
     "red_dragon": ("tc:0079", None),
-    "dragonlord": ("tc:0080", (0.85, 0.4, 0.95)),
-    "dragonlord_true": ("tc:0079", (1.2, 0.45, 0.35)),
-    "wyvern": ("tc:0039", (0.55, 0.95, 0.55)),
+    "dragonlord": ("tc:0078", (0.85, 0.4, 0.95)),
+    "dragonlord_true": ("tc:0080", (1.2, 0.45, 0.35)),
+    "wyvern": ("tc:0039", (0.55, 0.95, 0.55)),   # bat-wyvern
     "magiwyvern": ("tc:0039", (0.75, 0.5, 1.15)),
-    "starwyvern": ("tc:0040", (1.2, 1.05, 0.4)),
+    "starwyvern": ("tc:0040", (1.25, 1.1, 0.35)),  # red star-blob
 }
 
 
 def nn_resize(im: Image.Image, size: int) -> Image.Image:
     return im.convert("RGBA").resize((size, size), Image.NEAREST)
+
+
+def punch_black_bg(im: Image.Image, threshold: int = 12) -> Image.Image:
+    """Tiny Creatures ships opaque pure-black mats — make them transparent.
+
+    TC sprites use color (not pure black) for body/outline; black is only the mat.
+    """
+    im = im.convert("RGBA")
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a > 0 and r <= threshold and g <= threshold and b <= threshold:
+                px[x, y] = (0, 0, 0, 0)
+    return im
 
 
 def tint_rgba(im: Image.Image, rgb_mul: tuple[float, float, float] | None) -> Image.Image:
@@ -267,6 +283,55 @@ def write_svg_enemy(path: Path, archetype: str, label: str, tint: tuple[float, f
   <ellipse cx="72" cy="48" rx="3" ry="3" fill="{eye}"/>
   <rect x="40" y="84" width="10" height="16" fill="{dark}"/>
   <rect x="78" y="84" width="10" height="16" fill="{dark}"/>
+'''
+    elif archetype == "knight":
+        body = f'''
+  <ellipse cx="64" cy="100" rx="22" ry="8" fill="{dark}" opacity="0.3"/>
+  <rect x="42" y="48" width="44" height="40" rx="6" fill="{fill}" stroke="{dark}" stroke-width="3"/>
+  <circle cx="64" cy="36" r="16" fill="{light}" stroke="{dark}" stroke-width="2"/>
+  <rect x="52" y="30" width="20" height="10" fill="{dark}" opacity="0.5"/>
+  <ellipse cx="58" cy="36" rx="2" ry="2" fill="{eye}"/>
+  <ellipse cx="70" cy="36" rx="2" ry="2" fill="{eye}"/>
+  <rect x="86" y="52" width="8" height="28" fill="{dark}"/>
+  <polygon points="90,48 100,56 90,64" fill="{light}" stroke="{dark}" stroke-width="1"/>
+'''
+    elif archetype == "caster":
+        body = f'''
+  <ellipse cx="64" cy="100" rx="20" ry="8" fill="{dark}" opacity="0.3"/>
+  <polygon points="40,90 64,40 88,90" fill="{fill}" stroke="{dark}" stroke-width="3"/>
+  <circle cx="64" cy="34" r="12" fill="{light}" stroke="{dark}" stroke-width="2"/>
+  <ellipse cx="60" cy="34" rx="2" ry="2" fill="{eye}"/>
+  <ellipse cx="68" cy="34" rx="2" ry="2" fill="{eye}"/>
+  <line x1="88" y1="90" x2="104" y2="30" stroke="{dark}" stroke-width="3"/>
+  <circle cx="104" cy="26" r="6" fill="{light}" stroke="{dark}" stroke-width="2"/>
+'''
+    elif archetype == "scorpion":
+        body = f'''
+  <ellipse cx="64" cy="78" rx="30" ry="18" fill="{fill}" stroke="{dark}" stroke-width="3"/>
+  <ellipse cx="90" cy="70" rx="12" ry="10" fill="{fill}" stroke="{dark}" stroke-width="2"/>
+  <path d="M40,70 Q20,40 36,30" fill="none" stroke="{dark}" stroke-width="4"/>
+  <path d="M88,70 Q108,40 92,30" fill="none" stroke="{dark}" stroke-width="4"/>
+  <circle cx="36" cy="28" r="5" fill="{light}"/>
+  <circle cx="92" cy="28" r="5" fill="{light}"/>
+  <ellipse cx="86" cy="68" rx="2" ry="2" fill="{eye}"/>
+  <ellipse cx="94" cy="68" rx="2" ry="2" fill="{eye}"/>
+'''
+    elif archetype == "undead":
+        body = f'''
+  <ellipse cx="64" cy="100" rx="18" ry="7" fill="{dark}" opacity="0.3"/>
+  <circle cx="64" cy="40" r="18" fill="{light}" stroke="{dark}" stroke-width="2"/>
+  <ellipse cx="56" cy="38" rx="3" ry="4" fill="{eye}"/>
+  <ellipse cx="72" cy="38" rx="3" ry="4" fill="{eye}"/>
+  <rect x="50" y="58" width="28" height="32" rx="4" fill="{fill}" stroke="{dark}" stroke-width="2"/>
+  <line x1="50" y1="70" x2="40" y2="90" stroke="{dark}" stroke-width="3"/>
+  <line x1="78" y1="70" x2="88" y2="90" stroke="{dark}" stroke-width="3"/>
+'''
+    elif archetype == "ghost":
+        body = f'''
+  <path d="M40,90 Q40,40 64,28 Q88,40 88,90 Q80,80 72,90 Q64,80 56,90 Q48,80 40,90 Z"
+        fill="{fill}" stroke="{dark}" stroke-width="2" opacity="0.9"/>
+  <ellipse cx="54" cy="52" rx="4" ry="6" fill="{eye}"/>
+  <ellipse cx="74" cy="52" rx="4" ry="6" fill="{eye}"/>
 '''
     else:
         body = f'''
@@ -443,7 +508,7 @@ def vendor_tiny_creatures(tc_dir: Path) -> dict[str, Image.Image]:
         if not src.exists():
             print("warn: missing Tiny Creatures tile", num)
             continue
-        im = Image.open(src).convert("RGBA")
+        im = punch_black_bg(Image.open(src).convert("RGBA"))
         key = f"tc:{num}"
         masters[key] = im
         im.save(TC_OUT / f"tile_{num}.png")
@@ -473,7 +538,8 @@ def load_existing_masters() -> dict[str, Image.Image]:
     if TC_OUT.is_dir():
         for p in TC_OUT.glob("tile_*.png"):
             num = p.stem.replace("tile_", "")
-            masters[f"tc:{num}"] = Image.open(p).convert("RGBA")
+            # Re-punch in case older vendored masters still have black mats
+            masters[f"tc:{num}"] = punch_black_bg(Image.open(p).convert("RGBA"))
     return masters
 
 
@@ -496,6 +562,31 @@ def export_game_assets(masters: dict[str, Image.Image]) -> None:
     print("heroes/ui ok")
 
 
+def _svg_archetype_for(eid: str, base: str) -> str:
+    """Pick an SVG silhouette for companion sources / fallbacks."""
+    if base.startswith("svg:"):
+        return base.split(":", 1)[1]
+    if "slime" in eid or base == "enemy_slime":
+        return "slime"
+    if "scorpion" in eid or "crab" in base:
+        return "scorpion"
+    if any(k in eid for k in ("dragon", "drake", "wyvern")):
+        return "dragon" if "dragon" in eid else ("wyvern" if "wyvern" in eid else "drake")
+    if any(k in eid for k in ("wolf", "were", "druin")):
+        return "beast"
+    if any(k in eid for k in ("ghost", "specter", "polter")):
+        return "ghost"
+    if any(k in eid for k in ("skeleton", "wraith")):
+        return "undead"
+    if any(k in eid for k in ("knight", "golem", "stoneman", "goldman")):
+        return "knight"
+    if any(k in eid for k in ("magic", "wizard", "warlock", "magi", "drollmagi")):
+        return "caster"
+    if "droll" in eid:
+        return "blob"
+    return "blob"
+
+
 def export_enemies(masters: dict[str, Image.Image], enemy_ids: list[str]) -> None:
     svg_dir = ASSETS / "svg" / "enemies"
     out_dir = ASSETS / "sprites" / "enemies"
@@ -504,20 +595,18 @@ def export_enemies(masters: dict[str, Image.Image], enemy_ids: list[str]) -> Non
     for eid in enemy_ids:
         base, tint = ENEMY_MAP.get(eid, ("svg:blob", None))
         dest = out_dir / f"{eid}.png"
+        arch = _svg_archetype_for(eid, base)
+        # Always keep an editable SVG companion (user can replace PNGs later)
+        svg_path = svg_dir / f"{eid}.svg"
+        write_svg_enemy(svg_path, arch, eid, tint)
 
         if base.startswith("svg:"):
-            arch = base.split(":", 1)[1]
-            svg_path = svg_dir / f"{eid}.svg"
-            write_svg_enemy(svg_path, arch, eid, tint)
             if svg_to_png(svg_path, dest, 96):
                 n_svg += 1
             continue
 
         im = masters.get(base)
         if im is None:
-            # fallback SVG blob
-            svg_path = svg_dir / f"{eid}.svg"
-            write_svg_enemy(svg_path, "blob", eid, tint)
             if svg_to_png(svg_path, dest, 96):
                 n_svg += 1
             continue
@@ -531,7 +620,8 @@ def export_enemies(masters: dict[str, Image.Image], enemy_ids: list[str]) -> Non
 
     print(
         f"enemies: {n_kenney} Kenney CC0, {n_tc} Tiny Creatures CC0, "
-        f"{n_svg} SVG placeholders (total {len(enemy_ids)})"
+        f"{n_svg} SVG placeholders (total {len(enemy_ids)}; "
+        f"SVG companions in svg/enemies/)"
     )
 
 

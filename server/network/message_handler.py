@@ -192,6 +192,12 @@ async def handle_message(
         outbound.extend(aoi_msgs)
         meta = manager.get_meta(character_id)
         nearby = manager.nearby_players(character_id)
+        sync_zone = None
+        if meta is not None:
+            try:
+                sync_zone = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                sync_zone = None
         outbound.append(
             msg(
                 ServerMessageType.WORLD_STATE,
@@ -199,15 +205,23 @@ async def handle_message(
                 enemies=[],
                 map=map_payload(),
                 online=len(manager.online_ids()),
-                you={"x": meta["x"], "y": meta["y"]} if meta else None,
+                you=(
+                    {
+                        "x": meta["x"],
+                        "y": meta["y"],
+                        "zone": sync_zone,
+                    }
+                    if meta
+                    else None
+                ),
                 repel=manager.repel_remaining(character_id),
                 radiant=manager.radiant_remaining(character_id),
-                zone=zone_at(int(meta["x"]), int(meta["y"])) if meta else None,
+                zone=sync_zone,
             )
         )
         return character_id, user_id, outbound, None
 
-    if msg_type in (ClientMessageType.WHO, "who"):
+    if msg_type in (ClientMessageType.WHO, "who", "players", "online_list"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -220,6 +234,8 @@ async def handle_message(
                 you_zone = zone_at(int(meta["x"]), int(meta["y"]))
             except Exception:
                 you_zone = None
+        from network.websocket_manager import _is_idle
+
         outbound.append(
             msg(
                 ServerMessageType.WHO,
@@ -230,9 +246,12 @@ async def handle_message(
                 zones=manager.zone_counts(),
                 you={
                     "id": character_id,
+                    "name": (meta or {}).get("name"),
+                    "level": (meta or {}).get("level"),
                     "x": meta["x"] if meta else None,
                     "y": meta["y"] if meta else None,
                     "in_combat": bool(meta.get("in_combat")) if meta else False,
+                    "idle": _is_idle(meta) if meta else False,
                     "repel": manager.repel_remaining(character_id),
                     "radiant": manager.radiant_remaining(character_id),
                     "zone": you_zone,
@@ -360,10 +379,10 @@ async def handle_message(
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
                     {"cmd": "whisper", "hint": "/w Name message"},
-                    {"cmd": "find", "hint": "/find Name · /find Name zone:field"},
+                    {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
                     {"cmd": "status", "hint": "F or /status — self sheet"},
                     {"cmd": "look", "hint": "L — examine a player"},
-                    {"cmd": "who", "hint": "O or /who — online + zone counts"},
+                    {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "emote", "hint": "E — cycle emotes"},
                     {"cmd": "rest", "hint": "R — inn (town only)"},
                     {"cmd": "inventory", "hint": "I — bag / shop"},
@@ -471,7 +490,30 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         q = data.get("q") or data.get("query") or data.get("name") or data.get("prefix") or ""
-        if not isinstance(q, str) or not q.strip():
+        zone_f = data.get("zone") or data.get("area")
+        q_clean = q.strip() if isinstance(q, str) else ""
+        # "/find bob zone:field" or "/find zone:town" (zone-only list)
+        if isinstance(q_clean, str) and q_clean:
+            m = re.search(
+                r"^(?:(.+?)\s+)?(?:zone|in):(\w+)\s*$",
+                q_clean,
+                flags=re.I,
+            )
+            if m:
+                name_part = (m.group(1) or "").strip()
+                zone_f = m.group(2)
+                q_clean = name_part
+        # Validate zone first so "zone:moon" → invalid zone (not "find query required")
+        if isinstance(zone_f, str) and zone_f.strip():
+            znorm = zone_f.strip().lower()
+            if znorm not in ("town", "field", "dungeon"):
+                outbound.append(msg(ServerMessageType.ERROR, reason="invalid zone"))
+                return character_id, user_id, outbound, None
+            zone_f = znorm
+        else:
+            zone_f = None
+        # Bare zone field with empty name is OK (list everyone in zone)
+        if not q_clean and zone_f is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="find query required"))
             return character_id, user_id, outbound, None
         limit = data.get("limit") or 20
@@ -479,22 +521,12 @@ async def handle_message(
             limit_i = int(limit)
         except (TypeError, ValueError):
             limit_i = 20
-        zone_f = data.get("zone") or data.get("area")
-        # Allow "/find bob zone:field" style via query suffix
-        q_clean = q.strip()
-        if " zone:" in q_clean.lower() or " in:" in q_clean.lower():
-            import re as _re
-
-            m = _re.search(r"\s+(?:zone|in):(\w+)\s*$", q_clean, flags=_re.I)
-            if m:
-                zone_f = m.group(1)
-                q_clean = q_clean[: m.start()].strip()
         hits = manager.find_by_prefix(q_clean, limit=limit_i, zone=zone_f)
         outbound.append(
             msg(
                 ServerMessageType.FIND,
-                query=q_clean[:24],
-                zone=zone_f if isinstance(zone_f, str) else None,
+                query=q_clean[:24] if q_clean else (f"zone:{zone_f}" if zone_f else ""),
+                zone=zone_f,
                 players=hits,
                 online=len(manager.online_ids()),
                 count=len(hits),
@@ -942,7 +974,22 @@ async def handle_message(
             _reject("invalid move", mx, my)
             return character_id, user_id, outbound, None
 
-        tx, ty = int(x), int(y)
+        # Reject non-integer coords (3.7 must not silently become 3 — desyncs clients)
+        try:
+            fx_n, fy_n = float(x), float(y)
+            if not fx_n.is_integer() or not fy_n.is_integer():
+                meta = manager.get_meta(character_id)
+                mx = int(meta["x"]) if meta else 0
+                my = int(meta["y"]) if meta else 0
+                _reject("invalid move", mx, my)
+                return character_id, user_id, outbound, None
+            tx, ty = int(fx_n), int(fy_n)
+        except (TypeError, ValueError, OverflowError):
+            meta = manager.get_meta(character_id)
+            mx = int(meta["x"]) if meta else 0
+            my = int(meta["y"]) if meta else 0
+            _reject("invalid move", mx, my)
+            return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         if meta is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="not connected"))
@@ -992,8 +1039,43 @@ async def handle_message(
 
         # Apply position + AOI (enter/leave range notifications)
         aoi_msgs = await manager.publish_move(character_id, tx, ty, seq=seq)
-        outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
+        new_zone = zone_at(tx, ty)
+        old_zone = zone_at(fx, fy)
+        outbound.append(
+            msg(
+                ServerMessageType.MOVE_OK,
+                ok=True,
+                x=tx,
+                y=ty,
+                seq=seq,
+                zone=new_zone,
+            )
+        )
         outbound.extend(aoi_msgs)
+
+        # Multiplayer: soft nearby system note when crossing zone types
+        # (town ↔ field ↔ dungeon). Quiet for same-zone steps.
+        if (
+            old_zone != new_zone
+            and old_zone in ("town", "field", "dungeon")
+            and new_zone in ("town", "field", "dungeon")
+        ):
+            meta_now = manager.get_meta(character_id)
+            hero = (meta_now or {}).get("name") or "Hero"
+            await manager.broadcast_nearby(
+                character_id,
+                msg(
+                    ServerMessageType.CHAT,
+                    player_id=character_id,
+                    name="System",
+                    text=f"{hero} entered the {new_zone}.",
+                    channel="system",
+                    system=True,
+                    zone=new_zone,
+                ),
+                include_self=True,
+                respect_ignore=False,
+            )
 
         # Fairy Water / REPEL: consume a step; while active, skip random fights
         if manager.consume_repel_step(character_id):
@@ -1528,11 +1610,23 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
         async with db_write() as db:
-            ok, reason = await buy_item(db, char, str(item_id or ""))
+            ok, reason, bought = await buy_item(db, char, str(item_id or ""))
         if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            # Surface cost when short on gold (mirrors inn not-enough path)
+            err = msg(ServerMessageType.ERROR, reason=reason)
+            if bought.get("cost") is not None:
+                err["cost"] = bought["cost"]
+            if bought.get("gold") is not None:
+                err["gold"] = bought["gold"]
+            outbound.append(err)
             return character_id, user_id, outbound, None
-        outbound.append(await _inventory_msg(character_id))
+        inv = await _inventory_msg(character_id)
+        if bought:
+            inv["bought"] = bought
+            inv["message"] = (
+                f"Bought {bought.get('item_name') or item_id} for {bought.get('gold_spent', 0)} G"
+            )
+        outbound.append(inv)
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.SELL:
