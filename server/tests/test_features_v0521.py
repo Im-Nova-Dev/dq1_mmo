@@ -120,9 +120,14 @@ def test_status_and_me_ws(tmp_path, monkeypatch):
                 assert c.get("level") is not None
                 assert c.get("current_hp") is not None
                 assert c.get("xp_progress") is not None
+                assert isinstance(c.get("bonuses"), dict), c
+                assert "attack_power" in c["bonuses"]
+                assert "defense_power" in c["bonuses"]
+                assert "equipment_helmet" in c
                 you = m["you"]
                 assert you.get("zone") in ("town", "field", "dungeon")
                 assert "repel" in you and "radiant" in you
+                assert you.get("session_id") is not None
                 assert m.get("online") >= 1
 
                 await ws.send(json.dumps({"type": "me"}))
@@ -133,6 +138,18 @@ def test_status_and_me_ws(tmp_path, monkeypatch):
         asyncio.run(flow())
     finally:
         stop_server(server)
+
+
+def test_shop_catalog_includes_sell_price():
+    from game.item_manager import shop_catalog
+
+    cat = shop_catalog()
+    assert cat
+    for item in cat:
+        price = int(item.get("price") or 0)
+        assert "sell_price" in item
+        if price > 0:
+            assert item["sell_price"] == max(1, price // 2)
 
 
 def test_shop_requires_town_presence(tmp_path, monkeypatch):

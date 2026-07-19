@@ -73,4 +73,4 @@ if command -v rsvg-convert >/dev/null 2>&1 && [[ -d "$ASSETS/svg/enemies" ]]; th
 fi
 
 echo "done → $ASSETS"
-echo "tip: python3 tools/import_open_assets.py --download  # refresh Kenney CC0 packs"
+echo "tip: python3 tools/import_open_assets.py --download  # refresh Kenney + Tiny Creatures CC0 packs"

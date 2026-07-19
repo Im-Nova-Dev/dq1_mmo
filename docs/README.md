@@ -10,8 +10,10 @@
 | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG names & licenses |
 | [../plan.md](../plan.md) | Historical only | Original roadmap — **not** live source of truth |
 
-**Last docs refresh:** **v0.5.24** (2026-07-19)  
-Help command · defeat gold_lost · pong server_t · **121** tests · protocol only in AGENTS.md.
+**Last docs refresh:** **v0.5.28** (2026-07-19) · suite green **137** tests  
+
+Human-facing: status sheet · smoother movement · `/who` zones · `/ignores` · open art.  
+Agent-facing protocol stays **only** in `AGENTS.md`.
 
 ---
 
@@ -24,7 +26,8 @@ Help command · defeat gold_lost · pong server_t · **121** tests · protocol o
 | Treat `plan.md` as history | Treat `plan.md` as the current backlog |
 | Bump `VERSION` in `server/config.py` with user-visible changes | Leave README / HUMAN version badges out of date |
 | Link across audiences (README → HUMAN / AGENTS) | Mix long agent protocol into human prose |
-| Keep slash-commands (`/w`, `/z`, `/find`, `/status`) accurate in HUMAN | Claim client features that only exist on the server |
+| Keep slash-commands accurate in HUMAN | Claim client features that only exist on the server |
+| Use plain language in README “What’s new” | Leak `session_id`, message type catalogs, or test matrices to players |
 
 ### Quick map
 
@@ -58,3 +61,4 @@ Checklist for contributors (human or agent):
 - [ ] [HUMAN.md](HUMAN.md) gameplay if player-facing
 - [ ] [AGENTS.md](../AGENTS.md) protocol / tests / reliability if agent-facing
 - [ ] This index “last refresh” line
+- [ ] Keep human prose free of protocol dumps

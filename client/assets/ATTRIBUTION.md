@@ -12,12 +12,15 @@ These are **not** official Dragon Quest art. Swap freely.
 | `tiles/*.png` | [Kenney](https://kenney.nl) **Tiny Town**, **Tiny Dungeon**, **RPG Urban Pack**, **Roguelike RPG Pack** (16→40 nearest) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | `sprites/heroes/*.png` | Kenney **Tiny Dungeon** characters (16→40/80) | CC0 |
 | `ui/icon_sword.png` | Kenney **Tiny Dungeon** | CC0 |
-| `src/kenney/*.png` | 16×16 masters used to regenerate game-size PNGs | CC0 |
-| `sprites/enemies/*.png` (26) | Kenney **Tiny Dungeon** monsters/characters, tinted per enemy id | CC0 |
-| `sprites/enemies/*.png` (14) | Project SVG placeholders (`svg/enemies/`) for dragons, wyverns, etc. | Project (public domain intent) |
-| `svg/` | Tile/hero/enemy SVG sources | Project |
+| `src/kenney/*.png` | 16×16 Kenney masters used to regenerate game-size PNGs | CC0 |
+| `sprites/enemies/*.png` (17) | Kenney **Tiny Dungeon** monsters/characters, tinted per enemy id | CC0 |
+| `sprites/enemies/*.png` (23) | [Tiny Creatures](https://opengameart.org/content/tiny-creatures) by Clint Bellanger (Kenney-compatible 16×16) | CC0 |
+| `src/tiny-creatures/*.png` | Vendored Tiny Creatures tiles used above | CC0 |
+| `svg/` | Optional tile/hero/enemy SVG sources (fallback only) | Project |
 
-**Credit (optional, appreciated):** [Kenney.nl](https://kenney.nl) — Kenney Vleugels, CC0.
+**Credit (optional, appreciated):**
+- [Kenney.nl](https://kenney.nl) — Kenney Vleugels, CC0
+- [Clint Bellanger](https://clintbellanger.net) — Tiny Creatures, CC0
 
 ### Enemy id → art strategy
 
@@ -25,12 +28,14 @@ These are **not** official Dragon Quest art. Swap freely.
 |--------|----------|-----|
 | Slimes | `slime`, `red_slime`, `metal_slime` | Kenney slime + color tint |
 | Scorpions | `scorpion`, `metal_scorpion`, `rogue_scorpion` | Kenney crab |
-| Undead | `skeleton`, `ghost`, `wraith`, … | Kenney skull + tint |
-| Beasts | `wolf`, `werewolf`, … | Kenney rat / flesh |
-| Constructs | `golem`, `stoneman`, `goldman` | Kenney flesh + tint |
+| Undead (bones) | `skeleton`, `wraith`, `wraith_knight` | Kenney skull + tint |
+| Ghosts | `ghost`, `specter`, `poltergeist` | Tiny Creatures spirits |
+| Beasts | `wolf`, `wolflord`, `werewolf` | Tiny Creatures wolves |
+| Constructs | `golem`, `stoneman`, `goldman` | Tiny Creatures golems |
 | Knights | `knight`, `armored_knight`, … | Kenney knight characters |
 | Casters | `magician`, `wizard`, `warlock` | Kenney mage |
-| Dragons / drakes / wyverns | `blue_dragon`, `drakee`, `wyvern`, … | SVG silhouette placeholders |
+| Dragons / drakes / wyverns | `blue_dragon`, `drakee`, `wyvern`, … | Tiny Creatures dragons / bats |
+| Misc beasts | `droll`, `druin`, `druinlord` | Tiny Creatures blobs / foxes / beasts |
 
 ## Replacing art yourself
 
@@ -71,16 +76,16 @@ Optional icons; safe to leave as-is.
 ## Regenerating assets
 
 ```bash
-# from repo root — uses vendored src/kenney masters + SVG enemies
+# from repo root — uses vendored masters + Tiny Creatures mapping
 ./tools/gen_placeholder_assets.sh
 
-# or full re-import (re-download Kenney CC0 packs)
+# full re-import (re-download Kenney + Tiny Creatures CC0 packs)
 python3 tools/import_open_assets.py --download
 
-# if packs already extracted under /tmp/kenney_dl/extracted
+# packs already extracted
 python3 tools/import_open_assets.py --kenney-dir /tmp/kenney_dl/extracted
 
-# only refresh SVG enemies (keep current tiles/heroes)
+# only refresh enemy sprites (keep current tiles/heroes)
 python3 tools/import_open_assets.py --svg-only
 ```
 
@@ -96,12 +101,15 @@ convert client/assets/src/kenney/field.png -filter point -resize 40x40 client/as
 - https://kenney.nl/assets/tiny-dungeon  
 - https://kenney.nl/assets/rpg-urban-pack  
 - https://kenney.nl/assets/roguelike-rpg-pack  
+- https://opengameart.org/content/tiny-creatures (Clint Bellanger; also on [itch.io](https://clintbellanger.itch.io/tiny-creatures))
 
 ## SVG-only path
 
-If you delete Kenney PNGs and want pure vector placeholders:
+If you want pure vector placeholders instead of pixel art:
 
 ```bash
-rsvg-convert -w 40 -h 40 client/assets/svg/tile_field.svg -o client/assets/tiles/field.png
+# force SVG for a single enemy (edit ENEMY_MAP or overwrite PNG after)
 rsvg-convert -w 96 -h 96 client/assets/svg/enemies/blue_dragon.svg -o client/assets/sprites/enemies/blue_dragon.png
 ```
+
+Or set an enemy to `"svg:dragon"` in `tools/import_open_assets.py` and re-run.

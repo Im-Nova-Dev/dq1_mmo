@@ -30,6 +30,9 @@ class ClientMessageType(StrEnum):
     ME = "me"  # alias for status
     FIND = "find"  # search online roster by name prefix
     HELP = "help"  # list commands / key hints
+    IGNORE = "ignore"  # mute a player (chat/emote)
+    UNIGNORE = "unignore"  # remove mute
+    IGNORES = "ignores"  # list ignored players
 
 
 class ServerMessageType(StrEnum):
@@ -58,6 +61,7 @@ class ServerMessageType(StrEnum):
     STATUS = "status"  # self sheet result
     FIND = "find"  # roster search results
     HELP = "help"  # command help payload
+    IGNORE = "ignore"  # ignore list result / ack
     ONLINE = "online"  # global online count pulse
     ERROR = "error"
     PONG = "pong"

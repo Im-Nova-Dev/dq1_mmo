@@ -12,13 +12,15 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/look/find/status, who + roster + session_id | Multi-map worlds |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/look/find/status/ignore, who + idle roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell (incl. equipped), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · reconnect soft grace · locked AOI moves | Binary protocol |
 
-**Version:** `0.5.24` (`server/config.py` → `VERSION`) · **121** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.28` (`server/config.py` → `VERSION`) · **137** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
-When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.
+When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
+Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`.  
+Human “What’s new” should use plain language (no `session_id` / message-type catalogs).
 
 ## Documentation map (do not mix)
 
@@ -84,10 +86,10 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `client/client/ui.lua` | Shared DQ-style UI toolkit (panels, bars, menus) |
 | `client/client/assets.lua` | PNG loader (`client/assets/…`); missing → procedural fallback |
 | `client/client/renderer.lua` | Overworld tiles + actors |
-| `client/assets/` | `tiles/`, `sprites/heroes/`, `sprites/enemies/`, `svg/`, `ATTRIBUTION.md` |
-| `tools/import_open_assets.py` | Kenney CC0 import + SVG enemy placeholders |
+| `client/assets/` | `tiles/`, `sprites/heroes/`, `sprites/enemies/`, `src/kenney/`, `src/tiny-creatures/`, `svg/`, `ATTRIBUTION.md` |
+| `tools/import_open_assets.py` | Kenney + Tiny Creatures CC0 import; SVG only as last-resort fallback |
 | `tools/gen_placeholder_assets.sh` | Thin wrapper around import / scale path |
-| `client/client/network.lua` | WS client, reconnect, `Network.chat` |
+| `client/client/network.lua` | WS client, reconnect · `request_status()` (sheet) ≠ `link_status()` (HUD) |
 | `client/client/world.lua` | Prediction queue, remote players |
 | `client/states/login.lua` | Auth UI |
 | `client/states/character.lua` | Hero select / create UI |
@@ -118,11 +120,12 @@ All messages are JSON objects with a `type` string.
 | `say` | `text` | **Nearby** (AOI) chat |
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
-| `who` | — | Nearby players + `online` count (lightweight; no full map) |
+| `who` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
 | `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
 | `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
 | `find` / `search` | `q`/`query`/`name`, optional `limit` | Online roster prefix search (no coords). Rate-exempt. |
 | `help` / `commands` | — | Command list + version. Rate-exempt. |
+| `ignore` / `unignore` / `ignores` | `name` or `player_id` | Mute chat/emotes from a player (session soft-grace). |
 | `ping` | `t`, optional `sync` | Heartbeat; pong echoes `t` + `server_t` + `online` |
 | `sync` | — | Full nearby snapshot; **rebuilds AOI** server-side |
 | `debug_encounter` | `enemy`, optional `seed` | Only if `ALLOW_DEBUG` |
@@ -148,7 +151,7 @@ All messages are JSON objects with a `type` string.
 | `rest_ok` | Inn result or preview (`cost`, `character`, `message`) |
 | `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `radiant_steps`, `character`) |
 | `emote` | Nearby emote broadcast |
-| `who` | `players`, `online`, `roster`, `you` (incl. `repel`, `radiant`, `zone`) |
+| `who` | `players`, `online`, `roster`, `zones` (town/field/dungeon counts), `you` (incl. `repel`, `radiant`, `zone`) |
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
 | `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
 | `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
@@ -182,6 +185,11 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 20. Move `seq`: bool rejected; digit **strings** coerced (`"2"` → 2); optional seq still allowed.
 21. **`publish_move` mutates AOI under the per-loop lock**; network sends after unlock (avoid deadlock with `send`→`disconnect`).
 22. Level-up → nearby **system** chat + roster pulse; `find` never returns coordinates.
+23. **Disconnect leave** notifies geometric AOI **∪** cached `visible` (empty/corrupt visible must not leave ghost avatars).
+24. **`publish_status`** (combat/level) uses geometric AOI **∪** cached `visible` (same as nearby chat).
+25. `ids_nearby` only counts **live sockets** (orphan meta never appears nearby/find/roster).
+26. Move **rate limit applies only after** adjacent+walkable validation (invalid steps do not burn budget).
+27. Reserved chat channels rejected **before** chat rate limit (clear `reserved channel` reason).
 
 ## Tests (mandatory for your changes)
 
@@ -212,6 +220,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_zone` | Zone chat, whisper-by-id, AOI rebuild, geometry-safe nearby |
 | `tests.test_features_v0521` | status/me, legal_actions mp_cost, combat hero status |
 | `tests.test_mp_find` | find prefix, level-up system chat, locked publish_move AOI |
+| `tests.test_features_v0524` | help, pong server_t, defeat gold_lost |
+| `tests.test_mp_ignore` | ignore/mute, idle roster, soft-grace, dead socket cleanup |
+| `tests.test_mp_aoi_fix` | disconnect geometric leave, status AOI, zone counts, global ignore, reconnect storm |
+| `tests.test_features_v0528` | invalid step no rate burn, reserved channel first, who zones |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

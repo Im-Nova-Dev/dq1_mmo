@@ -7,7 +7,7 @@
 > - [docs/HUMAN.md](docs/HUMAN.md) — player/operator guide  
 > - [AGENTS.md](AGENTS.md) — agent/LLM contract, protocol, tests  
 >
-> Shipped baseline as of docs refresh: **v0.5.22** (MVP + find, status, zone/system chat, locked AOI, **116** tests).  
+> Shipped baseline snapshot (may lag): see **`server/config.py` → `VERSION`** and live docs.  
 > **Docs:** humans → README + docs/HUMAN.md · agents → AGENTS.md only.  
 > **Not the live source of truth** — use README + docs/HUMAN.md + AGENTS.md.
 

@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
-Import open-source (Kenney CC0) art + generate license-clean SVG enemy placeholders.
+Import open-source (CC0) art + generate license-clean SVG enemy placeholders.
+
+Sources:
+  - Kenney.nl Tiny Dungeon / Tiny Town / Roguelike RPG / RPG Urban (CC0)
+  - Clint Bellanger "Tiny Creatures" (CC0) — OpenGameArt / itch.io
+  - Project SVG archetypes as last-resort placeholders
 
 Usage (from repo root):
   python3 tools/import_open_assets.py [--kenney-dir /path/to/extracted]
-  python3 tools/import_open_assets.py --svg-only   # no Kenney re-crop; regen enemies only
+  python3 tools/import_open_assets.py --svg-only   # no re-crop; regen enemies only
+  python3 tools/import_open_assets.py --download   # fetch Kenney + Tiny Creatures
 
 Outputs under client/assets/:
-  src/kenney/*.png     16×16 masters (CC0)
-  tiles/*.png          40×40 map tiles
-  sprites/heroes/*     player sprites
-  sprites/enemies/*    one PNG per enemy id in shared/dq1_data.json
-  svg/enemies/*        SVG sources for placeholders (easy to replace)
+  src/kenney/*.png          16×16 Kenney masters
+  src/tiny-creatures/*.png  16×16 TC masters used by game
+  tiles/*.png               40×40 map tiles
+  sprites/heroes/*          player sprites
+  sprites/enemies/*         one PNG per enemy id in shared/dq1_data.json
+  svg/enemies/*             SVG sources (only when no pixel art match)
   ui/icon_sword.png
 
 Drop your own PNGs over anything; filenames are the contract.
@@ -20,10 +27,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import shutil
 import subprocess
 import sys
+import urllib.request
+import zipfile
 from pathlib import Path
 
 from PIL import Image
@@ -31,7 +39,10 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "client" / "assets"
 KENNEY_OUT = ASSETS / "src" / "kenney"
+TC_OUT = ASSETS / "src" / "tiny-creatures"
 DATA = ROOT / "shared" / "dq1_data.json"
+OPEN_CACHE = ROOT / "tools" / "_open_cache"
+KENNEY_CACHE = ROOT / "tools" / "_kenney_cache"
 
 # Tiny Dungeon tile indices (16×16) — Kenney CC0
 TD = {
@@ -54,17 +65,11 @@ TD = {
     "chest_mimic": 93,
 }
 
-# Tiny Town / Urban / Roguelike crops are applied when those packs are present
-TILE_SOURCES = {
-    "field": ("roguelike", "grass"),  # special crop from spritesheet
-    "wall": ("tiny-town", 49),
-    "town": ("tiny-town", 43),
-    "water": ("urban", 175),
-    "dungeon": ("tiny-dungeon", 1),
-}
-
 # Map each game enemy_id → (base_key, optional RGB multiply tint or None)
-# base_key is a key in TD or "svg:<archetype>"
+# base_key:
+#   key in TD / kenney masters
+#   "tc:NNNN"  → Tiny Creatures tile_NNNN.png
+#   "svg:arch" → project SVG archetype
 ENEMY_MAP: dict[str, tuple[str, tuple[float, float, float] | None]] = {
     # slimes — Kenney green blob + tints
     "slime": ("enemy_slime", None),
@@ -74,21 +79,21 @@ ENEMY_MAP: dict[str, tuple[str, tuple[float, float, float] | None]] = {
     "scorpion": ("enemy_crab", None),
     "metal_scorpion": ("enemy_crab", (0.7, 0.85, 1.1)),
     "rogue_scorpion": ("enemy_crab", (0.55, 0.9, 0.55)),
-    # undead / spectral
+    # undead / spectral — mix Kenney skull + Tiny Creatures ghosts
     "skeleton": ("enemy_skull", None),
     "wraith": ("enemy_skull", (0.65, 0.55, 0.95)),
     "wraith_knight": ("enemy_skull", (0.85, 0.75, 0.55)),
-    "ghost": ("enemy_skull", (0.75, 0.95, 0.9)),
-    "specter": ("enemy_skull", (0.55, 0.75, 1.0)),
-    "poltergeist": ("enemy_skull", (0.95, 0.7, 0.95)),
-    # beasts
-    "wolf": ("enemy_rat", (0.55, 0.55, 0.6)),
-    "wolflord": ("enemy_rat", (0.75, 0.55, 0.45)),
-    "werewolf": ("enemy_flesh", (0.7, 0.55, 0.55)),
-    # constructs
-    "golem": ("enemy_flesh", (0.65, 0.65, 0.7)),
-    "stoneman": ("enemy_flesh", (0.55, 0.55, 0.58)),
-    "goldman": ("enemy_flesh", (1.25, 1.05, 0.35)),
+    "ghost": ("tc:0044", None),
+    "specter": ("tc:0049", None),
+    "poltergeist": ("tc:0050", (1.05, 0.75, 1.1)),
+    # beasts — Tiny Creatures wolves / foxes
+    "wolf": ("tc:0024", None),
+    "wolflord": ("tc:0025", (0.95, 0.65, 0.5)),
+    "werewolf": ("tc:0167", None),
+    # constructs — Tiny Creatures golems
+    "golem": ("tc:0128", None),
+    "stoneman": ("tc:0129", None),
+    "goldman": ("tc:0126", (1.35, 1.15, 0.4)),
     # knights / humanoids (Tiny Dungeon characters)
     "knight": ("knight_steel", None),
     "armored_knight": ("knight_iron", None),
@@ -99,21 +104,21 @@ ENEMY_MAP: dict[str, tuple[str, tuple[float, float, float] | None]] = {
     "wizard": ("hero_mage", (0.55, 0.55, 1.15)),
     "warlock": ("hero_mage", (0.9, 0.35, 0.85)),
     "drollmagi": ("hero_mage", (0.45, 0.95, 0.55)),
-    # everything else → SVG archetype placeholders
-    "drakee": ("svg:drake", (0.45, 0.75, 0.95)),
-    "drakeema": ("svg:drake", (0.85, 0.55, 0.95)),
-    "magidrakee": ("svg:drake", (0.55, 0.95, 0.65)),
-    "droll": ("svg:blob", (0.55, 0.85, 0.55)),
-    "druin": ("svg:beast", (0.75, 0.55, 0.45)),
-    "druinlord": ("svg:beast", (0.55, 0.35, 0.55)),
-    "blue_dragon": ("svg:dragon", (0.35, 0.55, 0.95)),
-    "green_dragon": ("svg:dragon", (0.35, 0.85, 0.45)),
-    "red_dragon": ("svg:dragon", (0.95, 0.35, 0.3)),
-    "dragonlord": ("svg:dragon", (0.55, 0.25, 0.55)),
-    "dragonlord_true": ("svg:dragon", (0.95, 0.25, 0.2)),
-    "wyvern": ("svg:wyvern", (0.55, 0.75, 0.55)),
-    "magiwyvern": ("svg:wyvern", (0.65, 0.45, 0.95)),
-    "starwyvern": ("svg:wyvern", (0.95, 0.85, 0.35)),
+    # dragons / drakes / wyverns — Tiny Creatures (CC0)
+    "drakee": ("tc:0078", (0.55, 0.9, 1.15)),
+    "drakeema": ("tc:0080", (1.05, 0.55, 1.05)),
+    "magidrakee": ("tc:0077", (0.55, 1.15, 0.7)),
+    "droll": ("tc:0015", (0.55, 0.95, 0.6)),
+    "druin": ("tc:0055", (0.9, 0.6, 0.45)),
+    "druinlord": ("tc:0166", (0.7, 0.4, 0.55)),
+    "blue_dragon": ("tc:0078", None),
+    "green_dragon": ("tc:0041", None),
+    "red_dragon": ("tc:0079", None),
+    "dragonlord": ("tc:0080", (0.85, 0.4, 0.95)),
+    "dragonlord_true": ("tc:0079", (1.2, 0.45, 0.35)),
+    "wyvern": ("tc:0039", (0.55, 0.95, 0.55)),
+    "magiwyvern": ("tc:0039", (0.75, 0.5, 1.15)),
+    "starwyvern": ("tc:0040", (1.2, 1.05, 0.4)),
 }
 
 
@@ -146,7 +151,6 @@ def tint_rgba(im: Image.Image, rgb_mul: tuple[float, float, float] | None) -> Im
 def crop_tile(pack_dir: Path, index: int) -> Image.Image:
     path = pack_dir / "Tiles" / f"tile_{index:04d}.png"
     if not path.exists():
-        # tiny-dungeon uses unpadded sometimes? try both
         path = pack_dir / "Tiles" / f"tile_{index}.png"
     if not path.exists():
         raise FileNotFoundError(path)
@@ -159,9 +163,6 @@ def crop_roguelike_grass(pack_dir: Path) -> Image.Image:
     if not sheet.exists():
         raise FileNotFoundError(sheet)
     im = Image.open(sheet).convert("RGBA")
-    # Common layout: 16×16 tiles, 1px margin — grass near top-left variants
-    # Try known grass coords; fall back to (1,1)
-    # spritesheetInfo often: tile size 16, margin 1, spacing 1
     tw, margin, spacing = 16, 1, 1
 
     def at(col: int, row: int) -> Image.Image:
@@ -169,10 +170,8 @@ def crop_roguelike_grass(pack_dir: Path) -> Image.Image:
         y = margin + row * (tw + spacing)
         return im.crop((x, y, x + tw, y + tw))
 
-    # row0 has grass variants in this pack
     for col, row in [(5, 0), (0, 0), (1, 0), (6, 0)]:
         tile = at(col, row)
-        # reject mostly transparent
         alpha = sum(1 for p in tile.get_flattened_data() if p[3] > 10)
         if alpha > 40:
             return tile
@@ -183,7 +182,6 @@ def crop_urban_water(pack_dir: Path, index: int = 175) -> Image.Image:
     path = pack_dir / "Tiles" / f"tile_{index:04d}.png"
     if path.exists():
         return Image.open(path).convert("RGBA")
-    # fallback any water-ish tile
     tiles = sorted((pack_dir / "Tiles").glob("tile_*.png"))
     if tiles:
         return Image.open(tiles[min(len(tiles) - 1, index)]).convert("RGBA")
@@ -193,6 +191,7 @@ def crop_urban_water(pack_dir: Path, index: int = 175) -> Image.Image:
 def ensure_dirs() -> None:
     for p in (
         KENNEY_OUT,
+        TC_OUT,
         ASSETS / "tiles",
         ASSETS / "sprites" / "heroes",
         ASSETS / "sprites" / "enemies",
@@ -203,18 +202,18 @@ def ensure_dirs() -> None:
 
 
 def write_svg_enemy(path: Path, archetype: str, label: str, tint: tuple[float, float, float] | None) -> None:
-    """Crisp pixel-ish SVG placeholders — project-owned, free to replace."""
+    """Crisp SVG placeholders — project-owned, free to replace."""
     t = tint or (0.7, 0.7, 0.75)
     r = int(min(255, 80 + 150 * t[0]))
     g = int(min(255, 80 + 150 * t[1]))
     b = int(min(255, 80 + 150 * t[2]))
     fill = f"#{r:02x}{g:02x}{b:02x}"
-    dark = f"#{max(0,r//3):02x}{max(0,g//3):02x}{max(0,b//3):02x}"
-    light = f"#{min(255,r+40):02x}{min(255,g+40):02x}{min(255,b+40):02x}"
+    dark = f"#{max(0, r // 3):02x}{max(0, g // 3):02x}{max(0, b // 3):02x}"
+    light = f"#{min(255, r + 40):02x}{min(255, g + 40):02x}{min(255, b + 40):02x}"
     eye = "#1a1010"
     short = (label.replace("_", " ")[:14]).title()
 
-    if archetype == "slime" or archetype == "blob":
+    if archetype in ("slime", "blob"):
         body = f'''
   <ellipse cx="64" cy="82" rx="40" ry="28" fill="{fill}" stroke="{dark}" stroke-width="3"/>
   <ellipse cx="50" cy="72" rx="5" ry="7" fill="{eye}"/>
@@ -296,7 +295,6 @@ def svg_to_png(svg_path: Path, png_path: Path, size: int = 96) -> bool:
             check=True,
         )
         return True
-    # Pillow cannot read SVG; try magick
     magick = shutil.which("magick") or shutil.which("convert")
     if magick:
         subprocess.run(
@@ -321,7 +319,7 @@ def find_kenney_dir(explicit: Path | None) -> Path | None:
         return explicit
     candidates = [
         Path("/tmp/kenney_dl/extracted"),
-        ROOT / "tools" / "_kenney_cache",
+        KENNEY_CACHE,
         Path.home() / "Downloads" / "kenney",
     ]
     for c in candidates:
@@ -330,12 +328,26 @@ def find_kenney_dir(explicit: Path | None) -> Path | None:
     return None
 
 
+def find_tiny_creatures_dir() -> Path | None:
+    candidates = [
+        OPEN_CACHE / "tiny-creatures" / "tiny-creatures",
+        OPEN_CACHE / "tiny-creatures",
+        Path("/tmp/tiny-creatures"),
+    ]
+    for c in candidates:
+        if (c / "Tiles").is_dir():
+            return c
+        nested = c / "tiny-creatures"
+        if (nested / "Tiles").is_dir():
+            return nested
+    return None
+
+
 def vendor_kenney_masters(kdir: Path) -> dict[str, Image.Image]:
     """Crop + save 16×16 masters into src/kenney; return name→Image."""
     masters: dict[str, Image.Image] = {}
     td = kdir / "tiny-dungeon"
     if not td.is_dir():
-        # maybe kdir itself is tiny-dungeon
         if (kdir / "Tiles").is_dir():
             td = kdir
         else:
@@ -350,7 +362,6 @@ def vendor_kenney_masters(kdir: Path) -> dict[str, Image.Image]:
         except FileNotFoundError as e:
             print("skip", name, e)
 
-    # map tiles
     try:
         if (kdir / "roguelike").is_dir():
             field = crop_roguelike_grass(kdir / "roguelike")
@@ -384,7 +395,6 @@ def vendor_kenney_masters(kdir: Path) -> dict[str, Image.Image]:
         masters["dungeon"] = masters["dungeon_floor"]
         masters["dungeon"].save(KENNEY_OUT / "dungeon.png")
 
-    # convenience aliases used by gen script
     for src, dst in (
         ("hero", "hero.png"),
         ("hero_other", "hero_other.png"),
@@ -397,7 +407,6 @@ def vendor_kenney_masters(kdir: Path) -> dict[str, Image.Image]:
         if src in masters:
             masters[src].save(KENNEY_OUT / dst)
 
-    # License note
     (KENNEY_OUT / "LICENSE.txt").write_text(
         """Kenney asset crops used by dq1_mmo
 
@@ -412,26 +421,63 @@ License: https://creativecommons.org/publicdomain/zero/1.0/
 
 You may use these graphics in personal and commercial projects.
 Credit (Kenney or www.kenney.nl) would be nice but is not mandatory.
-
-Enemy combat sprites may also use generated SVG placeholders under svg/enemies/
-(project-owned). Replace any file under sprites/ freely.
 """,
         encoding="utf-8",
     )
     return masters
 
 
+def vendor_tiny_creatures(tc_dir: Path) -> dict[str, Image.Image]:
+    """Copy needed Tiny Creatures tiles into src/tiny-creatures and masters dict."""
+    masters: dict[str, Image.Image] = {}
+    needed: set[str] = set()
+    for base, _ in ENEMY_MAP.values():
+        if base.startswith("tc:"):
+            needed.add(base.split(":", 1)[1])
+
+    for num in sorted(needed):
+        src = tc_dir / "Tiles" / f"tile_{num}.png"
+        if not src.exists():
+            # try unpadded
+            src = tc_dir / "Tiles" / f"tile_{int(num)}.png"
+        if not src.exists():
+            print("warn: missing Tiny Creatures tile", num)
+            continue
+        im = Image.open(src).convert("RGBA")
+        key = f"tc:{num}"
+        masters[key] = im
+        im.save(TC_OUT / f"tile_{num}.png")
+
+    lic_src = tc_dir / "License.txt"
+    if lic_src.exists():
+        shutil.copy2(lic_src, TC_OUT / "LICENSE.txt")
+    else:
+        (TC_OUT / "LICENSE.txt").write_text(
+            """Tiny Creatures (CC0)
+Created by Clint Bellanger (clintbellanger.net)
+https://opengameart.org/content/tiny-creatures
+https://creativecommons.org/publicdomain/zero/1.0/
+Compatible with Kenney Tiny Dungeon / Tiny Town (made with Kenney's permission).
+""",
+            encoding="utf-8",
+        )
+    print(f"tiny-creatures: vendored {len(masters)} tiles → {TC_OUT}")
+    return masters
+
+
 def load_existing_masters() -> dict[str, Image.Image]:
-    masters = {}
-    if not KENNEY_OUT.is_dir():
-        return masters
-    for p in KENNEY_OUT.glob("*.png"):
-        masters[p.stem] = Image.open(p).convert("RGBA")
+    masters: dict[str, Image.Image] = {}
+    if KENNEY_OUT.is_dir():
+        for p in KENNEY_OUT.glob("*.png"):
+            masters[p.stem] = Image.open(p).convert("RGBA")
+    if TC_OUT.is_dir():
+        for p in TC_OUT.glob("tile_*.png"):
+            num = p.stem.replace("tile_", "")
+            masters[f"tc:{num}"] = Image.open(p).convert("RGBA")
     return masters
 
 
 def export_game_assets(masters: dict[str, Image.Image]) -> None:
-    # tiles
     for name in ("field", "wall", "town", "water", "dungeon"):
         src = masters.get(name) or masters.get("dungeon_floor")
         if src is None and (KENNEY_OUT / f"{name}.png").exists():
@@ -440,7 +486,6 @@ def export_game_assets(masters: dict[str, Image.Image]) -> None:
             nn_resize(src, 40).save(ASSETS / "tiles" / f"{name}.png")
             print("tile", name)
 
-    # heroes
     if "hero" in masters:
         nn_resize(masters["hero"], 40).save(ASSETS / "sprites" / "heroes" / "hero.png")
         nn_resize(masters["hero"], 80).save(ASSETS / "sprites" / "heroes" / "hero_battle.png")
@@ -454,7 +499,7 @@ def export_game_assets(masters: dict[str, Image.Image]) -> None:
 def export_enemies(masters: dict[str, Image.Image], enemy_ids: list[str]) -> None:
     svg_dir = ASSETS / "svg" / "enemies"
     out_dir = ASSETS / "sprites" / "enemies"
-    n_kenney = n_svg = 0
+    n_kenney = n_tc = n_svg = 0
 
     for eid in enemy_ids:
         base, tint = ENEMY_MAP.get(eid, ("svg:blob", None))
@@ -479,16 +524,61 @@ def export_enemies(masters: dict[str, Image.Image], enemy_ids: list[str]) -> Non
 
         im = tint_rgba(im, tint)
         nn_resize(im, 96).save(dest)
-        n_kenney += 1
+        if base.startswith("tc:"):
+            n_tc += 1
+        else:
+            n_kenney += 1
 
-    print(f"enemies: {n_kenney} from Kenney CC0, {n_svg} SVG placeholders (total {len(enemy_ids)})")
+    print(
+        f"enemies: {n_kenney} Kenney CC0, {n_tc} Tiny Creatures CC0, "
+        f"{n_svg} SVG placeholders (total {len(enemy_ids)})"
+    )
+
+
+def download_packs() -> Path | None:
+    """Download Kenney packs + Tiny Creatures into tools caches. Returns kenney dir."""
+    KENNEY_CACHE.mkdir(parents=True, exist_ok=True)
+    OPEN_CACHE.mkdir(parents=True, exist_ok=True)
+
+    packs = {
+        "tiny-dungeon": "https://kenney.nl/media/pages/assets/tiny-dungeon/f8422efb44-1674742415/kenney_tiny-dungeon.zip",
+        "tiny-town": "https://kenney.nl/media/pages/assets/tiny-town/a415fbeb49-1735736916/kenney_tiny-town.zip",
+        "roguelike": "https://kenney.nl/media/pages/assets/roguelike-rpg-pack/12c03cd78b-1677697420/kenney_roguelike-rpg-pack.zip",
+        "urban": "https://kenney.nl/media/pages/assets/rpg-urban-pack/0a097d1dc7-1677578575/kenney_rpg-urban-pack.zip",
+    }
+    for name, url in packs.items():
+        zpath = KENNEY_CACHE / f"{name}.zip"
+        dest = KENNEY_CACHE / name
+        if dest.is_dir() and any(dest.rglob("*.png")):
+            print("have Kenney", name)
+            continue
+        print("download Kenney", name)
+        urllib.request.urlretrieve(url, zpath)
+        dest.mkdir(exist_ok=True)
+        with zipfile.ZipFile(zpath) as zf:
+            zf.extractall(dest)
+
+    # Tiny Creatures (OpenGameArt mirror)
+    tc_url = "https://opengameart.org/sites/default/files/tiny-creatures.zip"
+    tc_zip = OPEN_CACHE / "tiny-creatures.zip"
+    tc_dest = OPEN_CACHE / "tiny-creatures"
+    if not find_tiny_creatures_dir():
+        print("download Tiny Creatures (CC0, Clint Bellanger)")
+        urllib.request.urlretrieve(tc_url, tc_zip)
+        tc_dest.mkdir(exist_ok=True)
+        with zipfile.ZipFile(tc_zip) as zf:
+            zf.extractall(tc_dest)
+    else:
+        print("have Tiny Creatures")
+
+    return KENNEY_CACHE
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--kenney-dir", type=Path, default=None, help="Extracted Kenney packs root")
-    ap.add_argument("--svg-only", action="store_true", help="Only regenerate SVG enemies; keep tiles/heroes")
-    ap.add_argument("--download", action="store_true", help="Download Kenney packs to tools/_kenney_cache")
+    ap.add_argument("--svg-only", action="store_true", help="Only regenerate enemies; keep tiles/heroes")
+    ap.add_argument("--download", action="store_true", help="Download Kenney + Tiny Creatures packs")
     args = ap.parse_args()
 
     ensure_dirs()
@@ -496,50 +586,48 @@ def main() -> int:
     print(f"game enemies: {len(enemy_ids)}")
 
     if args.download:
-        cache = ROOT / "tools" / "_kenney_cache"
-        cache.mkdir(parents=True, exist_ok=True)
-        packs = {
-            "tiny-dungeon": "https://kenney.nl/media/pages/assets/tiny-dungeon/f8422efb44-1674742415/kenney_tiny-dungeon.zip",
-            "tiny-town": "https://kenney.nl/media/pages/assets/tiny-town/a415fbeb49-1735736916/kenney_tiny-town.zip",
-            "roguelike": "https://kenney.nl/media/pages/assets/roguelike-rpg-pack/12c03cd78b-1677697420/kenney_roguelike-rpg-pack.zip",
-            "urban": "https://kenney.nl/media/pages/assets/rpg-urban-pack/0a097d1dc7-1677578575/kenney_rpg-urban-pack.zip",
-        }
-        import urllib.request
-        import zipfile
-
-        for name, url in packs.items():
-            zpath = cache / f"{name}.zip"
-            dest = cache / name
-            if not dest.is_dir():
-                print("download", name)
-                urllib.request.urlretrieve(url, zpath)
-                dest.mkdir(exist_ok=True)
-                with zipfile.ZipFile(zpath) as zf:
-                    zf.extractall(dest)
-        args.kenney_dir = cache
+        args.kenney_dir = download_packs()
 
     masters: dict[str, Image.Image] = {}
     if not args.svg_only:
         kdir = find_kenney_dir(args.kenney_dir)
         if kdir:
             print("using Kenney packs at", kdir)
-            masters = vendor_kenney_masters(kdir)
+            masters.update(vendor_kenney_masters(kdir))
         else:
             print("no Kenney extract found; using existing src/kenney masters if present")
-            masters = load_existing_masters()
+            masters.update(load_existing_masters())
+
+        tc_dir = find_tiny_creatures_dir()
+        if tc_dir:
+            print("using Tiny Creatures at", tc_dir)
+            masters.update(vendor_tiny_creatures(tc_dir))
+        else:
+            print("warn: Tiny Creatures not found — run with --download or place under tools/_open_cache/")
+            # still load any previously vendored TC tiles
+            for k, v in load_existing_masters().items():
+                if k.startswith("tc:"):
+                    masters[k] = v
+
         if masters:
             export_game_assets(masters)
         else:
-            print("warn: no Kenney masters — tiles/heroes left unchanged")
+            print("warn: no masters — tiles/heroes left unchanged")
     else:
         masters = load_existing_masters()
+        tc_dir = find_tiny_creatures_dir()
+        if tc_dir:
+            masters.update(vendor_tiny_creatures(tc_dir))
 
-    # Always ensure masters for enemy mapping
     if not masters:
         masters = load_existing_masters()
+    # Prefer freshly vendored TC if present
+    tc_dir = find_tiny_creatures_dir()
+    if tc_dir and not any(k.startswith("tc:") for k in masters):
+        masters.update(vendor_tiny_creatures(tc_dir))
+
     export_enemies(masters, enemy_ids)
 
-    # Prune leftover enemy PNGs not in the DQ1 roster? Keep extras for future content.
     print("done →", ASSETS)
     return 0
 

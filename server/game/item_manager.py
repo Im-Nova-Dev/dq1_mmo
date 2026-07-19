@@ -36,7 +36,11 @@ def shop_catalog() -> list[dict]:
     for iid in data.get("shop", []):
         d = get_item_def(iid)
         if d and int(d.get("price", 0)) > 0:
-            out.append(dict(d))
+            item = dict(d)
+            price = int(item.get("price", 0))
+            # DQ-style sell-back is half price (matches sell_item)
+            item["sell_price"] = max(1, price // 2) if price > 0 else 0
+            out.append(item)
     return out
 
 

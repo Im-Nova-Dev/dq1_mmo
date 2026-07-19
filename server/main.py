@@ -122,6 +122,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 "search",
                 "help",
                 "commands",
+                "ignore",
+                "unignore",
+                "ignores",
+                "mute",
+                "unmute",
+                "ignore_list",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):

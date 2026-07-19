@@ -14,7 +14,10 @@ MSG_RATE_MAX = 40
 CHAT_MIN_INTERVAL = 0.75  # max ~1.3 messages/sec per player
 CHAT_MAX_LEN = 200
 IDLE_TIMEOUT = 90.0
+# Softer idle for roster badges (AFK) — still below kick timeout
+IDLE_SOFT = 45.0
 HEARTBEAT_CHECK_INTERVAL = 15.0
+IGNORE_MAX = 32
 
 
 def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
@@ -28,7 +31,14 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
         "map_id": meta["map_id"],
         "level": meta["level"],
         "in_combat": bool(meta.get("in_combat")),
+        "idle": _is_idle(meta),
     }
+
+
+def _is_idle(meta: dict[str, Any], now: float | None = None) -> bool:
+    now = now if now is not None else time.monotonic()
+    last = float(meta.get("last_seen") or 0.0)
+    return (now - last) >= IDLE_SOFT
 
 
 def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
@@ -38,6 +48,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
         "name": meta["name"],
         "level": meta["level"],
         "in_combat": bool(meta.get("in_combat")),
+        "idle": _is_idle(meta),
     }
 
 
@@ -67,7 +78,7 @@ class ConnectionManager:
         return lock
 
     def _take_soft_grace(self, character_id: int) -> dict[str, Any]:
-        """Pop soft-state grace if still valid (repel/radiant — move seq resets client-side)."""
+        """Pop soft-state grace if still valid (repel/radiant/ignore — move seq resets)."""
         bag = self._soft_grace.pop(character_id, None)
         if not bag:
             return {}
@@ -76,15 +87,17 @@ class ConnectionManager:
         return bag
 
     def _stash_soft_grace(self, character_id: int, meta: dict[str, Any]) -> None:
-        # Clients reset move seq on auth; restore buffs only.
+        # Clients reset move seq on auth; restore buffs + ignore list.
         repel = max(0, int(meta.get("repel_steps") or 0))
         radiant = max(0, int(meta.get("radiant_steps") or 0))
-        if repel <= 0 and radiant <= 0:
+        ignore = set(meta.get("ignore") or set())
+        if repel <= 0 and radiant <= 0 and not ignore:
             self._soft_grace.pop(character_id, None)
             return
         self._soft_grace[character_id] = {
             "repel_steps": repel,
             "radiant_steps": radiant,
+            "ignore": ignore,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
         }
 
@@ -108,10 +121,12 @@ class ConnectionManager:
             if old_meta:
                 grace_repel = max(0, int(old_meta.get("repel_steps") or 0))
                 grace_radiant = max(0, int(old_meta.get("radiant_steps") or 0))
+                grace_ignore = set(old_meta.get("ignore") or set())
             else:
                 bag = self._take_soft_grace(character_id)
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
                 grace_radiant = max(0, int(bag.get("radiant_steps") or 0))
+                grace_ignore = set(bag.get("ignore") or set())
 
             if old is not None and old is not websocket:
                 try:
@@ -149,6 +164,7 @@ class ConnectionManager:
                 "radiant_steps": grace_radiant,
                 "session_id": session_id,
                 "visible": set(),  # peer ids currently in AOI
+                "ignore": grace_ignore,  # cid set — do not receive chat/emotes from these
             }
             # Live again — drop any leftover grace bag
             self._soft_grace.pop(character_id, None)
@@ -183,13 +199,29 @@ class ConnectionManager:
             left_meta = self._meta.pop(character_id, None)
             if left_meta:
                 self._stash_soft_grace(character_id, left_meta)
-                notify_ids = list(left_meta.get("visible") or set())
+                # Union cached AOI with live geometry so a desynced/empty
+                # visible set never leaves ghost avatars on nearby clients.
+                notify: set[int] = set(left_meta.get("visible") or set())
+                try:
+                    lx = float(left_meta.get("x") or 0)
+                    ly = float(left_meta.get("y") or 0)
+                    lmap = left_meta.get("map_id")
+                    for oid, om in self._meta.items():
+                        if oid not in self._connections:
+                            continue
+                        if om.get("map_id") != lmap:
+                            continue
+                        if is_nearby(lx, ly, float(om["x"]), float(om["y"])):
+                            notify.add(oid)
+                except Exception:
+                    pass
+                notify_ids = list(notify)
                 for oid in notify_ids:
                     om = self._meta.get(oid)
                     if om and "visible" in om:
                         om["visible"].discard(character_id)
 
-        # Notify peers who could see us
+        # Notify peers who could see us (or were geometrically nearby)
         if left_meta and notify_ids:
             leave_msg = {
                 "type": "player_left",
@@ -396,6 +428,58 @@ class ConnectionManager:
                 return cid
         return None
 
+    def is_ignored_by(self, listener_id: int, speaker_id: int) -> bool:
+        """True if listener has muted/ignored speaker (no chat/emote delivery)."""
+        if listener_id == speaker_id:
+            return False
+        meta = self._meta.get(listener_id)
+        if not meta:
+            return False
+        return int(speaker_id) in set(meta.get("ignore") or set())
+
+    def ignore_player(self, character_id: int, target_id: int) -> tuple[bool, str]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False, "not online"
+        tid = int(target_id)
+        if tid == character_id:
+            return False, "cannot ignore yourself"
+        if tid not in self._connections:
+            return False, "player not online"
+        ig = set(meta.get("ignore") or set())
+        if tid in ig:
+            return True, "already ignored"
+        if len(ig) >= IGNORE_MAX:
+            return False, "ignore list full"
+        ig.add(tid)
+        meta["ignore"] = ig
+        return True, "ignored"
+
+    def unignore_player(self, character_id: int, target_id: int) -> tuple[bool, str]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False, "not online"
+        tid = int(target_id)
+        ig = set(meta.get("ignore") or set())
+        if tid not in ig:
+            return True, "not ignored"
+        ig.discard(tid)
+        meta["ignore"] = ig
+        return True, "unignored"
+
+    def ignore_list(self, character_id: int) -> list[dict[str, Any]]:
+        meta = self._meta.get(character_id)
+        if not meta:
+            return []
+        out: list[dict[str, Any]] = []
+        for tid in sorted(set(meta.get("ignore") or set())):
+            om = self._meta.get(int(tid))
+            if om and int(tid) in self._connections:
+                out.append(_online_card(om))
+            else:
+                out.append({"id": int(tid), "name": "?", "level": 0, "in_combat": False, "idle": False})
+        return out
+
     def allow_chat(self, character_id: int) -> tuple[bool, float]:
         """Rate-limit chat. Returns (allowed, retry_after_seconds)."""
         meta = self._meta.get(character_id)
@@ -411,7 +495,9 @@ class ConnectionManager:
     async def publish_status(self, character_id: int, *, pulse_online: bool = False) -> None:
         """Broadcast current public status (level, combat) to AOI peers.
 
-        When pulse_online is True (combat enter/leave), also refresh global roster cards.
+        Uses geometric AOI ∪ cached visible so combat/level flags still reach
+        peers after brief AOI desync. When pulse_online is True (combat
+        enter/leave), also refresh global roster cards.
         """
         me = self._meta.get(character_id)
         if me is None:
@@ -425,7 +511,10 @@ class ConnectionManager:
             "y": me["y"],
             "in_combat": bool(me.get("in_combat")),
         }
-        for oid in list(me.get("visible") or set()):
+        targets = set(self.ids_nearby(character_id)) | set(me.get("visible") or set())
+        for oid in targets:
+            if oid == character_id:
+                continue
             await self.send(oid, payload)
         if pulse_online:
             await self.broadcast_online()
@@ -438,11 +527,31 @@ class ConnectionManager:
         for cid, meta in self._meta.items():
             if cid == character_id:
                 continue
+            # Only live sockets — never treat orphan meta as nearby
+            if cid not in self._connections:
+                continue
             if meta["map_id"] != me["map_id"]:
                 continue
             if is_nearby(me["x"], me["y"], meta["x"], meta["y"]):
                 out.append(cid)
         return out
+
+    def zone_counts(self) -> dict[str, int]:
+        """How many online players are in each walkable zone (social overview)."""
+        from game.world_manager import zone_at
+
+        counts = {"town": 0, "field": 0, "dungeon": 0}
+        for cid in self._connections:
+            meta = self._meta.get(cid)
+            if not meta:
+                continue
+            try:
+                z = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                continue
+            if z in counts:
+                counts[z] += 1
+        return counts
 
     def nearby_players(self, character_id: int) -> list[dict[str, Any]]:
         out = []
@@ -675,11 +784,24 @@ class ConnectionManager:
             await self.disconnect(character_id, ws)
             return False
 
-    async def broadcast(self, message: dict[str, Any], exclude: int | None = None) -> None:
+    async def broadcast(
+        self,
+        message: dict[str, Any],
+        exclude: int | None = None,
+        *,
+        from_id: int | None = None,
+        respect_ignore: bool = False,
+    ) -> None:
         dead: list[tuple[int, WebSocket]] = []
         payload = json.dumps(message, default=str)
         for cid, ws in list(self._connections.items()):
             if exclude is not None and cid == exclude:
+                continue
+            if (
+                respect_ignore
+                and from_id is not None
+                and self.is_ignored_by(cid, from_id)
+            ):
                 continue
             try:
                 await ws.send_text(payload)
@@ -694,11 +816,13 @@ class ConnectionManager:
         message: dict[str, Any],
         *,
         include_self: bool = False,
+        respect_ignore: bool = True,
     ) -> None:
         """Send to geometric AOI peers (union with cached visible for safety).
 
         Prefer live geometry over the cached visible set so stale/partial AOI
         never drops nearby chat, emotes, or social traffic.
+        When respect_ignore is True, skip listeners who ignored source_id.
         """
         me = self._meta.get(source_id)
         if me is None:
@@ -712,6 +836,8 @@ class ConnectionManager:
         payload = json.dumps(message, default=str)
         for cid in targets:
             if cid == source_id and not include_self:
+                continue
+            if respect_ignore and cid != source_id and self.is_ignored_by(cid, source_id):
                 continue
             ws = self._connections.get(cid)
             if ws is None:
@@ -756,6 +882,7 @@ class ConnectionManager:
         message: dict[str, Any],
         *,
         include_self: bool = True,
+        respect_ignore: bool = True,
     ) -> None:
         """Send to all online players in the same zone (town / field / dungeon)."""
         me = self._meta.get(source_id)
@@ -767,6 +894,8 @@ class ConnectionManager:
         dead: list[tuple[int, WebSocket]] = []
         payload = json.dumps(message, default=str)
         for cid in targets:
+            if respect_ignore and cid != source_id and self.is_ignored_by(cid, source_id):
+                continue
             ws = self._connections.get(cid)
             if ws is None:
                 continue

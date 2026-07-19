@@ -147,6 +147,7 @@ local function bind_handlers(self)
       self.radiant = tonumber(data.radiant) or 0
     end
     self.roster = data.roster or self.roster
+    self.zones = data.zones or self.zones
     local n = 0
     for _ in pairs(World.players) do
       n = n + 1
@@ -156,7 +157,17 @@ local function bind_handlers(self)
     if (self.repel or 0) > 0 then
       extra = string.format(" · repel %d", self.repel)
     end
-    UI.toast(string.format("Online %d · nearby %d%s", roster_n, n, extra), "info")
+    local z = self.zones
+    local zone_bit = ""
+    if type(z) == "table" then
+      zone_bit = string.format(
+        " · town %d · field %d · dung %d",
+        tonumber(z.town) or 0,
+        tonumber(z.field) or 0,
+        tonumber(z.dungeon) or 0
+      )
+    end
+    UI.toast(string.format("Online %d · nearby %d%s%s", roster_n, n, zone_bit, extra), "info")
   end)
 
   Network.on("online", function(data)
@@ -221,10 +232,46 @@ local function bind_handlers(self)
     end
   end)
 
+  Network.on("ignore", function(data)
+    local act = data.action or "?"
+    if act == "list" then
+      local list = data.ignores or {}
+      local n = #list
+      if n == 0 then
+        UI.toast("Ignore list empty", "info")
+        return
+      end
+      local names = {}
+      for i = 1, math.min(n, 6) do
+        names[#names + 1] = tostring(list[i].name or list[i].id or "?")
+      end
+      local more = n > 6 and (" +" .. tostring(n - 6)) or ""
+      UI.toast(string.format("Ignoring %d: %s%s", n, table.concat(names, ", "), more), "info")
+      return
+    end
+    local pname = (data.player and data.player.name) or data.player_id or "?"
+    if act == "ignore" then
+      UI.toast("Ignoring " .. tostring(pname), "info")
+    elseif act == "unignore" then
+      UI.toast("Unignored " .. tostring(pname), "info")
+    end
+  end)
+
   Network.on("move_ok", function(data)
     World.apply_move_ok(data)
     if World.local_player then
+      local prev = self.zone
       self.zone = zone_name(World.local_player.x, World.local_player.y)
+      -- Soft notice when entering a different area type
+      if data.ok ~= false and prev and self.zone and prev ~= self.zone then
+        if self.zone == "dungeon" then
+          UI.toast("Entered the dungeon", "accent")
+        elseif self.zone == "town" and prev ~= "town" then
+          UI.toast("Back in town", "gold")
+        elseif self.zone == "field" and prev == "dungeon" then
+          UI.toast("Out of the dungeon", "ok")
+        end
+      end
     end
     if data.ok == false and data.reason and data.reason ~= "rate_limit" and data.reason ~= "in combat" then
       self.status = "Move: " .. tostring(data.reason)
@@ -292,6 +339,11 @@ local function bind_handlers(self)
       table.remove(self.chat_log, 1)
     end
     if data.channel == "whisper" then
+      -- Track peer for /r reply (incoming whispers only)
+      local me = World.local_player and World.local_player.name
+      if data.name and data.name ~= me and data.name ~= "System" then
+        self.last_whisper_from = data.name
+      end
       UI.toast("Whisper from " .. tostring(data.name or "?"), "info")
     end
   end)
@@ -308,8 +360,9 @@ local function bind_handlers(self)
       loc = " (far)"
     end
     local combat = p.in_combat and " ⚔" or ""
+    local idle = p.idle and " (AFK)" or ""
     UI.toast(
-      string.format("%s  Lv%d%s%s", tostring(p.name), tonumber(p.level) or 1, combat, loc),
+      string.format("%s  Lv%d%s%s%s", tostring(p.name), tonumber(p.level) or 1, combat, idle, loc),
       "info"
     )
   end)
@@ -548,7 +601,7 @@ function Overworld:update(dt)
   if buffs ~= "" then
     self.net_info = string.format(
       "%s · %dms · %d near · %d on%s",
-      Network.status(),
+      Network.link_status(),
       rtt_ms,
       others,
       self.online or 0,
@@ -557,7 +610,7 @@ function Overworld:update(dt)
   else
     self.net_info = string.format(
       "%s · %dms · %d nearby · %d online",
-      Network.status(),
+      Network.link_status(),
       rtt_ms,
       others,
       self.online or 0
@@ -683,7 +736,7 @@ function Overworld:draw()
     h - 48,
     w - 24,
     36,
-    "WASD · T/Y chat · E emote · F stats · L look · R inn · H/M magic · O who · ? help · Esc"
+    "WASD · T/Y chat · E emote · F stats · L look · R inn · H/M magic · O who · /find · Esc"
   )
 
   if self.status and self.status ~= "Connected" then
@@ -713,16 +766,36 @@ function Overworld:keypressed(key)
           zmsg = text:match("^[/%!]zone%s+(.+)$")
         end
         local wants_status = text:match("^[/%!]status%s*$") or text:match("^[/%!]me%s*$")
+        local wants_who = text:match("^[/%!]who%s*$")
+        local wants_ignores = text:match("^[/%!]ignores%s*$") or text:match("^[/%!]ignorelist%s*$")
         local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
-        local wants_help = text:match("^[/%!]help%s*$") or text:match("^[/%!]commands%s*$")
+        local wants_help = text:match("^[/%!]help%s*$") or text:match("^[/%!]commands%s*$") or text:match("^%?%s*$")
+        local ign_name = text:match("^[/%!]ignore%s+(%S+)$") or text:match("^[/%!]mute%s+(%S+)$")
+        local unign_name = text:match("^[/%!]unignore%s+(%S+)$") or text:match("^[/%!]unmute%s+(%S+)$")
+        local reply_msg = text:match("^[/%!]r%s+(.+)$") or text:match("^[/%!]reply%s+(.+)$")
         if wname and wmsg then
           Network.whisper(wname, wmsg)
+          self.last_whisper_from = wname
+        elseif reply_msg and reply_msg ~= "" then
+          if self.last_whisper_from then
+            Network.whisper(self.last_whisper_from, reply_msg)
+          else
+            UI.toast("No one to reply to", "danger")
+          end
         elseif zmsg and zmsg ~= "" then
           Network.chat(zmsg, "zone")
         elseif wants_status then
-          Network.status()
+          Network.request_status()
+        elseif wants_who then
+          Network.who()
+        elseif wants_ignores then
+          Network.ignores()
         elseif find_q and find_q ~= "" then
           Network.find(find_q)
+        elseif ign_name and ign_name ~= "" then
+          Network.ignore(ign_name)
+        elseif unign_name and unign_name ~= "" then
+          Network.unignore(unign_name)
         elseif wants_help then
           Network.send({ type = "help" })
         elseif self.chat_channel == "nearby" then
@@ -766,7 +839,7 @@ function Overworld:keypressed(key)
       self.show_stats = false
     else
       -- Refresh from server (hp/mp/gold/spells/zone/buffs)
-      Network.status()
+      Network.request_status()
       UI.toast("Status (F to close)", "info")
     end
   elseif key == "r" and not self.locked then

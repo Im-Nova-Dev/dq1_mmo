@@ -272,12 +272,30 @@ function Network.look(name_or_id)
   return Network.send({ type = "look", name = tostring(name_or_id or "") })
 end
 
-function Network.status()
+--- Request self status sheet from server (HP/MP/gear/zone/buffs).
+--- NOTE: do not name this `status` — that is reserved for link_status().
+function Network.request_status()
   return Network.send({ type = "status" })
 end
 
 function Network.find(query)
   return Network.send({ type = "find", q = tostring(query or "") })
+end
+
+function Network.who()
+  return Network.send({ type = "who" })
+end
+
+function Network.ignore(name)
+  return Network.send({ type = "ignore", name = tostring(name or "") })
+end
+
+function Network.unignore(name)
+  return Network.send({ type = "unignore", name = tostring(name or "") })
+end
+
+function Network.ignores()
+  return Network.send({ type = "ignores" })
 end
 
 function Network.ping(with_presence)
@@ -354,8 +372,14 @@ function Network.disconnect()
   Network._status = "disconnected"
 end
 
-function Network.status()
+--- Connection / link state string for HUD (not the character status sheet).
+function Network.link_status()
   return Network._status
+end
+
+-- Back-compat alias used by older call sites for link state only.
+function Network.status()
+  return Network.link_status()
 end
 
 return Network

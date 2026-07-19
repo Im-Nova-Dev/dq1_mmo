@@ -11,6 +11,3 @@ License: https://creativecommons.org/publicdomain/zero/1.0/
 
 You may use these graphics in personal and commercial projects.
 Credit (Kenney or www.kenney.nl) would be nice but is not mandatory.
-
-Enemy combat sprites may also use generated SVG placeholders under svg/enemies/
-(project-owned). Replace any file under sprites/ freely.
