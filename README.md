@@ -60,8 +60,17 @@ plan.md     implementation roadmap
 ## Status
 
 - [x] Phase 1 — project setup & auth
-- [ ] Phase 2 — client foundation / websocket polish
-- [ ] Phase 3 — world & multiplayer movement
+- [x] Phase 2 — client foundation / websocket client
+- [x] Phase 3 — world map, collision, nearby multiplayer movement
 - [ ] Phase 4 — combat (dq1-combat)
 - [ ] Phase 5 — equipment & shop
 - [ ] Phase 6 — MVP zones & polish
+
+## Map tiles
+
+| Code | Meaning |
+|------|---------|
+| 0 | grass / field |
+| 1 | wall |
+| 2 | town (safe) |
+| 3 | water (blocked) |

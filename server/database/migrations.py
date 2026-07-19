@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS characters (
     total_damage_dealt TEXT DEFAULT '0',
     total_kills INTEGER DEFAULT 0,
 
-    world_x REAL DEFAULT 4,
-    world_y REAL DEFAULT 4,
+    world_x REAL DEFAULT 2,
+    world_y REAL DEFAULT 2,
     map_id INTEGER DEFAULT 1,
 
     equipment_weapon TEXT,

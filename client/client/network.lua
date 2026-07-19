@@ -1,29 +1,30 @@
---- WebSocket client wrapper.
---- Prefers `websocket` library (love2d-lua-websocket). Falls back to polling stub.
+--- WebSocket client using vendored love2d-lua-websocket (flaribbit).
 
 local Session = require("client.session")
 local Http = require("client.http")
+
+package.path = love.filesystem.getSource() .. "/libs/?.lua;" .. package.path
 
 local Network = {
   ws = nil,
   connected = false,
   authenticated = false,
   handlers = {},
-  queue = {},
   _status = "disconnected",
-  _use_stub = false,
+  _pending_auth = nil,
+  _inbox = {},
 }
 
-local function try_require_ws()
-  local ok, mod = pcall(require, "websocket")
-  if ok then
-    return mod
+local function parse_ws_url(url)
+  -- ws://host:port/path
+  local host, port, path = url:match("^ws://([^:/]+):?(%d*)(/.*)$")
+  if not host then
+    return nil
   end
-  ok, mod = pcall(require, "libs.websocket")
-  if ok then
-    return mod
+  if port == "" then
+    port = "80"
   end
-  return nil
+  return host, tonumber(port), path or "/"
 end
 
 function Network.on(msg_type, fn)
@@ -35,8 +36,13 @@ function Network.clear_handlers()
 end
 
 function Network._dispatch(data)
-  local t = data.type
-  local fn = Network.handlers[t]
+  if type(data) ~= "table" then
+    return
+  end
+  if data.type == "auth_ok" then
+    Network.authenticated = true
+  end
+  local fn = Network.handlers[data.type]
   if fn then
     fn(data)
   end
@@ -47,40 +53,76 @@ end
 
 function Network.connect(url)
   url = url or Session.server_ws
+  Network.disconnect()
   Network._status = "connecting"
-  local ws_lib = try_require_ws()
-  if not ws_lib then
-    -- Fallback: mark connected for HTTP-only auth testing; game WS needs library
-    Network._use_stub = true
-    Network.connected = false
+  Network.authenticated = false
+
+  local ok, ws_mod = pcall(require, "websocket")
+  if not ok then
     Network._status = "no_websocket_lib"
-    return false, "websocket library not found — place love2d-lua-websocket in client/libs"
+    return false, "websocket library missing"
   end
 
-  local socket = ws_lib.new and ws_lib.new(url) or ws_lib.client and ws_lib.client()
-  if ws_lib.client then
-    socket = ws_lib.client()
-    socket:connect(url)
+  local host, port, path = parse_ws_url(url)
+  if not host then
+    Network._status = "bad_url"
+    return false, "invalid websocket url"
   end
-  Network.ws = socket
-  Network.connected = true
-  Network._status = "connected"
+
+  local client = ws_mod.new(host, port, path)
+
+  function client:onopen()
+    Network.connected = true
+    Network._status = "connected"
+    if Network._pending_auth then
+      Network.send(Network._pending_auth)
+      Network._pending_auth = nil
+    end
+  end
+
+  function client:onmessage(message)
+    local data = Http.decode_json(message)
+    if data then
+      Network._inbox[#Network._inbox + 1] = data
+    end
+  end
+
+  function client:onerror(err)
+    Network._status = "error: " .. tostring(err)
+    Network.connected = false
+  end
+
+  function client:onclose(code, reason)
+    Network.connected = false
+    Network.authenticated = false
+    Network._status = "closed"
+    if Network.handlers._close then
+      Network.handlers._close(code, reason)
+    end
+  end
+
+  Network.ws = client
   return true
 end
 
 function Network.send(message)
+  local payload = message
   if type(message) == "table" then
-    message = Http.encode_json(message)
+    payload = Http.encode_json(message)
   end
-  if Network._use_stub or not Network.ws then
-    Network.queue[#Network.queue + 1] = message
+  if not Network.ws then
     return false
   end
-  if Network.ws.send then
-    Network.ws:send(message)
-    return true
+  if not Network.connected then
+    -- queue auth until open
+    if type(message) == "table" and message.type == "auth" then
+      Network._pending_auth = message
+      return true
+    end
+    return false
   end
-  return false
+  Network.ws:send(payload)
+  return true
 end
 
 function Network.auth(character_id)
@@ -91,38 +133,30 @@ function Network.auth(character_id)
   })
 end
 
-function Network.update(dt)
-  if not Network.ws then
-    return
-  end
-  -- library-specific pump
-  if Network.ws.update then
+function Network.update(_dt)
+  if Network.ws and Network.ws.update then
     Network.ws:update()
   end
-  if Network.ws.get_message then
-    while true do
-      local msg = Network.ws:get_message()
-      if not msg then
-        break
-      end
-      local data = Http.decode_json(msg)
-      if data then
-        if data.type == "auth_ok" then
-          Network.authenticated = true
-        end
-        Network._dispatch(data)
-      end
+  if #Network._inbox > 0 then
+    local batch = Network._inbox
+    Network._inbox = {}
+    for i = 1, #batch do
+      Network._dispatch(batch[i])
     end
   end
 end
 
 function Network.disconnect()
   if Network.ws and Network.ws.close then
-    Network.ws:close()
+    pcall(function()
+      Network.ws:close()
+    end)
   end
   Network.ws = nil
   Network.connected = false
   Network.authenticated = false
+  Network._pending_auth = nil
+  Network._inbox = {}
   Network._status = "disconnected"
 end
 

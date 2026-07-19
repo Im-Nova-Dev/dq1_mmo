@@ -19,7 +19,7 @@ async def lifespan(_app: FastAPI):
     await close_db()
 
 
-app = FastAPI(title="DQ1 MMO Server", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="DQ1 MMO Server", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +34,14 @@ app.include_router(auth_router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "dq1-mmo"}
+    return {"status": "ok", "service": "dq1-mmo", "online": len(manager.online_ids())}
+
+
+@app.get("/world/map")
+async def world_map():
+    from game.world_manager import map_payload
+
+    return map_payload()
 
 
 @app.websocket("/ws")
@@ -60,31 +67,54 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 continue
 
-            character_id, user_id, outbound = await handle_message(character_id, user_id, data)
+            character_id, user_id, outbound, connect_meta = await handle_message(
+                character_id, user_id, data
+            )
+
+            if connect_meta is not None:
+                await manager.connect(
+                    connect_meta["character_id"],
+                    websocket,
+                    name=connect_meta["name"],
+                    x=connect_meta["x"],
+                    y=connect_meta["y"],
+                    map_id=connect_meta["map_id"],
+                    level=connect_meta["level"],
+                )
+                # Fill world_state with nearby players
+                nearby = manager.nearby_players(connect_meta["character_id"])
+                for i, out in enumerate(outbound):
+                    if out.get("type") == ServerMessageType.WORLD_STATE:
+                        outbound[i] = msg(
+                            ServerMessageType.WORLD_STATE,
+                            players=nearby,
+                            enemies=[],
+                            map=out.get("map"),
+                        )
+                await manager.broadcast_nearby(
+                    connect_meta["character_id"],
+                    msg(
+                        ServerMessageType.PLAYER_JOINED,
+                        player_id=connect_meta["character_id"],
+                        name=connect_meta["name"],
+                        x=connect_meta["x"],
+                        y=connect_meta["y"],
+                        level=connect_meta["level"],
+                    ),
+                    include_self=False,
+                )
 
             for out in outbound:
-                if out.get("type") == ServerMessageType.AUTH_OK and character_id is not None:
-                    await manager.connect(character_id, websocket)
-                    await manager.broadcast(
-                        msg(
-                            ServerMessageType.PLAYER_JOINED,
-                            player_id=character_id,
-                            name=out.get("character", {}).get("name"),
-                            x=out.get("character", {}).get("world_x"),
-                            y=out.get("character", {}).get("world_y"),
-                        ),
-                        exclude=character_id,
-                    )
                 await websocket.send_text(json.dumps(out))
     except WebSocketDisconnect:
         pass
     finally:
         if character_id is not None:
-            await manager.disconnect(character_id)
-            await manager.broadcast(
-                msg(ServerMessageType.PLAYER_LEFT, player_id=character_id),
-                exclude=character_id,
-            )
+            left = await manager.disconnect(character_id)
+            if left is not None:
+                await manager.broadcast(
+                    msg(ServerMessageType.PLAYER_LEFT, player_id=character_id)
+                )
 
 
 if __name__ == "__main__":

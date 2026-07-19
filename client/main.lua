@@ -1,9 +1,15 @@
+-- Ensure local modules resolve
+local src = love.filesystem.getSource()
+package.path = src .. "/?.lua;" .. src .. "/?/init.lua;" .. src .. "/libs/?.lua;" .. package.path
+
 local State = require("client.state")
 
 local states = {
   login = require("states.login"),
   character = require("states.character"),
   overworld = require("states.overworld"),
+  combat = require("states.combat"),
+  inventory = require("states.inventory"),
 }
 
 function love.load()

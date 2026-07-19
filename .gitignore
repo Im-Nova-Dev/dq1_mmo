@@ -17,7 +17,6 @@ data/*.db-*
 !.env.example
 
 # Love2D
-client/libs/websocket/
 client/libs/dq1-combat/
 client/libs/lua-bignumber/
 client/libs/save-system/
