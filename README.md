@@ -68,14 +68,14 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · two-way social memory · <b>soft reconnect</b> restores whisper · share · wave · invite · AFK.
+  Server-side 1v1 · shop · whisper · meetup · two-way social memory · <b>soft reconnect</b> keeps <code>/played</code> · whisper · share · wave · invite.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
-  <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-whisper_·_share_·_emote_·_invite-06b6d4?style=flat-square" />
+  <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-/played_·_whisper_·_share_·_invite-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
   <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_lunch-f97316?style=flat-square" />
@@ -199,7 +199,7 @@ flowchart LR
 |:--|:--|
 | ⏱ | Brief disconnect keeps **`/played`** / **`/session`** age (not a fresh 0s) |
 | 🔄 | Soft reconnect still restores whisper · share · wave · meetup memory |
-| ✅ | Live socket replace still keeps the same timer |
+| 🪟 | Opening a second client for the same hero keeps the same timer too |
 | 🧪 | **635** automated tests green |
 
 <p align="center">
@@ -210,7 +210,18 @@ flowchart LR
 
 <table>
 <tr>
-<td width="25%" valign="top" align="center">
+<td width="20%" valign="top" align="center">
+
+### ⏱ Session
+| | |
+|:--|:--|
+| **`/played`** | connection age |
+| **`/session`** | same peek |
+
+<sub>keeps counting after brief drop</sub>
+
+</td>
+<td width="20%" valign="top" align="center">
 
 ### 💬 Whisper
 | | |
@@ -221,7 +232,7 @@ flowchart LR
 <sub>survives soft reconnect</sub>
 
 </td>
-<td width="25%" valign="top" align="center">
+<td width="20%" valign="top" align="center">
 
 ### 📍 Share
 | Alias | Means |
@@ -232,7 +243,7 @@ flowchart LR
 <sub>**`/lastshare`**</sub>
 
 </td>
-<td width="25%" valign="top" align="center">
+<td width="20%" valign="top" align="center">
 
 ### 👋 Wave
 | Alias | Means |
@@ -243,7 +254,7 @@ flowchart LR
 <sub>**`/lastemote`**</sub>
 
 </td>
-<td width="25%" valign="top" align="center">
+<td width="20%" valign="top" align="center">
 
 ### 🤝 Meetup
 | Command | Means |
@@ -259,20 +270,20 @@ flowchart LR
 
 <p align="center">
   <img alt="at" src="https://img.shields.io/badge/aliases-always_type_@-6366f1?style=for-the-badge" />
-  <img alt="survive" src="https://img.shields.io/badge/whisper_·_share_·_wave_·_invite-soft_reconnect-06b6d4?style=for-the-badge" />
+  <img alt="survive" src="https://img.shields.io/badge//played_·_whisper_·_share_·_wave_·_invite-soft_reconnect-06b6d4?style=for-the-badge" />
 </p>
 
 ```mermaid
 flowchart TB
   subgraph play ["While online"]
-    W["/w · /wave · /share · /invite"] --> M[Social memory]
+    W["/w · /wave · /share · /invite · /played"] --> M[Session + social memory]
   end
   subgraph drop ["Brief disconnect ~1 min"]
     M --> S[Soft reconnect bag]
   end
   subgraph back ["You rejoin"]
     S --> R[Welcome may list Restored]
-    R --> A["/r · @emote · @share · /pending still work"]
+    R --> A["/played keeps counting · /r · @emote still work"]
   end
 ```
 
