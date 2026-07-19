@@ -42,6 +42,7 @@ from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
 from network.handlers import mute as mute_handlers
 from network.handlers import presence_peeks
+from network.handlers import roll as roll_handlers
 from network.handlers import safety as safety_handlers
 from network.handlers import self_peeks as self_peek_handlers
 from network.handlers import session as session_handlers
@@ -191,7 +192,13 @@ async def handle_message(
     if find_peek is not None:
         return find_peek
 
-    # who/near · look · status · gold · version · mute · keys · afk · stuck · find via handlers
+    roll_peek = await roll_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if roll_peek is not None:
+        return roll_peek
+
+    # who/near · look · status · gold · version · mute · keys · afk · stuck · find · roll via handlers
 
     # Social peeks (lastwhisper/social/lastemote/lastshare/lastinvite/pending)
     # handled early via network.handlers.social_peeks
@@ -2126,88 +2133,7 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
-    # --- Social roll (nearby 1d100 — multiplayer icebreaker) ---
-    if msg_type in ("roll", "dice", "d100"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        # Validate sides BEFORE allow_chat so bad rolls never burn rate or clear AFK.
-        # Optional sides: {type:roll, sides:20} default 100, must be 2..1000.
-        # Do NOT use `or` for default — sides=0 is falsy and used to become 100.
-        if "sides" in data:
-            raw_sides = data.get("sides")
-        elif "d" in data:
-            raw_sides = data.get("d")
-        else:
-            raw_sides = 100
-        try:
-            # bool is a subclass of int — reject True/False as dice sizes
-            if isinstance(raw_sides, bool):
-                raise ValueError("bool sides")
-            # Non-integer floats must not silently become d2 via int(2.7)
-            if isinstance(raw_sides, float):
-                import math as _math
-
-                if not _math.isfinite(raw_sides) or not raw_sides.is_integer():
-                    raise ValueError("float sides")
-                sides_i = int(raw_sides)
-            elif isinstance(raw_sides, int):
-                sides_i = raw_sides
-            elif isinstance(raw_sides, str):
-                s = raw_sides.strip()
-                if not s or not s.lstrip("-").isdigit():
-                    raise ValueError("str sides")
-                sides_i = int(s)
-            else:
-                sides_i = int(raw_sides)
-        except (TypeError, ValueError):
-            outbound.append(msg(ServerMessageType.ERROR, reason="invalid roll sides"))
-            return character_id, user_id, outbound, None
-        if sides_i < 2 or sides_i > 1000:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="invalid roll sides",
-                    sides=sides_i,
-                    min=2,
-                    max=1000,
-                )
-            )
-            return character_id, user_id, outbound, None
-        allowed, retry = manager.allow_chat(character_id)
-        if not allowed:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        name = (meta or {}).get("name") or "Hero"
-        import random as _random
-
-        value = _random.randint(1, sides_i)
-        roll_text = f"{name} rolls d{sides_i}: {value}"
-        roll_msg = msg(
-            ServerMessageType.CHAT,
-            player_id=character_id,
-            name="System",
-            text=roll_text,
-            channel="system",
-            system=True,
-            roll={"sides": sides_i, "value": value, "name": name},
-        )
-        sid_r = manager.session_id(character_id)
-        if sid_r is not None:
-            roll_msg["session_id"] = sid_r
-            roll_msg["roll"]["session_id"] = sid_r
-        await manager.broadcast_nearby(
-            character_id, roll_msg, include_self=False, respect_ignore=False
-        )
-        outbound.append(roll_msg)
-        return character_id, user_id, outbound, None
+    # roll/dice handled via network.handlers.roll
 
     # --- Emotes (nearby + directed; shortcuts /wave /bow …) ---
     _EMOTE_SHORTCUTS = {

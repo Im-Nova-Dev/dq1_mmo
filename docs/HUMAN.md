@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.134-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-694-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.135-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-699-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.134 · **694** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.135 · **699** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.134):** **`/find`** answers with a plain summary (how many matched · online) · stuck/home/quit and AFK still carry room context · **694** tests.
+**Recent for players/ops (v0.5.135):** **`/roll`** / **`/dice`** show a plain line with zone and nearby counts · bad dice sizes never clear AFK · find still summarizes matches · **699** tests.
 
 > [!TIP]
 > **Find friends:** **`/find Hero`** · **`/find zone:field`** · **`/find combat:yes`** — you get a plain line (how many matched · how many online), never someone else’s map coords.  
@@ -171,7 +171,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/discard fairy water** · **/discard herb 2** | Destroy items from the bag |
 | **/ping** | Check connection latency |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
-| **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
+| **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) · plain line with zone · nearby |
 | **/counts** · **/census** | Online + nearby + zone population totals |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — stats, gear, EXP, spells, zone, buffs, nearby census |
@@ -327,7 +327,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 694 passed
+# expect: 699 passed
 ```
 
 ---
@@ -341,7 +341,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.134** · **694** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.135** · **699** tests).
 
 | Do | Don’t |
 |:---|:------|

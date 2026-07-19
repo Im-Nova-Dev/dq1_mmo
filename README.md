@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.134</b> · <b>694</b> tests green · <code>/find</code> plain summary · room census · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.135</b> · <b>699</b> tests green · <code>/roll</code> · <code>/dice</code> nearby icebreaker · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.134-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.135-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/tests-694_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
@@ -207,7 +207,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.134** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.135** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -224,26 +224,26 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.134-7c3aed?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.135-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/694_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-find_search-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-roll_·_dice-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.134** — find knows the room · **694** tests |
+| | **v0.5.135** — dice know the room · **699** tests |
 |:--|:--|
-| 🔍 | **`/find`** returns a plain summary line (how many heroes matched) |
-| 📊 | Find replies include online · AFK · combat · nearby counts |
-| 🏠 | **`/stuck`** / **`/home`** / **`/quit`** still carry safety census |
-| 🧪 | **694** automated tests green |
+| 🎲 | **`/roll`** / **`/dice`** plain line with zone and nearby counts |
+| 🛡 | Bad sides never burn chat rate or clear AFK |
+| 🔍 | **`/find`** still returns plain match summaries |
+| 🧪 | **699** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.134-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//find-plain_·_census-a855f7?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.135-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//roll_·_/dice-nearby-a855f7?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/694_tests-059669?style=for-the-badge" />
 </p>
 
@@ -441,6 +441,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.135** | `/roll` · `/dice` nearby icebreaker + census · **699** tests |
 | **0.5.134** | `/find` plain summary + room census · **694** tests |
 | **0.5.133** | `/stuck` · `/home` · `/quit` multiplayer safety census · **688** tests |
 | **0.5.132** | `/afk` · `/busy` · `/back` multiplayer census on confirm · **683** tests |
@@ -577,7 +578,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **694** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **699** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -702,7 +703,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 694 passed
+# expect: 699 passed
 ```
 
 ---
@@ -981,7 +982,7 @@ dq1_mmo/
   &nbsp;
   <img alt="suite" src="https://img.shields.io/badge/suite-694_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.134-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.135-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1086,7 +1087,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.134-7c3aed?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.135-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/694_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
