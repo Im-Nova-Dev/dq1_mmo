@@ -540,10 +540,11 @@ function UI.player_list(x, y, w, h, local_p, others, title)
   UI.reset_color()
 end
 
-function UI.chat_log(x, y, w, h, lines, draft, composing)
+function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
+  local ch = channel or "global"
   UI.panel(x, y, w, h, {
-    title = "Global chat",
-    subtitle = "T · Enter · Esc",
+    title = ch == "nearby" and "Nearby chat" or "Global chat",
+    subtitle = "T type · Y nearby · E wave",
     title_h = 28,
     no_ornament = true,
   })
@@ -553,8 +554,17 @@ function UI.chat_log(x, y, w, h, lines, draft, composing)
   for i = start, #lines do
     local line = lines[i]
     if line then
-      UI.color("accent")
-      local prefix = (line.name or "?") .. ": "
+      local tag = ""
+      if line.channel == "nearby" then
+        tag = "[near] "
+        UI.color("ok")
+      elseif line.kind == "emote" then
+        tag = "* "
+        UI.color("gold")
+      else
+        UI.color("accent")
+      end
+      local prefix = tag .. (line.name or "?") .. ": "
       love.graphics.print(prefix, x + 12, row)
       local fw = love.graphics.getFont():getWidth(prefix)
       UI.color("text")

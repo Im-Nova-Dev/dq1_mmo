@@ -11,10 +11,13 @@ local Overworld = {
   zone = "town",
   locked = false,
   net_info = "",
+  online = 0,
+  roster = {},
   show_list = true,
   chat_log = {},
   chat_draft = "",
   chat_open = false,
+  chat_channel = "global", -- global | nearby
   show_chat = true,
 }
 
@@ -91,12 +94,40 @@ local function bind_handlers(self)
       World.set_map(data.map)
     end
     World.set_players(data.players)
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
     if data.you and World.local_player and World.pending_count() == 0 then
       World.local_player.x = math.floor(data.you.x)
       World.local_player.y = math.floor(data.you.y)
       World.server_x = World.local_player.x
       World.server_y = World.local_player.y
       self.zone = zone_name(World.local_player.x, World.local_player.y)
+    end
+  end)
+
+  Network.on("who", function(data)
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    if data.players then
+      World.set_players(data.players)
+    end
+    self.roster = data.roster or self.roster
+    local n = 0
+    for _ in pairs(World.players) do
+      n = n + 1
+    end
+    local roster_n = type(self.roster) == "table" and #self.roster or (self.online or 0)
+    UI.toast(string.format("Online %d · nearby %d", roster_n, n), "info")
+  end)
+
+  Network.on("online", function(data)
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    if data.roster then
+      self.roster = data.roster
     end
   end)
 
@@ -164,10 +195,47 @@ local function bind_handlers(self)
       name = data.name or "?",
       text = data.text or "",
       player_id = data.player_id,
+      channel = data.channel or "global",
     }
     while #self.chat_log > 40 do
       table.remove(self.chat_log, 1)
     end
+  end)
+
+  Network.on("emote", function(data)
+    local who = data.name or "?"
+    local em = data.emote or "wave"
+    local line = who .. " " .. em .. "s"
+    if em == "wave" then
+      line = who .. " waves"
+    elseif em == "bow" then
+      line = who .. " bows"
+    elseif em == "cheer" then
+      line = who .. " cheers"
+    elseif em == "dance" then
+      line = who .. " dances"
+    elseif em == "cry" then
+      line = who .. " cries"
+    elseif em == "laugh" then
+      line = who .. " laughs"
+    elseif em == "point" then
+      line = who .. " points"
+    elseif em == "sit" then
+      line = who .. " sits"
+    elseif em == "think" then
+      line = who .. " thinks"
+    end
+    self.chat_log[#self.chat_log + 1] = {
+      name = who,
+      text = line,
+      player_id = data.player_id,
+      kind = "emote",
+      channel = "nearby",
+    }
+    while #self.chat_log > 40 do
+      table.remove(self.chat_log, 1)
+    end
+    UI.toast(line, "join")
   end)
 
   Network.on("item_used", function(data)
@@ -177,6 +245,50 @@ local function bind_handlers(self)
     if data.current_hp and Session.character then
       Session.character.current_hp = data.current_hp
     end
+    if data.teleported and data.x and data.y then
+      if Session.character then
+        Session.character.world_x = data.x
+        Session.character.world_y = data.y
+      end
+      if World.local_player then
+        World.local_player.x = math.floor(data.x)
+        World.local_player.y = math.floor(data.y)
+        World.server_x = World.local_player.x
+        World.server_y = World.local_player.y
+        World.pending = {}
+        self.zone = zone_name(World.local_player.x, World.local_player.y)
+      end
+    end
+  end)
+
+  Network.on("spell_cast", function(data)
+    if data.character then
+      Session.character = data.character
+    else
+      if data.current_hp and Session.character then
+        Session.character.current_hp = data.current_hp
+      end
+      if data.current_mp and Session.character then
+        Session.character.current_mp = data.current_mp
+      end
+    end
+    if data.teleported and data.x and data.y then
+      if Session.character then
+        Session.character.world_x = data.x
+        Session.character.world_y = data.y
+      end
+      if World.local_player then
+        World.local_player.x = math.floor(data.x)
+        World.local_player.y = math.floor(data.y)
+        World.server_x = World.local_player.x
+        World.server_y = World.local_player.y
+        World.pending = {}
+        self.zone = zone_name(World.local_player.x, World.local_player.y)
+      end
+    end
+    if data.message then
+      UI.toast(data.message, "ok")
+    end
   end)
 
   Network.on("inventory_update", function(data)
@@ -185,6 +297,24 @@ local function bind_handlers(self)
     end
     if data.items and Session.character then
       Session.character.inventory = data.items
+    end
+  end)
+
+  Network.on("rest_ok", function(data)
+    if data.character then
+      Session.character = data.character
+    end
+    if data.current_hp and Session.character then
+      Session.character.current_hp = data.current_hp
+      Session.character.current_mp = data.current_mp or Session.character.current_mp
+      if data.gold then
+        Session.character.gold = data.gold
+      end
+    end
+    if data.message then
+      UI.toast(data.message, "ok")
+    elseif data.preview and data.message then
+      UI.toast(data.message, "info")
     end
   end)
 
@@ -232,6 +362,15 @@ function Overworld:enter()
         World.local_player.name = Session.character.name
         World.local_player.level = Session.character.level or World.local_player.level
         World.local_player.id = Session.character.id
+        -- Apply teleports / inn exits done while in another state (e.g. inventory wings)
+        local sx = math.floor(Session.character.world_x or Session.character.x or World.local_player.x)
+        local sy = math.floor(Session.character.world_y or Session.character.y or World.local_player.y)
+        if World.pending_count() == 0 and (World.local_player.x ~= sx or World.local_player.y ~= sy) then
+          World.local_player.x = sx
+          World.local_player.y = sy
+          World.server_x = sx
+          World.server_y = sy
+        end
       elseif Session.character and not World.local_player then
         World.set_local(Session.character)
       end
@@ -271,7 +410,13 @@ function Overworld:update(dt)
   for _ in pairs(World.players) do
     others = others + 1
   end
-  self.net_info = string.format("%s · %dms · %d nearby", Network.status(), rtt_ms, others)
+  self.net_info = string.format(
+    "%s · %dms · %d nearby · %d online",
+    Network.status(),
+    rtt_ms,
+    others,
+    self.online or 0
+  )
 
   if self.locked or self.chat_open then
     return
@@ -370,7 +515,16 @@ function Overworld:draw()
 
   -- Chat panel
   if self.show_chat then
-    UI.chat_log(12, h - 210, math.min(440, w - 290), 150, self.chat_log, self.chat_draft, self.chat_open)
+    UI.chat_log(
+      12,
+      h - 210,
+      math.min(440, w - 290),
+      150,
+      self.chat_log,
+      self.chat_draft,
+      self.chat_open,
+      self.chat_channel
+    )
   end
 
   UI.hint_bar(
@@ -378,7 +532,7 @@ function Overworld:draw()
     h - 48,
     w - 24,
     36,
-    "WASD move   ·   T chat   ·   I inventory   ·   P list   ·   B fight   ·   Esc quit"
+    "WASD · T/Y chat · E wave · R inn · H heal · I inv · O who · Esc"
   )
 
   if self.status and self.status ~= "Connected" then
@@ -398,7 +552,11 @@ function Overworld:keypressed(key)
     elseif key == "return" or key == "kpenter" then
       local text = (self.chat_draft or ""):match("^%s*(.-)%s*$")
       if text and text ~= "" then
-        Network.chat(text)
+        if self.chat_channel == "nearby" then
+          Network.say(text)
+        else
+          Network.chat(text, "global")
+        end
       end
       self.chat_draft = ""
       self.chat_open = false
@@ -415,9 +573,73 @@ function Overworld:keypressed(key)
     Network.disconnect()
     love.event.quit()
   elseif key == "t" and not self.locked then
+    self.chat_channel = "global"
     self.chat_open = true
     self.chat_draft = ""
     self.show_chat = true
+  elseif key == "y" and not self.locked then
+    self.chat_channel = "nearby"
+    self.chat_open = true
+    self.chat_draft = ""
+    self.show_chat = true
+    UI.toast("Nearby chat", "info")
+  elseif key == "e" and not self.locked then
+    Network.emote("wave")
+  elseif key == "r" and not self.locked then
+    if self.zone == "town" then
+      Network.send({ type = "rest" })
+    else
+      UI.toast("The inn is in town", "danger")
+    end
+  elseif key == "h" and not self.locked then
+    -- Field HEAL / HEALMORE if known (prefer healmore)
+    local lists = {
+      Session.character and Session.character.field_spells,
+      Session.character and Session.character.known_spells,
+    }
+    local spell = nil
+    for _, list in ipairs(lists) do
+      if type(list) == "table" then
+        for _, s in ipairs(list) do
+          if s == "heal" then
+            spell = spell or "heal"
+          elseif s == "healmore" then
+            spell = "healmore"
+          end
+        end
+      end
+    end
+    if spell then
+      Network.send({ type = "use_spell", spell = spell })
+    else
+      UI.toast("You don't know Heal yet", "danger")
+    end
+  elseif key == "m" and not self.locked then
+    -- Cycle common field spells: heal, return, repel
+    local order = { "heal", "healmore", "return", "repel", "outside", "radiant" }
+    local fs = Session.character and (Session.character.field_spells or Session.character.known_spells) or {}
+    local have = {}
+    if type(fs) == "table" then
+      for _, s in ipairs(fs) do
+        have[s] = true
+      end
+    end
+    self._field_spell_i = (self._field_spell_i or 0) + 1
+    local picks = {}
+    for _, s in ipairs(order) do
+      if have[s] then
+        picks[#picks + 1] = s
+      end
+    end
+    if #picks == 0 then
+      UI.toast("No field spells yet", "danger")
+    else
+      if self._field_spell_i > #picks then
+        self._field_spell_i = 1
+      end
+      local sid = picks[self._field_spell_i]
+      Network.send({ type = "use_spell", spell = sid })
+    end
   elseif key == "b" and not self.locked then
     Network.send({ type = "debug_encounter", enemy = "slime" })
   elseif key == "i" and not self.locked then
@@ -425,6 +647,11 @@ function Overworld:keypressed(key)
   elseif key == "p" or key == "tab" then
     self.show_list = not self.show_list
     UI.toast(self.show_list and "Player list on" or "Player list off", "info")
+    if self.show_list then
+      Network.send({ type = "who" })
+    end
+  elseif key == "o" and not self.locked then
+    Network.send({ type = "who" })
   elseif key == "c" and not self.locked then
     self.show_chat = not self.show_chat
   end

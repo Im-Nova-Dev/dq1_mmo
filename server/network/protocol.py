@@ -15,10 +15,13 @@ class ClientMessageType(StrEnum):
     SHOP = "shop"
     INVENTORY = "inventory"
     USE_ITEM = "use_item"
+    REST = "rest"  # town inn — restore HP/MP for gold
     PING = "ping"
     SYNC = "sync"  # request full presence snapshot
-    CHAT = "chat"  # global chat message
-    SAY = "say"  # alias for chat
+    CHAT = "chat"  # global chat (or channel=nearby|global)
+    SAY = "say"  # nearby (AOI) chat
+    EMOTE = "emote"  # social emote to nearby players
+    WHO = "who"  # lightweight online/nearby query
 
 
 class ServerMessageType(StrEnum):
@@ -38,7 +41,12 @@ class ServerMessageType(StrEnum):
     INVENTORY_UPDATE = "inventory_update"
     SHOP_LIST = "shop_list"
     ITEM_USED = "item_used"
+    REST_OK = "rest_ok"
+    SPELL_CAST = "spell_cast"  # field magic result
     CHAT = "chat"
+    EMOTE = "emote"
+    WHO = "who"
+    ONLINE = "online"  # global online count pulse
     ERROR = "error"
     PONG = "pong"
 

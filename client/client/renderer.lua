@@ -1,3 +1,4 @@
+local Assets = require("client.assets")
 local UI = require("client.ui")
 local World = require("client.world")
 
@@ -35,6 +36,32 @@ function Renderer.layout()
   return ox, oy, ts
 end
 
+local function draw_tile_fallback(tile, px, py, ts, x, y)
+  local base = TILE[tile] or TILE[0]
+  local c = checker(base, (x + y) % 2 == 0)
+  love.graphics.setColor(c)
+  love.graphics.rectangle("fill", px, py, ts, ts)
+  if tile == 2 then
+    love.graphics.setColor(0.62, 0.50, 0.34, 0.35)
+    love.graphics.rectangle("fill", px + 3, py + 3, ts - 6, ts - 6)
+  elseif tile == 3 then
+    local wave = math.sin((UI._t or 0) * 2 + x * 0.7 + y) * 2
+    love.graphics.setColor(0.35, 0.55, 0.85, 0.3)
+    love.graphics.rectangle("fill", px, py + ts * 0.5 + wave, ts, ts * 0.18)
+  elseif tile == 4 then
+    love.graphics.setColor(0.4, 0.28, 0.48, 0.25)
+    love.graphics.rectangle("line", px + 5, py + 5, ts - 10, ts - 10)
+  elseif tile == 0 then
+    love.graphics.setColor(0.3, 0.6, 0.32, 0.25)
+    love.graphics.circle("fill", px + ts * 0.3, py + ts * 0.35, 2.5)
+  elseif tile == 1 then
+    love.graphics.setColor(0.12, 0.1, 0.18, 0.5)
+    love.graphics.rectangle("fill", px + 2, py + 2, ts - 4, ts - 4)
+  end
+  love.graphics.setColor(0, 0, 0, 0.12)
+  love.graphics.rectangle("line", px, py, ts, ts)
+end
+
 function Renderer.draw_overworld()
   local map = World.map
   if not map then
@@ -58,38 +85,16 @@ function Renderer.draw_overworld()
       local tile = map[y][x]
       local px = ox + (x - 1) * ts
       local py = oy + (y - 1) * ts
-      local base = TILE[tile] or TILE[0]
-      local c = checker(base, (x + y) % 2 == 0)
-      love.graphics.setColor(c)
-      love.graphics.rectangle("fill", px, py, ts, ts)
-
-      if tile == 2 then
-        -- town cobble
-        love.graphics.setColor(0.62, 0.50, 0.34, 0.35)
-        love.graphics.rectangle("fill", px + 3, py + 3, ts - 6, ts - 6)
-        love.graphics.setColor(0.4, 0.32, 0.22, 0.25)
-        love.graphics.line(px + 4, py + ts / 2, px + ts - 4, py + ts / 2)
-      elseif tile == 3 then
-        local wave = math.sin((UI._t or 0) * 2 + x * 0.7 + y) * 2
-        love.graphics.setColor(0.35, 0.55, 0.85, 0.3)
-        love.graphics.rectangle("fill", px, py + ts * 0.5 + wave, ts, ts * 0.18)
-      elseif tile == 4 then
-        love.graphics.setColor(0.4, 0.28, 0.48, 0.25)
-        love.graphics.rectangle("line", px + 5, py + 5, ts - 10, ts - 10)
-        love.graphics.setColor(0.55, 0.35, 0.65, 0.12)
-        love.graphics.circle("fill", px + ts / 2, py + ts / 2, 4)
-      elseif tile == 0 then
-        love.graphics.setColor(0.3, 0.6, 0.32, 0.25)
-        love.graphics.circle("fill", px + ts * 0.3, py + ts * 0.35, 2.5)
-        love.graphics.circle("fill", px + ts * 0.65, py + ts * 0.6, 2)
-      elseif tile == 1 then
-        love.graphics.setColor(0.12, 0.1, 0.18, 0.5)
-        love.graphics.rectangle("fill", px + 2, py + 2, ts - 4, ts - 4)
-        love.graphics.setColor(0.35, 0.3, 0.45, 0.2)
-        love.graphics.rectangle("line", px + 4, py + 4, ts - 8, ts - 8)
+      local img = Assets.tile(tile)
+      if img then
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(img, px, py, 0, ts / img:getWidth(), ts / img:getHeight())
+        -- subtle grid
+        love.graphics.setColor(0, 0, 0, 0.08)
+        love.graphics.rectangle("line", px, py, ts, ts)
+      else
+        draw_tile_fallback(tile, px, py, ts, x, y)
       end
-      love.graphics.setColor(0, 0, 0, 0.12)
-      love.graphics.rectangle("line", px, py, ts, ts)
     end
   end
 
@@ -107,38 +112,37 @@ end
 function Renderer.draw_actor(p, ox, oy, ts, is_local)
   local px = ox + p.x * ts + ts / 2
   local py = oy + p.y * ts + ts / 2
-  local body = is_local and UI.theme.local_p or UI.theme.other_p
-  if p.in_combat and not is_local then
-    body = UI.theme.danger
-  end
-  local r = ts * 0.30
   local bob = is_local and math.sin((UI._t or 0) * 3) * 1.2 or 0
+  local img = Assets.hero(is_local)
 
   -- shadow
   love.graphics.setColor(0, 0, 0, 0.4)
-  love.graphics.ellipse("fill", px, py + r * 0.9, r * 0.9, r * 0.32)
+  love.graphics.ellipse("fill", px, py + ts * 0.28, ts * 0.22, ts * 0.08)
 
   if p.in_combat then
     love.graphics.setColor(1, 0.35, 0.3, 0.4 + 0.15 * math.sin((UI._t or 0) * 5))
     love.graphics.setLineWidth(3)
-    love.graphics.circle("line", px, py + bob, r + 6)
+    love.graphics.circle("line", px, py + bob, ts * 0.32)
   end
 
-  -- body
-  love.graphics.setColor(body[1], body[2], body[3], 1)
-  love.graphics.circle("fill", px, py + bob, r)
-  -- cape / body block for local
-  if is_local then
-    love.graphics.setColor(0.85, 0.55, 0.2, 1)
-    love.graphics.rectangle("fill", px - r * 0.45, py + bob + r * 0.15, r * 0.9, r * 0.7, 2, 2)
+  if img then
+    local scale = (ts * 0.85) / math.max(img:getWidth(), img:getHeight())
+    local iw, ih = img:getWidth() * scale, img:getHeight() * scale
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(img, px - iw / 2, py + bob - ih * 0.55, 0, scale, scale)
+  else
+    -- procedural fallback
+    local body = is_local and UI.theme.local_p or UI.theme.other_p
+    if p.in_combat and not is_local then
+      body = UI.theme.danger
+    end
+    local r = ts * 0.30
     love.graphics.setColor(body[1], body[2], body[3], 1)
-    love.graphics.circle("fill", px, py + bob - r * 0.15, r * 0.85)
+    love.graphics.circle("fill", px, py + bob, r)
+    love.graphics.setColor(0, 0, 0, 0.85)
+    love.graphics.setLineWidth(2)
+    love.graphics.circle("line", px, py + bob, r)
   end
-  love.graphics.setColor(0, 0, 0, 0.85)
-  love.graphics.setLineWidth(2)
-  love.graphics.circle("line", px, py + bob, r)
-  love.graphics.setColor(1, 1, 1, 0.28)
-  love.graphics.circle("fill", px - r * 0.25, py + bob - r * 0.3, r * 0.28)
 
   local name = p.name or "?"
   local lv = p.level or 1
@@ -154,7 +158,7 @@ function Renderer.draw_actor(p, ox, oy, ts, is_local)
   local tw = font:getWidth(label) + 12
   local th = font:getHeight() + 6
   local nx = px - tw / 2
-  local ny = py + bob - r - th - 6
+  local ny = py + bob - ts * 0.55 - th
   love.graphics.setColor(0, 0, 0, 0.35)
   love.graphics.rectangle("fill", nx + 1, ny + 2, tw, th, 3, 3)
   love.graphics.setColor(0.05, 0.05, 0.1, 0.88)

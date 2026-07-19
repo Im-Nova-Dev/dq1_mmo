@@ -9,11 +9,11 @@ For human-oriented prose, see [docs/HUMAN.md](docs/HUMAN.md) and the root [READM
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI presence, global chat | Multi-map worlds |
-| Auth JWT, equipment, shop, XP, DQ-style UI | Pixel art / full sprite pipeline (assets empty) |
-| SQLite persistence | Binary protocol |
+| Grid overworld, AOI presence, chat/emotes, who + live online roster | Multi-map worlds |
+| Auth JWT, equipment, shop, consumables, inn, field magic, XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
+| SQLite persistence | Binary protocol · parties / PvP / trade |
 
-**Version:** `0.5.2` (`server/config.py` → `VERSION`)
+**Version:** `0.5.9` (`server/config.py` → `VERSION`)
 
 ## Documentation map (do not mix)
 
@@ -77,7 +77,9 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/game/formulas.py` | Damage / flee / magic math |
 | `server/game/world_manager.py` | Map tiles & zones |
 | `client/client/ui.lua` | Shared DQ-style UI toolkit (panels, bars, menus) |
+| `client/client/assets.lua` | PNG loader (`client/assets/…`); missing → procedural fallback |
 | `client/client/renderer.lua` | Overworld tiles + actors |
+| `client/assets/` | `tiles/`, `sprites/heroes/`, `sprites/enemies/`, `svg/`, `ATTRIBUTION.md` |
 | `client/client/network.lua` | WS client, reconnect, `Network.chat` |
 | `client/client/world.lua` | Prediction queue, remote players |
 | `client/states/login.lua` | Auth UI |
@@ -99,11 +101,16 @@ All messages are JSON objects with a `type` string.
 |:-----|:--------------|:------|
 | `auth` | `token`, `character_id` | First message after connect |
 | `move` | `x`, `y`, `seq` | Adjacent step only; rate-limited |
-| `attack` / `flee` / `use_spell` | spell: `spell` or `id` | Only in combat, hero turn |
+| `attack` / `flee` | — | Combat only, hero turn |
+| `use_spell` | `spell` / `id` | **Combat** battle spells, or **field** magic if not in combat (`field: true` spells) |
 | `equip` / `unequip` | `slot`, `item` | Not in combat |
 | `buy` / `sell` / `shop` / `inventory` | `item` | Shop only in **town** |
 | `use_item` | `item` / `item_id` | Herb (heal), Wings (town), Fairy Water (repel 64 steps). Herb OK in combat (uses turn). |
-| `chat` / `say` | `text` (or `message`/`msg`) | Global; max 200; ~0.75s rate |
+| `rest` / `inn` | optional `preview` | Town inn: full HP/MP for gold (`level*4`, min 4). Not in combat. |
+| `chat` | `text`, optional `channel` | Default **global**; `channel=nearby` for AOI |
+| `say` | `text` | **Nearby** (AOI) chat |
+| `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
+| `who` | — | Nearby players + `online` count (lightweight; no full map) |
 | `ping` | `t`, optional `sync` | Heartbeat / presence refresh |
 | `sync` | — | Full nearby snapshot |
 | `debug_encounter` | `enemy`, optional `seed` | Only if `ALLOW_DEBUG` |
@@ -113,15 +120,20 @@ All messages are JSON objects with a `type` string.
 | type | Purpose |
 |:-----|:--------|
 | `auth_ok` / `auth_fail` | Session |
-| `world_state` | `players`, `map`, optional `you`, `online` |
+| `world_state` | `players`, `map`, optional `you`, `online`, `repel` |
 | `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `duplicate`/`reason` |
-| `player_joined` / `player_left` / `player_moved` | Presence |
+| `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
 | `player_update` | `level`, `in_combat`, position |
-| `chat` | `player_id`, `name`, `text`, `channel` (`global`) |
+| `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby`) |
 | `combat_start` / `combat_resume` / `combat_update` / `combat_end` | Battles |
 | `level_up` | After victory |
 | `inventory_update` / `shop_list` | Economy |
 | `item_used` | Consumable result (`healed`, `teleported`, `repel_steps`, `message`) |
+| `rest_ok` | Inn result or preview (`cost`, `character`, `message`) |
+| `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `character`) |
+| `emote` | Nearby emote broadcast |
+| `who` | `players`, `online`, `roster`, `you` (incl. `repel`) |
+| `online` | Global pulse: `online` count + `roster` (no positions) |
 | `error` | `reason` (+ sometimes `x`/`y`/`seq`/`retry_after`) |
 | `pong` | Echo `t` for RTT |
 
@@ -135,6 +147,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 4. Combat disconnect → grace (`COMBAT_GRACE_SECONDS`); resume via `combat_resume`.
 5. Idle kick: `disconnect()` already notifies AOI — **do not** global double-broadcast `player_left`.
 6. Chat: sanitize (strip control chars, collapse whitespace); empty → error; rate-limit → `chat_rate_limit`.
+7. **Ping / sync / who must not be rate-limited** (main.py exempts them so RTT and presence stay healthy under move spam).
+8. Outbound WS batches: best-effort send; one failure must not crash the connection loop.
+9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8767).
+10. If a WS **send fails**, stop the receive loop and disconnect cleanly (do not call `receive_*` on a dead socket).
 
 ## Tests (mandatory for your changes)
 
@@ -151,8 +167,16 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_multiplayer` | Two clients, chat, combat flag, leave |
 | `tests.test_adversarial` | Edge cases: world, combat, gold, chat |
 | `tests.test_items` | Herb / wings / fairy water / repel |
+| `tests.test_mp_reliability` | Nearby chat, emotes, 3 players, ping under load |
+| `tests.test_inn` | Town inn cost, rest, not enough gold |
+| `tests.test_who` | Free-port who/online multiplayer query |
+| `tests.test_field_magic` | Field spell lists + heal formula |
+| `tests.test_mp_teleport` | RETURN spell AOI + who under move spam |
+| `tests.test_online_roster` | Online pulse on join/leave + roster (no coords) |
+| `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.
+- Integration WS tests should use `tests.ws_helpers.start_server()` (ephemeral port), not hard-coded 8765–8767.
 - Use isolated `DATABASE_URL` (runner already temp-isolates).
 - Do not depend on the developer's live `data/dq1_mmo.db`.
 
@@ -162,7 +186,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 - Lua: Love2D 11; states under `client/states/`; network thin; UI via `UI.*` helpers.
 - Bump `VERSION` in `server/config.py` when shipping user-visible behavior; mirror in README + HUMAN.
 - Gold may be string-stored (big-number ready); HP/damage still normal ints for MVP.
-- Client assets under `client/assets/` are empty — use procedural renderer/UI until art lands.
+- Client art: drop PNGs under `client/assets/` (see `ATTRIBUTION.md`). Missing files use procedural fallback.
 - Do not commit secrets; never force-push `main` unless user asks.
 
 ## Common agent mistakes

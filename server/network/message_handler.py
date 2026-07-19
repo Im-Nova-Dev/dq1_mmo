@@ -5,9 +5,11 @@ from auth.jwt_handler import decode_access_token
 from config import ALLOW_DEBUG, COMBAT_GRACE_SECONDS
 from database.db import db_write, get_db
 from game.combat_engine import combat_engine
-from game.data_loader import battle_spells_at, get_enemy
+from game.data_loader import battle_spells_at, field_spells_at, get_enemy, get_spell
 from game.enemy_spawner import roll_encounter
+from game import formulas as F
 from game.item_manager import (
+    REPEL_STEPS,
     buy_item,
     character_public,
     equip_item,
@@ -18,10 +20,18 @@ from game.item_manager import (
     unequip_item,
     use_consumable,
 )
-from game.player_manager import apply_character_patch, get_character
+from game.player_manager import apply_character_patch, get_character, inn_cost, rest_at_inn
 from game.rng import Rng
 from game.serialize import character_dict
-from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload, zone_at
+from game.world_manager import (
+    DUNGEON_ENTRANCE,
+    SPAWN_X,
+    SPAWN_Y,
+    is_adjacent_step,
+    is_walkable,
+    map_payload,
+    zone_at,
+)
 from network.protocol import ClientMessageType, ServerMessageType, msg
 from network.websocket_manager import CHAT_MAX_LEN, manager
 
@@ -35,6 +45,7 @@ async def _inventory_msg(character_id: int) -> dict:
     items = await list_items(db, character_id)
     if char:
         char["known_spells"] = battle_spells_at(int(char["level"]))
+        char["field_spells"] = field_spells_at(int(char["level"]))
         char = character_public(char, items)
     return msg(ServerMessageType.INVENTORY_UPDATE, items=items, character=char)
 
@@ -151,6 +162,7 @@ async def handle_message(
                         players=nearby,
                         enemies=[],
                         map=map_payload(),
+                        online=len(manager.online_ids()),
                     )
                 )
         return character_id, user_id, outbound, None
@@ -168,7 +180,34 @@ async def handle_message(
                 players=nearby,
                 enemies=[],
                 map=map_payload(),
+                online=len(manager.online_ids()),
                 you={"x": meta["x"], "y": meta["y"]} if meta else None,
+                repel=manager.repel_remaining(character_id),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    if msg_type in (ClientMessageType.WHO, "who"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        meta = manager.get_meta(character_id)
+        nearby = manager.nearby_players(character_id)
+        outbound.append(
+            msg(
+                ServerMessageType.WHO,
+                players=nearby,
+                online=len(manager.online_ids()),
+                online_ids=manager.online_ids(),
+                roster=manager.online_roster(),
+                you={
+                    "id": character_id,
+                    "x": meta["x"] if meta else None,
+                    "y": meta["y"] if meta else None,
+                    "in_combat": bool(meta.get("in_combat")) if meta else False,
+                    "repel": manager.repel_remaining(character_id),
+                },
             )
         )
         return character_id, user_id, outbound, None
@@ -210,6 +249,7 @@ async def handle_message(
             character["world_y"] = y
 
         character["known_spells"] = battle_spells_at(int(character["level"]))
+        character["field_spells"] = field_spells_at(int(character["level"]))
         character["bonuses"] = equipment_bonuses(character)
 
         resume_battle = combat_engine.get(character["id"])
@@ -263,6 +303,121 @@ async def handle_message(
 
     if character_id is None:
         outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+        return character_id, user_id, outbound, None
+
+    # --- Field magic (overworld) ---
+    if msg_type in (ClientMessageType.USE_SPELL, "use_spell") and not combat_engine.is_in_combat(
+        character_id
+    ):
+        spell_id = str(data.get("spell") or data.get("id") or "")
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        known = field_spells_at(int(char["level"]))
+        # also allow known_spells from battle list if field flag set
+        if spell_id not in known:
+            outbound.append(msg(ServerMessageType.ERROR, reason="unknown or unlearned spell"))
+            return character_id, user_id, outbound, None
+        sp = get_spell(spell_id)
+        if not sp or not sp.get("field"):
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot cast on field"))
+            return character_id, user_id, outbound, None
+        cost = int(sp.get("mp_cost") or 0)
+        mp = int(char.get("current_mp") or 0)
+        if mp < cost:
+            outbound.append(msg(ServerMessageType.ERROR, reason="not enough MP"))
+            return character_id, user_id, outbound, None
+
+        rng = Rng()
+        meta = manager.get_meta(character_id)
+        patch: dict = {"current_mp": mp - cost}
+        info: dict = {
+            "spell": spell_id,
+            "name": sp.get("name") or spell_id,
+            "mp_cost": cost,
+            "current_mp": mp - cost,
+        }
+        formula = sp.get("formula") or spell_id
+
+        if formula in ("heal", "healmore"):
+            amt = F.heal_amount(rng) if formula == "heal" else F.healmore_amount(rng)
+            max_hp = int(char.get("max_hp") or 1)
+            cur_hp = int(char.get("current_hp") or 0)
+            new_hp, actual = F.apply_heal(cur_hp, max_hp, amt)
+            patch["current_hp"] = new_hp
+            info.update(
+                {
+                    "healed": actual,
+                    "current_hp": new_hp,
+                    "max_hp": max_hp,
+                    "message": f"You cast {sp.get('name')}! Recovered {actual} HP.",
+                }
+            )
+        elif formula == "return" or spell_id == "return":
+            patch["world_x"] = SPAWN_X
+            patch["world_y"] = SPAWN_Y
+            info.update(
+                {
+                    "teleported": True,
+                    "x": SPAWN_X,
+                    "y": SPAWN_Y,
+                    "message": f"You cast {sp.get('name')}! Returned to town.",
+                }
+            )
+        elif formula == "repel" or spell_id == "repel":
+            manager.set_repel(character_id, REPEL_STEPS)
+            info.update(
+                {
+                    "repel_steps": REPEL_STEPS,
+                    "message": f"You cast {sp.get('name')}! Foes keep away for a while.",
+                }
+            )
+        elif spell_id == "outside":
+            zone = zone_at(int(meta["x"]), int(meta["y"])) if meta else "blocked"
+            if zone != "dungeon":
+                outbound.append(msg(ServerMessageType.ERROR, reason="only works in dungeon"))
+                return character_id, user_id, outbound, None
+            # Exit to field just west of dungeon mouth
+            ox, oy = 14, 3
+            if not is_walkable(ox, oy):
+                ox, oy = DUNGEON_ENTRANCE[0] - 1, DUNGEON_ENTRANCE[1]
+            patch["world_x"] = ox
+            patch["world_y"] = oy
+            info.update(
+                {
+                    "teleported": True,
+                    "x": ox,
+                    "y": oy,
+                    "message": f"You cast {sp.get('name')}! You exit the dungeon.",
+                }
+            )
+        elif spell_id == "radiant":
+            info["message"] = f"You cast {sp.get('name')}! A soft light surrounds you."
+        else:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot cast on field"))
+            return character_id, user_id, outbound, None
+
+        char = await apply_character_patch(character_id, patch) or char
+        if info.get("teleported"):
+            aoi = await manager.publish_move(character_id, int(info["x"]), int(info["y"]), seq=None)
+            outbound.extend(aoi)
+            outbound.append(
+                msg(
+                    ServerMessageType.MOVE_OK,
+                    ok=True,
+                    x=int(info["x"]),
+                    y=int(info["y"]),
+                    seq=None,
+                    reason="spell",
+                )
+            )
+        char["known_spells"] = battle_spells_at(int(char["level"]))
+        char["field_spells"] = field_spells_at(int(char["level"]))
+        char["bonuses"] = equipment_bonuses(char)
+        outbound.append(
+            msg(ServerMessageType.SPELL_CAST, character=char, **info)
+        )
         return character_id, user_id, outbound, None
 
     # --- Combat actions ---
@@ -474,7 +629,7 @@ async def handle_message(
 
         return character_id, user_id, outbound, None
 
-    # --- Global chat ---
+    # --- Chat: global (`chat`) or nearby AOI (`say`) ---
     if msg_type in (ClientMessageType.CHAT, ClientMessageType.SAY, "chat", "say"):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
@@ -492,15 +647,80 @@ async def handle_message(
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
+        # Explicit channel wins; `say` defaults nearby, `chat` defaults global
+        channel = (data.get("channel") or "").lower()
+        if channel not in ("global", "nearby", "local"):
+            if msg_type in (ClientMessageType.SAY, "say"):
+                channel = "nearby"
+            else:
+                channel = "global"
+        if channel == "local":
+            channel = "nearby"
         chat_msg = msg(
             ServerMessageType.CHAT,
             player_id=character_id,
             name=name,
             text=text,
-            channel="global",
+            channel=channel,
         )
-        # Deliver to everyone including sender (echo)
-        await manager.broadcast(chat_msg)
+        if channel == "nearby":
+            await manager.broadcast_nearby(character_id, chat_msg, include_self=True)
+        else:
+            await manager.broadcast(chat_msg)
+        return character_id, user_id, outbound, None
+
+    # --- Emotes (nearby only) ---
+    if msg_type in (ClientMessageType.EMOTE, "emote"):
+        raw_emote = data.get("emote")
+        if raw_emote is None:
+            raw_emote = data.get("id")
+        if raw_emote is None:
+            raw_emote = data.get("action")
+        if raw_emote is None:
+            raw_emote = "wave"  # bare {type:emote} defaults to wave
+        if not isinstance(raw_emote, str):
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
+            return character_id, user_id, outbound, None
+        emote = raw_emote.strip().lower()[:24]
+        if not emote:
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
+            return character_id, user_id, outbound, None
+        allowed = {
+            "wave",
+            "bow",
+            "cheer",
+            "dance",
+            "cry",
+            "laugh",
+            "point",
+            "sit",
+            "think",
+        }
+        if emote not in allowed:
+            outbound.append(msg(ServerMessageType.ERROR, reason="unknown emote"))
+            return character_id, user_id, outbound, None
+        # Soft rate limit via chat timer (social spam)
+        ok_chat, retry = manager.allow_chat(character_id)
+        if not ok_chat:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        name = (meta or {}).get("name") or "Hero"
+        emote_msg = msg(
+            ServerMessageType.EMOTE,
+            player_id=character_id,
+            name=name,
+            emote=emote,
+            x=(meta or {}).get("x"),
+            y=(meta or {}).get("y"),
+        )
+        await manager.broadcast_nearby(character_id, emote_msg, include_self=True)
         return character_id, user_id, outbound, None
 
     # --- Use consumable (herb / wings / fairy water) ---
@@ -623,6 +843,55 @@ async def handle_message(
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
+    # --- Town inn (rest) ---
+    if msg_type in (ClientMessageType.REST, "rest", "inn"):
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
+            outbound.append(msg(ServerMessageType.ERROR, reason="inn only in town"))
+            return character_id, user_id, outbound, None
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        from game.item_manager import _safe_gold
+
+        # Preview cost when asked
+        if data.get("preview") or data.get("quote"):
+            cost = inn_cost(char)
+            full = (
+                int(char.get("current_hp") or 0) >= int(char.get("max_hp") or 1)
+                and int(char.get("current_mp") or 0) >= int(char.get("max_mp") or 0)
+            )
+            outbound.append(
+                msg(
+                    ServerMessageType.REST_OK,
+                    preview=True,
+                    cost=cost,
+                    can_afford=_safe_gold(char) >= cost,
+                    full=full,
+                    message=(
+                        "You are already well rested."
+                        if full
+                        else f"Inn stay costs {cost} G"
+                    ),
+                )
+            )
+            return character_id, user_id, outbound, None
+
+        async with db_write() as db:
+            ok, reason, info = await rest_at_inn(db, char)
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason, **(info or {})))
+            return character_id, user_id, outbound, None
+        char = await get_character(character_id) or char
+        char["known_spells"] = battle_spells_at(int(char["level"]))
+        char["bonuses"] = equipment_bonuses(char)
+        outbound.append(msg(ServerMessageType.REST_OK, preview=False, character=char, **info))
+        return character_id, user_id, outbound, None
+
     # --- Inventory / shop / equip ---
     if msg_type == ClientMessageType.INVENTORY:
         outbound.append(await _inventory_msg(character_id))
@@ -706,6 +975,7 @@ async def handle_message(
             ok, reason = await sell_item(db, char, str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            return character_id, user_id, outbound, None
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 

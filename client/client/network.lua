@@ -249,8 +249,16 @@ function Network.sync()
   return Network.send({ type = "sync" })
 end
 
-function Network.chat(text)
-  return Network.send({ type = "chat", text = text })
+function Network.chat(text, channel)
+  return Network.send({ type = "chat", text = text, channel = channel or "global" })
+end
+
+function Network.say(text)
+  return Network.send({ type = "say", text = text, channel = "nearby" })
+end
+
+function Network.emote(emote)
+  return Network.send({ type = "emote", emote = emote or "wave" })
 end
 
 function Network.ping(with_presence)

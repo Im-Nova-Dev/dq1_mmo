@@ -54,9 +54,15 @@ function Inventory:enter()
     local line = data.message or ("Used " .. tostring(data.name or data.item_id or "item"))
     self.status = line
     UI.toast(line, "ok")
-    if data.teleported and Session.character then
-      Session.character.world_x = data.x
-      Session.character.world_y = data.y
+    if data.teleported and data.x and data.y then
+      if Session.character then
+        Session.character.world_x = data.x
+        Session.character.world_y = data.y
+      end
+      if self.character then
+        self.character.world_x = data.x
+        self.character.world_y = data.y
+      end
     end
     if data.current_hp and Session.character then
       Session.character.current_hp = data.current_hp
@@ -64,6 +70,26 @@ function Inventory:enter()
     if self.character and data.current_hp then
       self.character.current_hp = data.current_hp
     end
+  end)
+  Network.on("spell_cast", function(data)
+    if data.character then
+      self.character = data.character
+      Session.character = data.character
+    end
+    if data.teleported and data.x and data.y and Session.character then
+      Session.character.world_x = data.x
+      Session.character.world_y = data.y
+    end
+    self.status = data.message or "Spell cast"
+    UI.toast(self.status, "ok")
+  end)
+  Network.on("rest_ok", function(data)
+    if data.character then
+      self.character = data.character
+      Session.character = data.character
+    end
+    self.status = data.message or "Rested at the inn"
+    UI.toast(self.status, "ok")
   end)
 
   Network.send({ type = "inventory" })
@@ -141,6 +167,8 @@ function Inventory:keypressed(key)
     if item then
       Network.send({ type = "sell", item = item.item_id })
     end
+  elseif key == "r" then
+    Network.send({ type = "rest" })
   end
 end
 
@@ -243,7 +271,7 @@ function Inventory:draw()
     h - 68,
     w - margin * 2 - 32,
     36,
-    "Enter equip/use/buy   ·   S sell   ·   U unequip   ·   Tab shop   ·   Esc back"
+    "Enter equip/use/buy   ·   R inn rest   ·   S sell   ·   U unequip   ·   Tab shop   ·   Esc"
   )
   UI.reset_color()
 end

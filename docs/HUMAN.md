@@ -1,36 +1,30 @@
 # DQ1 MMO — Human guide
 
-This guide is for **people**: players, operators, and human contributors.
+For **people** (players, operators, human contributors).
 
-- **Install & feature overview** → [../README.md](../README.md)  
-- **Coding agents / LLMs** → [../AGENTS.md](../AGENTS.md) (protocol, tests, code map)  
-- **Docs index** → [README.md](README.md)
+| You want… | Go here |
+|:----------|:--------|
+| Install & overview | [../README.md](../README.md) |
+| AI / protocol docs | [../AGENTS.md](../AGENTS.md) |
+| Docs index | [README.md](README.md) |
+| Swap sprites | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
+
+**Version:** 0.5.9 · synced 2026-07-19
 
 ---
 
 ## What is this?
 
-A small **multiplayer Dragon Quest I–style** game:
+Multiplayer **Dragon Quest I–style** game:
 
-- Create an account and a hero.
-- Walk a shared grid world (town, fields, dungeon).
-- Fight with **server-side** DQ1 combat (attack, magic, flee).
-- See other players nearby, use **global chat**, equip gear, and shop in town.
+- Account + hero (gold + **3 herbs**)
+- Shared town / field / dungeon
+- Server-side combat (attack, magic, flee, herbs)
+- Town **inn** and **field magic** (Heal, Return, …)
+- Chat (global + nearby), emotes, live **online roster**
+- Shop, gear, swappable PNG art
 
-MVP limits: one map, no parties/PvP/trade, procedural art (colored tiles + DQ-style windows — not a full sprite pack).
-
-**Current version:** 0.5.1
-
----
-
-## Look & feel
-
-The client aims for a classic Dragon Quest window style:
-
-- Gold double-border panels and starfield title menus  
-- HP/MP bars, combat command list, battle log  
-- Overworld HUD, minimap, chat panel, nearby adventurers  
-- Default window **1024×720** (resizable)
+MVP: one map; no parties, PvP, trade, or quests.
 
 ---
 
@@ -38,135 +32,95 @@ The client aims for a classic Dragon Quest window style:
 
 ### First session
 
-1. Start the server ([README quick start](../README.md#quick-start)).
-2. Run `love client`.
-3. Register with email + password, then create a character.
-4. On the hero screen: select a hero and **Enter World**, or **double-click** a hero card.
-5. You spawn in **town** (safe — no random fights).
+1. Start server · `love client`
+2. Register · create hero · Enter World
+3. Town is safe
 
-### World zones
+### Zones
 
-| Zone | Look | Encounters |
-|:-----|:-----|:-----------|
-| **Town** | Warm brown tiles | None · shop works here |
-| **Field** | Green | Common monsters |
-| **Water** | Blue | Not walkable |
-| **Dungeon** | Dark purple | Harder table, higher encounter rate |
+| Zone | Notes |
+|:-----|:------|
+| Town | Shop · **inn (R)** · no fights |
+| Field | Random encounters |
+| Water | Blocked |
+| Dungeon | Harder fights · Outside spell exits |
 
 ### Combat
 
-- Stepping in field/dungeon may start a fight.
-- Choose **Attack**, **Flee**, or a **Spell** (spells unlock by level) with ↑↓ + Enter (or **A** / **F**).
-- Victory: XP, gold, maybe a level-up toast.
-- Defeat: wake in town, **half gold**, reduced HP (XP kept).
-- Disconnect mid-fight: about **60 seconds** to reconnect and resume.
+Attack / Flee / Spells / **Herb (H)**.  
+Defeat → town, half gold. Disconnect mid-fight: ~60s to resume.
 
-### Multiplayer social
+### Inn
 
-- Nearby heroes on the map and in the **player list** (**P** / Tab).
-- Players in combat show a **⚔** marker (and a combat ring).
-- **T** opens global chat (all online players). Keep messages short; spam is rate-limited.
-- **C** toggles the chat panel.
+**R** in town → full HP/MP for **max(4, level×4)** gold.
 
-### Economy
+### Field magic
 
-- Start with some gold (default 300).
-- In town, **I** → inventory; **Tab** opens the shop when available.
-- **Enter** equip/buy · **S** sell · **U** unequip · **Esc** back.
+Learned by level (same as classic DQ1 progression).
+
+| Key | Action |
+|:----|:-------|
+| **H** | Heal / Healmore on the field |
+| **M** | Cycle Return, Repel, Outside, Radiant, … |
+
+- **Return** → town  
+- **Repel** → fewer random fights for a while  
+- **Outside** → leave dungeon to the field  
+
+### Items
+
+| Item | Effect |
+|:-----|:-------|
+| Herb | Heal (world + battle) |
+| Wings | Warp to town |
+| Fairy Water | Temporary repel |
+
+**Enter** uses consumables or equips gear. **Tab** in inventory = shop (town).
+
+### Social
+
+| Key | Effect |
+|:----|:-------|
+| **T** / **Y** | Global / nearby chat |
+| **E** | Wave |
+| **O** or **P** | Who’s online / nearby |
+| **C** | Toggle chat |
+
+HUD shows nearby + online counts. Online roster updates when people join/leave (names/levels only, not map positions). ⚔ = in combat.
 
 ---
 
-## Controls (summary)
+## Controls
 
 | Context | Keys |
 |:--------|:-----|
-| Overworld | WASD move · T chat · I inv · P list · B debug fight · Esc quit |
-| Combat | ↑↓ menu · Enter · A attack · F flee |
-| Inventory | ↑↓ · Enter · Tab shop · S sell · U unequip · Esc |
-| Login / heroes | Tab fields · Enter · N new hero · Esc logout |
-
-Full table: [README controls](../README.md#controls).
+| Overworld | WASD · T/Y chat · E wave · R inn · H/M magic · O who · I · Esc |
+| Combat | ↑↓ · Enter · A / F / H |
+| Inventory | Enter · R inn · S sell · U unequip · Tab shop |
 
 ---
 
-## Running a server (operators)
-
-### Local development
+## Hosting
 
 ```bash
-cd server
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-./run.sh
+cd server && source .venv/bin/activate && ./run.sh
 ```
 
-Optional: copy `.env.example` → `.env` and set `SECRET_KEY`.
-
-### Production checklist
-
-- `ENV=production` and a strong unique `SECRET_KEY`
-- `ALLOW_DEBUG=0` (no forced encounters)
-- Durable `DATABASE_URL` + backups of the SQLite file
-- Explicit `CORS_ORIGINS`
-- Google login only if OAuth env vars are set
-
-### Health
-
-`GET /health` → status, **version**, online players, active combats.
+Prod: strong `SECRET_KEY`, `ENV=production`, `ALLOW_DEBUG=0`, durable DB, tight CORS.  
+Health: `GET /health`.
 
 ---
 
-## Architecture (plain language)
+## Multiplayer on one PC
 
-```
-┌─────────────┐     WebSocket JSON      ┌──────────────────┐
-│ Love2D game │ ◄─────────────────────► │ Python game      │
-│ (UI + input)│     REST for login      │ server (truth)   │
-│             │                         │ + SQLite         │
-└─────────────┘                         └──────────────────┘
-```
-
-- The **server** decides position, encounters, and damage.
-- The **client** draws menus/map, predicts movement, and shows other players.
-- Catalogs (enemies, spells, gear) live mainly in `shared/dq1_data.json`.
-
-You only need Python if you host or develop the server.
+`./tools/mp_sim.sh` · `./tools/mp_love.sh 2`  
+Tests: `python tests/run_tests.py` in `server/`.
 
 ---
 
-## Testing multiplayer on one PC
+## Docs: humans vs agents
 
-- **Bots:** `./tools/mp_sim.sh`
-- **Two windows:** `./tools/mp_love.sh 2` (two accounts)
+- **You** → this file + README  
+- **Coding agents** → [AGENTS.md](../AGENTS.md) for protocol/tests only  
 
-Developer tests:
-
-```bash
-cd server && source .venv/bin/activate
-python tests/run_tests.py
-```
-
----
-
-## Contributing (humans)
-
-1. Prefer small, testable changes.
-2. Run the test suite before proposing a change.
-3. Keep the doc split clean:
-   - **Players/ops** → this file + README  
-   - **Agents** → [AGENTS.md](../AGENTS.md) only for protocol/tests/hot paths  
-
-### Known MVP limits
-
-- `client/assets/` is empty (procedural tiles/UI only).
-- One small map; no quests, guilds, or trading.
-- Big-number grind is only partially prepared (gold as strings).
-
----
-
-## See also
-
-- [Documentation index](README.md)
-- [README (GitHub)](../README.md)
-- [Agent / LLM contract](../AGENTS.md)
-- Historical plan: [../plan.md](../plan.md) (not always current)
+Do not put long protocol tables in human docs.

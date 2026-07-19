@@ -1,6 +1,7 @@
 local src = love.filesystem.getSource()
 package.path = src .. "/?.lua;" .. src .. "/?/init.lua;" .. src .. "/libs/?.lua;" .. package.path
 
+local Assets = require("client.assets")
 local State = require("client.state")
 local UI = require("client.ui")
 
@@ -17,6 +18,7 @@ function love.load()
   love.keyboard.setKeyRepeat(true)
   math.randomseed(os.time())
   UI.init()
+  Assets.load()
   State.register(states)
   State.switch("login")
 end

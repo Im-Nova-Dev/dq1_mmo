@@ -56,6 +56,16 @@ def battle_spells_at(level: int) -> list[str]:
     return out
 
 
+def field_spells_at(level: int) -> list[str]:
+    """Spells castable on the overworld (DQ1 field magic)."""
+    out = []
+    for sid in spells_known_at(level):
+        sp = get_spell(sid)
+        if sp and sp.get("field"):
+            out.append(sid)
+    return out
+
+
 def field_enemies() -> list[str]:
     ids = [
         "slime",

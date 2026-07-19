@@ -318,3 +318,23 @@ def test_combat_engine_start_end():
     assert 99999 in combat_engine.expired_grace() or combat_engine.grace_until.get(99999) is not None
     combat_engine.end(99999)
     assert not combat_engine.is_in_combat(99999)
+
+
+def test_path_town_to_field_exists():
+    """MVP map must allow leaving town without diagonal steps."""
+    # Opening is south of town onto field at (5,3)
+    assert is_walkable(2, 2) and zone_at(2, 2) == "town"
+    path = [(2, 3), (3, 3), (4, 3), (5, 3)]
+    fx, fy = 2, 2
+    for tx, ty in path:
+        assert is_adjacent_step(fx, fy, tx, ty), (fx, fy, tx, ty)
+        assert is_walkable(tx, ty), (tx, ty)
+        fx, fy = tx, ty
+    assert zone_at(5, 3) == "field"
+
+
+def test_inn_cost_wounded():
+    from game.player_manager import inn_cost
+
+    assert inn_cost({"level": 1, "max_hp": 20, "current_hp": 5, "max_mp": 0, "current_mp": 0}) == 4
+    assert inn_cost({"level": 10, "max_hp": 100, "current_hp": 50, "max_mp": 50, "current_mp": 0}) == 40

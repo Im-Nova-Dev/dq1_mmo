@@ -47,10 +47,15 @@ def test_connect_and_nearby_visibility():
         nearby = mgr.nearby_players(1)
         assert any(p["id"] == 2 for p in nearby)
         assert nearby[0]["in_combat"] is False
-        # disconnect B notifies A
+        # disconnect B notifies A with disconnect reason
         left = await mgr.disconnect(2, b)
         assert left is not None
-        assert any(m.get("type") == "player_left" and m.get("player_id") == 2 for m in a.sent)
+        assert any(
+            m.get("type") == "player_left"
+            and m.get("player_id") == 2
+            and m.get("reason") == "disconnect"
+            for m in a.sent
+        )
 
     _run(scenario())
 

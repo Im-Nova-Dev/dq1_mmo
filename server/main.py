@@ -91,9 +91,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 continue
 
-            if character_id is not None and not manager.allow_message(character_id):
-                await _send(websocket, msg(ServerMessageType.ERROR, reason="rate_limit"))
-                continue
+            # Heartbeats + lightweight presence must never be rate-limited
+            msg_type = data.get("type")
+            _exempt = ("ping", "pong", "sync", "who")
+            if character_id is not None and msg_type not in _exempt:
+                if not manager.allow_message(character_id):
+                    await _send(websocket, msg(ServerMessageType.ERROR, reason="rate_limit"))
+                    continue
+            elif character_id is not None and msg_type in _exempt:
+                manager.touch(character_id)
 
             try:
                 character_id, user_id, outbound, connect_meta = await handle_message(
@@ -147,19 +153,49 @@ async def websocket_endpoint(websocket: WebSocket):
                         map=map_payload(),
                         you={"x": connect_meta["x"], "y": connect_meta["y"]},
                         online=len(manager.online_ids()),
+                        repel=manager.repel_remaining(connect_meta["character_id"]),
                     )
                 )
+                # Tell everyone the roster count changed (include self via outbound after)
+                try:
+                    await manager.broadcast_online()
+                except Exception:
+                    log.exception("broadcast_online failed")
 
+            # Best-effort delivery; stop the read loop if the socket is dead
+            send_failed = False
             for out in outbound:
-                await _send(websocket, out)
+                try:
+                    await _send(websocket, out)
+                except Exception:
+                    log.warning(
+                        "send failed for character=%s type=%s",
+                        character_id,
+                        out.get("type"),
+                    )
+                    send_failed = True
+                    break
+            if send_failed:
+                break
 
     except WebSocketDisconnect:
         pass
+    except RuntimeError as exc:
+        # Starlette raises when receive() is called after the socket died mid-loop
+        if "not connected" not in str(exc).lower():
+            log.exception("websocket runtime error")
+    except Exception:
+        log.exception("websocket loop crashed")
     finally:
         if character_id is not None and manager.owns(character_id, websocket):
-            await handle_disconnect(character_id)
-            # disconnect notifies AOI peers with player_left
-            await manager.disconnect(character_id, websocket)
+            try:
+                await handle_disconnect(character_id)
+            except Exception:
+                log.exception("handle_disconnect failed for %s", character_id)
+            try:
+                await manager.disconnect(character_id, websocket)
+            except Exception:
+                log.exception("manager.disconnect failed for %s", character_id)
 
 
 if __name__ == "__main__":

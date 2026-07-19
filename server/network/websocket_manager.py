@@ -31,6 +31,16 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
+    """Public roster entry (no position — avoid map radar abuse)."""
+    return {
+        "id": meta["id"],
+        "name": meta["name"],
+        "level": meta["level"],
+        "in_combat": bool(meta.get("in_combat")),
+    }
+
+
 class ConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[int, WebSocket] = {}
@@ -127,9 +137,12 @@ class ConnectionManager:
                 "type": "player_left",
                 "player_id": character_id,
                 "name": left_meta.get("name"),
+                "reason": "disconnect",
             }
             for oid in notify_ids:
                 await self.send(oid, leave_msg)
+        if left_meta is not None:
+            await self.broadcast_online()
         return left_meta
 
     def is_online(self, character_id: int) -> bool:
@@ -140,6 +153,22 @@ class ConnectionManager:
 
     def online_ids(self) -> list[int]:
         return list(self._connections.keys())
+
+    def online_roster(self) -> list[dict[str, Any]]:
+        """All online players as public cards (id/name/level/in_combat)."""
+        out: list[dict[str, Any]] = []
+        for cid in self._connections:
+            meta = self._meta.get(cid)
+            if meta:
+                out.append(_online_card(meta))
+        out.sort(key=lambda p: str(p.get("name") or "").lower())
+        return out
+
+    async def broadcast_online(self) -> None:
+        """Pulse global online count to every connected client."""
+        await self.broadcast(
+            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
+        )
 
     def get_meta(self, character_id: int) -> dict[str, Any] | None:
         return self._meta.get(character_id)
@@ -363,6 +392,7 @@ class ConnectionManager:
             "seq": seq,
             "name": me_pub["name"],
             "level": me_pub["level"],
+            "in_combat": me_pub["in_combat"],
         }
         for oid in stayed:
             await self.send(oid, move_msg)

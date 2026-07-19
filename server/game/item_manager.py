@@ -122,6 +122,10 @@ async def remove_item(db, character_id: int, item_id: str, quantity: int = 1) ->
 async def equip_item(db, character: dict, slot: str, item_id: str) -> tuple[bool, str]:
     if slot not in VALID_SLOTS:
         return False, "invalid slot"
+    # Consumables are used, not equipped
+    cons = get_item_def(item_id)
+    if cons and (cons.get("slot") == "consumable" or cons.get("type") == "consumable"):
+        return False, "use item instead"
     defn = get_equipment_def(item_id)
     if not defn:
         return False, "unknown item"

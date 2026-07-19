@@ -1,3 +1,4 @@
+local Assets = require("client.assets")
 local Network = require("client.network")
 local Session = require("client.session")
 local State = require("client.state")
@@ -308,13 +309,58 @@ function Combat:draw()
     UI.bar(w - 280, 80, 220, 14, ehp / emhp, "hp", string.format("%d / %d", ehp, emhp))
   end
 
-  -- figures
-  UI.draw_hero_figure(w * 0.28, h * 0.42)
+  -- figures (sprites with procedural fallback)
+  local hero_img = Assets.hero_battle()
+  local hx, hy = w * 0.28, h * 0.42
+  if hero_img then
+    local bob = math.sin((UI._t or 0) * 2.5) * 3
+    local scale = 96 / math.max(hero_img:getWidth(), hero_img:getHeight())
+    local iw, ih = hero_img:getWidth() * scale, hero_img:getHeight() * scale
+    love.graphics.setColor(0, 0, 0, 0.35)
+    love.graphics.ellipse("fill", hx, hy + 40, 28, 9)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(hero_img, hx - iw / 2, hy + bob - ih * 0.7, 0, scale, scale)
+  else
+    UI.draw_hero_figure(hx, hy)
+  end
+
   local pulse = 1
   if self.enemy and self.enemy.hp and self.enemy.max_hp and self.enemy.hp < self.enemy.max_hp * 0.3 then
     pulse = 0.85 + 0.15 * math.sin((UI._t or 0) * 8)
   end
-  UI.draw_enemy_figure(w * 0.68, h * 0.40, self.enemy and self.enemy.name, pulse)
+  local eid = self.enemy and (self.enemy.id or self.enemy.name)
+  -- normalize name to id-ish if needed
+  if self.enemy and self.enemy.id then
+    eid = self.enemy.id
+  end
+  local enemy_img = Assets.enemy(eid)
+  local ex, ey = w * 0.68, h * 0.40
+  if enemy_img then
+    local bob = math.sin((UI._t or 0) * 2.2) * 4
+    local scale = 120 / math.max(enemy_img:getWidth(), enemy_img:getHeight())
+    scale = scale * pulse
+    local iw, ih = enemy_img:getWidth() * scale, enemy_img:getHeight() * scale
+    love.graphics.setColor(0, 0, 0, 0.4)
+    love.graphics.ellipse("fill", ex, ey + 48, 42, 12)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(enemy_img, ex - iw / 2, ey + bob - ih * 0.55, 0, scale, scale)
+    if self.enemy and self.enemy.name then
+      UI.set_font("body")
+      local font = love.graphics.getFont()
+      local n = self.enemy.name
+      local tw = font:getWidth(n) + 20
+      local nx, ny = ex - tw / 2, ey + bob - ih * 0.55 - 32
+      love.graphics.setColor(0.05, 0.04, 0.08, 0.85)
+      love.graphics.rectangle("fill", nx, ny, tw, 26, 4, 4)
+      UI.color("danger")
+      love.graphics.setLineWidth(1.5)
+      love.graphics.rectangle("line", nx, ny, tw, 26, 4, 4)
+      UI.color("text")
+      love.graphics.print(n, nx + 10, ny + 5)
+    end
+  else
+    UI.draw_enemy_figure(ex, ey, self.enemy and self.enemy.name, pulse)
+  end
 
   -- message log
   UI.panel(24, h - 300, w - 48, 110, { title = "Battle log", title_h = 26, no_ornament = true })

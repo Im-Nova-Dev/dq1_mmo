@@ -75,6 +75,12 @@ def main() -> int:
         "tests.test_multiplayer",
         "tests.test_adversarial",
         "tests.test_items",
+        "tests.test_mp_reliability",
+        "tests.test_inn",
+        "tests.test_who",
+        "tests.test_field_magic",
+        "tests.test_mp_teleport",
+        "tests.test_online_roster",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)

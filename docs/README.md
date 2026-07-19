@@ -1,31 +1,28 @@
 # Documentation index
 
-This project keeps **human** and **agent/LLM** documentation separate so each audience gets the right level of detail.
+**Human** and **agent/LLM** documentation stay separate.
 
 | Document | Audience | Purpose |
 |:---------|:---------|:--------|
-| [../README.md](../README.md) | Everyone (GitHub landing) | Install, controls, features, layout |
-| [HUMAN.md](HUMAN.md) | Players, operators, human contributors | Gameplay, menus, hosting |
-| [../AGENTS.md](../AGENTS.md) | Coding agents / LLMs | Protocol, hot paths, tests, constraints |
-| [../plan.md](../plan.md) | Historical only | Original multi-phase plan — may be outdated |
+| [../README.md](../README.md) | Everyone (GitHub) | Install, controls, features |
+| [HUMAN.md](HUMAN.md) | Players, operators | Gameplay, inn, field magic, social |
+| [../AGENTS.md](../AGENTS.md) | Coding agents / LLMs | Protocol, hot paths, tests |
+| [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG replacement |
+| [../plan.md](../plan.md) | Historical only | Original plan — may be outdated |
 
-**Last docs refresh:** v0.5.1 (UI polish, multiplayer chat/presence, test suites documented).
+**Last docs refresh:** **v0.5.9** (2026-07-19) — online roster pulse, field magic, inn, free-port tests; human/agent split verified.
 
-## Rules of thumb
+## Rules
 
-1. **Players / operators** → `README.md` then `HUMAN.md`.
-2. **Agents implementing features** → `AGENTS.md` first, then code, then update docs.
-3. **Do not** put long WebSocket protocol matrices in the README — keep them in `AGENTS.md`.
-4. **Do not** put “how do I play?” only in `AGENTS.md` — keep that in README / HUMAN.
-5. **Do not** treat `plan.md` as the live backlog.
+1. Players → README + HUMAN.  
+2. Agents → AGENTS.md first.  
+3. Protocol matrices only in AGENTS.md.  
+4. Play/host instructions only in README/HUMAN.  
+5. plan.md is not the live backlog.
 
-## Keeping docs current
+## When the game changes
 
-When behavior changes that people or integrators see:
-
-- [ ] `README.md` — version, features, controls, layout  
-- [ ] `docs/HUMAN.md` — gameplay / ops  
-- [ ] `AGENTS.md` — protocol, hot paths, tests (if agents need it)  
-- [ ] `server/config.py` `VERSION` matches README  
-
-When you only refactor internals with no behavior change: a short note in `AGENTS.md` hot paths is enough.
+- [ ] README version / features / controls  
+- [ ] HUMAN gameplay  
+- [ ] AGENTS protocol/tests if needed  
+- [ ] `server/config.py` `VERSION` matches README + HUMAN  

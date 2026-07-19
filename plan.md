@@ -7,7 +7,7 @@
 > - [docs/HUMAN.md](docs/HUMAN.md) — player/operator guide  
 > - [AGENTS.md](AGENTS.md) — agent/LLM contract, protocol, tests  
 >
-> Shipped baseline as of docs refresh: **v0.5.1** (phases 1–6 complete; chat, combat presence, DQ-style UI polish).
+> Shipped baseline as of docs refresh: **v0.5.9** (MVP + inn, field magic, online roster, chat/emotes, consumables, sprites, expanded tests).
 
 ## Architecture Overview
 

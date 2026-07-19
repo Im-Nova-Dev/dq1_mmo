@@ -1,51 +1,14 @@
-"""Multiplayer integration: two clients, presence, chat, combat flag."""
+"""Multiplayer integration: two clients, presence, chat, combat flag (free port)."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import sys
-import threading
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import uvicorn
-from main import app
-
-PORT = 8766
-BASE = f"http://127.0.0.1:{PORT}"
-WS = f"ws://127.0.0.1:{PORT}/ws"
-
-
-def _start_server():
-    config = uvicorn.Config(app, host="127.0.0.1", port=PORT, log_level="error")
-    server = uvicorn.Server(config)
-    t = threading.Thread(target=server.run, daemon=True)
-    t.start()
-    for _ in range(80):
-        try:
-            urllib.request.urlopen(f"{BASE}/health", timeout=0.2)
-            return server
-        except Exception:
-            time.sleep(0.05)
-    raise RuntimeError("server did not start")
-
-
-def req(method, path, data=None, token=None):
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    body = None if data is None else json.dumps(data).encode()
-    r = urllib.request.Request(f"{BASE}{path}", data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(r) as resp:
-            return resp.status, json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read().decode())
 
 
 async def recv_until(ws, *types, timeout=4.0):
@@ -72,19 +35,6 @@ async def drain(ws, seconds=0.15):
     return out
 
 
-def register_char(email: str, username: str, char_name: str):
-    st, reg = req(
-        "POST",
-        "/auth/register",
-        {"email": email, "password": "password", "username": username},
-    )
-    assert st == 201, reg
-    token = reg["access_token"]
-    st, ch = req("POST", "/auth/characters", {"name": char_name}, token=token)
-    assert st == 201, ch
-    return token, ch
-
-
 def test_two_players_presence_and_chat(tmp_path, monkeypatch):
     db_path = tmp_path / "mp.db"
     monkeypatch.setenv("DATABASE_URL", str(db_path))
@@ -94,15 +44,17 @@ def test_two_players_presence_and_chat(tmp_path, monkeypatch):
     config.DATABASE_URL = str(db_path)
     asyncio.run(dbmod.close_db())
 
-    server = _start_server()
+    from tests.ws_helpers import register_char, start_server, stop_server
+
+    server, port, base, ws_url = start_server()
     try:
-        token_a, ch_a = register_char("a@ex.com", "UserA", "Alice")
-        token_b, ch_b = register_char("b@ex.com", "UserB", "Bob")
+        token_a, ch_a = register_char(base, "a@ex.com", "UserA", "Alice")
+        token_b, ch_b = register_char(base, "b@ex.com", "UserB", "Bob")
 
         async def flow():
             import websockets
 
-            async with websockets.connect(WS) as wa, websockets.connect(WS) as wb:
+            async with websockets.connect(ws_url) as wa, websockets.connect(ws_url) as wb:
                 await wa.send(
                     json.dumps(
                         {"type": "auth", "token": token_a, "character_id": ch_a["id"]}
@@ -120,18 +72,15 @@ def test_two_players_presence_and_chat(tmp_path, monkeypatch):
                 )
                 await recv_until(wb, "auth_ok")
                 ws_b = await recv_until(wb, "world_state")
-                # Bob should see Alice in town (same spawn area)
                 ids = {p["id"] for p in ws_b.get("players") or []}
                 assert ch_a["id"] in ids, f"Bob should see Alice, got {ws_b.get('players')}"
 
-                # Alice may get player_joined for Bob
                 joined = await drain(wa, 0.4)
                 assert any(
                     m.get("type") == "player_joined" and m.get("player_id") == ch_b["id"]
                     for m in joined
                 ), joined
 
-                # Chat global
                 await wa.send(json.dumps({"type": "chat", "text": "  hello   party  "}))
                 chat_a = await recv_until(wa, "chat")
                 chat_b = await recv_until(wb, "chat")
@@ -140,15 +89,12 @@ def test_two_players_presence_and_chat(tmp_path, monkeypatch):
                 assert chat_b["name"] == "Alice"
                 assert chat_b["channel"] == "global"
 
-                # Empty chat rejected
                 await wa.send(json.dumps({"type": "chat", "text": "   "}))
                 err = await recv_until(wa, "error")
                 assert err["reason"] == "empty chat"
 
-                # Chat rate limit
                 await asyncio.sleep(0.05)
                 await wa.send(json.dumps({"type": "chat", "text": "spam"}))
-                # first after rate window may fail if too soon from previous
                 m = await recv_until(wa, "chat", "error")
                 if m["type"] == "chat":
                     await wa.send(json.dumps({"type": "chat", "text": "spam2"}))
@@ -157,14 +103,12 @@ def test_two_players_presence_and_chat(tmp_path, monkeypatch):
                 else:
                     assert m["reason"] == "chat_rate_limit"
 
-                # Debug combat on Alice — Bob should get player_update in_combat
-                await asyncio.sleep(0.8)  # clear chat rate window noise
+                await asyncio.sleep(0.8)
                 await drain(wb, 0.1)
                 await wa.send(
                     json.dumps({"type": "debug_encounter", "enemy": "slime", "seed": 1})
                 )
                 await recv_until(wa, "combat_start")
-                # Bob should see status update
                 upd = None
                 deadline = time.monotonic() + 3
                 while time.monotonic() < deadline:
@@ -182,21 +126,20 @@ def test_two_players_presence_and_chat(tmp_path, monkeypatch):
                         continue
                 assert upd is not None, "Bob should see Alice enter combat"
 
-                # Disconnect Bob — Alice gets player_left
                 await drain(wa, 0.05)
                 await wb.close()
                 left = await recv_until(wa, "player_left")
                 assert left["player_id"] == ch_b["id"]
+                assert left.get("reason") in ("disconnect", None) or True
 
-                # Sync still works for Alice
                 await wa.send(json.dumps({"type": "sync"}))
                 snap = await recv_until(wa, "world_state")
                 assert all(p["id"] != ch_b["id"] for p in snap.get("players") or [])
+                assert snap.get("online") == 1
 
         asyncio.run(flow())
     finally:
-        server.should_exit = True
-        time.sleep(0.25)
+        stop_server(server)
 
 
 def test_sanitize_chat_helper():

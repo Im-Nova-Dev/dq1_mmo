@@ -129,6 +129,21 @@ def test_combat_item_heal_action():
     assert b.hero["hp"] >= before
 
 
+def test_equip_consumable_rejected():
+    async def scenario():
+        db, char = await _db()
+        await add_item(db, 1, "herb", 1)
+        await db.commit()
+        from game.item_manager import equip_item
+
+        ok, reason = await equip_item(db, char, "weapon", "herb")
+        assert ok is False
+        assert reason == "use item instead"
+        await db.close()
+
+    _run(scenario())
+
+
 def test_repel_consume_on_manager():
     mgr = ConnectionManager()
 
