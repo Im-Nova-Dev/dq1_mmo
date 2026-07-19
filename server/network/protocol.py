@@ -26,6 +26,10 @@ class ClientMessageType(StrEnum):
     WHO = "who"  # lightweight online/nearby query
     LOOK = "look"  # examine nearby / online player (public card)
     EXAMINE = "examine"  # alias for look
+    STATUS = "status"  # lightweight self sheet (hp/mp/gold/zone/buffs)
+    ME = "me"  # alias for status
+    FIND = "find"  # search online roster by name prefix
+    HELP = "help"  # list commands / key hints
 
 
 class ServerMessageType(StrEnum):
@@ -51,6 +55,9 @@ class ServerMessageType(StrEnum):
     EMOTE = "emote"
     WHO = "who"
     LOOK = "look"  # examine result
+    STATUS = "status"  # self sheet result
+    FIND = "find"  # roster search results
+    HELP = "help"  # command help payload
     ONLINE = "online"  # global online count pulse
     ERROR = "error"
     PONG = "pong"

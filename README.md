@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.19-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.24-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-103_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-121_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -28,18 +28,58 @@
   ·
   <a href="#-controls"><b>Controls</b></a>
   ·
+  <a href="#-whats-new"><b>What's new</b></a>
+  ·
   <a href="docs/HUMAN.md"><b>Player guide</b></a>
   ·
   <a href="client/assets/ATTRIBUTION.md"><b>Art</b></a>
   ·
-  <a href="AGENTS.md"><b>Agents</b></a>
+  <a href="#-documentation"><b>Docs map</b></a>
 </p>
 
 ---
 
-Explore **town**, **field**, and **dungeon** with other heroes on a shared grid. Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize with **global / nearby / zone** chat, private **whispers**, emotes, and **look**.
+Explore **town**, **field**, and **dungeon** with other heroes on a shared grid. Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize — **global / nearby / zone** chat, **whispers**, **`/find`**, emotes, and **look**.
 
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
+
+---
+
+## 📌 Contents
+
+| Section | |
+|:--------|:--|
+| [What's new](#-whats-new) | **v0.5.24** highlights |
+| [Highlights](#-highlights) | What ships in the MVP |
+| [Quick start](#-quick-start) | Server · client · tests |
+| [Controls](#-controls) | Keyboard & slash commands |
+| [Look & art](#-look--art) | Swappable sprites |
+| [Multiplayer tools](#-multiplayer-tools) | Local bots & dual windows |
+| [Configuration](#️-configuration) | Env vars & production |
+| [Project layout](#-project-layout) | Repo map |
+| [Documentation](#-documentation) | **Humans vs agents** |
+| [Credits](#-credits) | Attribution |
+
+---
+
+## 🆕 What's new
+
+<p align="center">
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.24-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-121-059669?style=flat-square" />
+</p>
+
+| | |
+|:--|:--|
+| ❓ | **`?` / `/help`** — server command list |
+| 💀 | Defeat shows **gold lost** before town respawn |
+| 📡 | Ping/pong includes **server time** for RTT |
+| ✅ | **121** automated tests passing |
+
+| Docs | |
+|:-----|:--|
+| Players | [docs/HUMAN.md](docs/HUMAN.md) |
+| Agents / LLMs | [AGENTS.md](AGENTS.md) *(protocol & tests only)* |
 
 ---
 
@@ -47,22 +87,22 @@ Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.
 
 <table>
 <tr>
-<td width="50%">
+<td width="50%" valign="top">
 
-| | Feature |
+| | World & combat |
 |:--|:--|
 | 🗺️ | Shared grid · safe **town** · field · **dungeon** |
-| ⚔️ | Server-side DQ1 combat · reconnect grace |
+| ⚔️ | Server-side DQ1 1v1 · ~60s reconnect grace |
 | 🏠 | Inn · shop · equip · **sell equipped** gear |
 | ✨ | Heal · Return · **Repel** · **Radiant** · Outside |
 
 </td>
-<td width="50%">
+<td width="50%" valign="top">
 
-| | Feature |
+| | Social & meta |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · **/w** whisper · emotes |
-| 👀 | **Look (L)** · online roster *(no map radar)* |
+| 🔍 | **`/find`** roster search · **look (L)** · online list |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney **CC0** + SVG placeholders |
 
@@ -74,7 +114,7 @@ Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.
 |:-----|:--|
 | **Items** | Herb · wings · fairy water · weapons & armor |
 | **HUD** | HP/MP · gold · nearby/online · **repel N** · **light N** · status (**F**) |
-| **Reliability** | Authoritative moves · combat resume · `session_id` · free-port tests |
+| **Reliability** | Authoritative moves · combat resume · `session_id` · free-port tests · AOI rebuild |
 
 **Out of scope for this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -120,7 +160,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 103 passed
+# expect: 121 passed
 ```
 
 ---
@@ -138,8 +178,12 @@ python tests/run_tests.py
 | **T** / **Y** | Global / nearby chat |
 | **/w Name msg** | Whisper (also `/tell`) |
 | **/z msg** | Zone chat (same area type: town / field / dungeon) |
+| **/find Name** | Search online players by name prefix |
+| **/status** · **/me** | Open status sheet (same as **F**) |
+| **/help** · **?** | Server command / key hints |
+| **/** | Open chat with `/` draft |
 | **E** | Cycle emotes |
-| **F** | Status sheet (stats, gear, EXP to next, spells) |
+| **F** | Status sheet (server refresh) |
 | **R** | Inn rest *(town)* |
 | **H** / **M** | Field Heal · cycle field spells |
 | **K** | List known spells |
@@ -161,7 +205,7 @@ python tests/run_tests.py
 
 | Key | Action |
 |:---:|:-------|
-| **↑ ↓** · **Enter** | Menu |
+| **↑ ↓** · **Enter** | Menu (spells show **MP cost**) |
 | **1–9** | Jump to menu row |
 | **A** / **F** / **H** | Attack · Flee · Herb |
 
@@ -195,6 +239,15 @@ python tests/run_tests.py
 | **Esc** | Log out |
 
 </details>
+
+### Chat slash commands
+
+| Command | Effect |
+|:--------|:-------|
+| `/w Name message` | Private whisper (`/tell` works too) |
+| `/z message` | Zone chat (everyone in town *or* field *or* dungeon) |
+| `/find Name` | Online roster search by prefix — **no map positions** |
+| `/status` · `/me` | Open the server-fresh status sheet |
 
 📖 Full player guide → **[docs/HUMAN.md](docs/HUMAN.md)**
 
@@ -274,34 +327,47 @@ dq1_mmo/
 
 ## 📚 Documentation
 
-**Human docs** and **agent / LLM docs** stay intentionally separate.
+<p align="center">
+  <img alt="humans" src="https://img.shields.io/badge/humans-README_+_HUMAN.md-2563eb?style=for-the-badge" />
+  <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
+</p>
+
+**Human docs** and **agent / LLM docs** stay separate on purpose. Do not mix them.
 
 | Audience | Document | Contents |
 |:---------|:---------|:---------|
-| **Everyone** | [README.md](README.md) | Install · features · controls |
-| **Players / ops** | [docs/HUMAN.md](docs/HUMAN.md) | Gameplay · inn · magic · social · hosting |
-| **Coding agents** | [AGENTS.md](AGENTS.md) | Protocol · hot paths · tests · reliability |
-| **Docs map** | [docs/README.md](docs/README.md) | How to keep the split clean |
+| **Everyone (GitHub)** | [README.md](README.md) | Install · features · controls *(this page)* |
+| **Players / operators** | [docs/HUMAN.md](docs/HUMAN.md) | Gameplay · inn · magic · social · hosting |
+| **Coding agents / LLMs** | [AGENTS.md](AGENTS.md) | Protocol · hot paths · tests · reliability |
+| **Docs index** | [docs/README.md](docs/README.md) | Audience rules & contributor checklist |
 | **Artists** | [client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md) | PNG names & licenses |
-| **History** | [plan.md](plan.md) | Original plan — may be outdated |
+| **History only** | [plan.md](plan.md) | Original roadmap — **not** live truth |
 
 ```text
-┌─────────────────┐              ┌──────────────────┐
-│     Humans      │              │  Agents / LLMs   │
-└────────┬────────┘              └────────┬─────────┘
-         │                                │
-         ▼                                ▼
-    README.md                         AGENTS.md
-    docs/HUMAN.md                     · WebSocket protocol
-    docs/README.md                    · hot paths & tests
-    (no protocol tables)              · reliability rules
+┌──────────────────────┐           ┌──────────────────────┐
+│       Humans         │           │   Agents / LLMs      │
+└──────────┬───────────┘           └──────────┬───────────┘
+           │                                  │
+           ▼                                  ▼
+      README.md                           AGENTS.md
+      docs/HUMAN.md                       · WebSocket catalog
+      docs/README.md                      · hot paths & tests
+      ATTRIBUTION.md                      · reliability rules
+      (no protocol tables)                · test module matrix
 ```
 
-| | |
-|:--|:--|
-| **Players** | Start here → then [docs/HUMAN.md](docs/HUMAN.md) |
-| **Agents** | Start at [`AGENTS.md`](AGENTS.md). Do not invent features from `plan.md`. |
-| **Protocol** | Lives **only** in AGENTS — never mirrored into human docs. |
+| Role | Start here |
+|:-----|:-----------|
+| **Player** | This README → [docs/HUMAN.md](docs/HUMAN.md) |
+| **Host / ops** | [Quick start](#-quick-start) · [Configuration](#️-configuration) · HUMAN hosting |
+| **Artist** | [client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md) |
+| **Coding agent** | **[`AGENTS.md`](AGENTS.md) only** — never invent features from `plan.md` |
+
+| Rule | |
+|:-----|:--|
+| ✅ | Install, controls, and lore stay in human docs |
+| ✅ | Wire protocol, reliability lists, and test matrices stay in `AGENTS.md` |
+| ❌ | Do **not** paste full WebSocket catalogs into README or HUMAN |
 
 ---
 

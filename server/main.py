@@ -109,7 +109,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Heartbeats + lightweight presence must never be rate-limited
             msg_type = data.get("type")
-            _exempt = ("ping", "pong", "sync", "who", "look", "examine")
+            _exempt = (
+                "ping",
+                "pong",
+                "sync",
+                "who",
+                "look",
+                "examine",
+                "status",
+                "me",
+                "find",
+                "search",
+                "help",
+                "commands",
+            )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
                     await _send(websocket, msg(ServerMessageType.ERROR, reason="rate_limit"))

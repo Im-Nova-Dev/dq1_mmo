@@ -196,24 +196,55 @@ def test_zone_chat_ws(tmp_path, monkeypatch):
                 await drain(wc)
 
                 # Leave town via south gap (y=3): (2,2)→(2,3)→…→(6,3) field
-                # y=2 has a wall at x=5; open path is row y=3
+                # y=2 has a wall at x=5; open path is row y=3. Field tiles can ambush.
                 path = [(2, 3), (3, 3), (4, 3), (5, 3), (6, 3)]
                 seq = 0
+
+                async def flee_out():
+                    for _ in range(12):
+                        await wc.send(json.dumps({"type": "flee"}))
+                        try:
+                            mf = await recv_until(
+                                wc, "combat_end", "combat_update", "error", timeout=1.0
+                            )
+                            if mf.get("type") == "combat_end" or mf.get("outcome") == "fled":
+                                return
+                        except TimeoutError:
+                            pass
+                    await drain(wc, 0.2)
+
                 for x, y in path:
                     seq += 1
                     await asyncio.sleep(0.15)
                     await wc.send(json.dumps({"type": "move", "x": x, "y": y, "seq": seq}))
-                    mok = await recv_until(wc, "move_ok", "error")
-                    assert mok.get("type") == "move_ok", mok
-                    # may land in combat; resolve flee if needed
-                    if mok.get("ok") is False and mok.get("reason") == "in combat":
-                        await wc.send(json.dumps({"type": "flee"}))
-                        await recv_until(wc, "combat_end", "combat_update", "error")
+                    mok = await recv_until(wc, "move_ok", "error", "combat_start")
+                    if mok.get("type") == "combat_start":
+                        await flee_out()
+                        seq += 1
                         await asyncio.sleep(0.15)
                         await wc.send(
-                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq + 100})
+                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
                         )
-                        mok = await recv_until(wc, "move_ok", "error")
+                        mok = await recv_until(wc, "move_ok", "error", "combat_start")
+                    # ERROR "in combat" can arrive before move_ok when still fighting
+                    if mok.get("type") == "error" and mok.get("reason") == "in combat":
+                        await flee_out()
+                        seq += 1
+                        await asyncio.sleep(0.15)
+                        await wc.send(
+                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                        )
+                        mok = await recv_until(wc, "move_ok", "error", "combat_start")
+                    if mok.get("type") == "move_ok" and mok.get("ok") is False:
+                        if mok.get("reason") == "in combat":
+                            await flee_out()
+                            seq += 1
+                            await asyncio.sleep(0.15)
+                            await wc.send(
+                                json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                            )
+                            mok = await recv_until(wc, "move_ok", "error", "combat_start")
+                    assert mok.get("type") == "move_ok", mok
                     assert mok.get("ok") is True, mok
                     assert mok.get("x") == x and mok.get("y") == y, mok
 

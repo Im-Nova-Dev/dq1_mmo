@@ -474,34 +474,74 @@ class ConnectionManager:
         Returns messages that should be delivered to the moving player
         (joins/leaves for peers entering/leaving their view).
         Peers are notified directly.
+
+        Meta mutation runs under the per-loop lock so concurrent movers
+        cannot corrupt visible sets; network sends happen after release
+        (send→disconnect also needs the lock).
         """
-        me = self._meta.get(character_id)
-        if me is None:
-            return []
-
-        old_visible: set[int] = set(me.get("visible") or set())
-        me["x"] = float(x)
-        me["y"] = float(y)
-        me["dirty"] = True
-        if seq is not None:
-            me["last_move_seq"] = int(seq)
-
-        new_visible = set(self.ids_nearby(character_id))
-        entered = new_visible - old_visible
-        left = old_visible - new_visible
-        stayed = old_visible & new_visible
-        me["visible"] = new_visible
-
-        me_pub = _public_meta(me)
+        join_peer: list[tuple[int, dict[str, Any]]] = []
+        leave_peer: list[tuple[int, str | None]] = []
+        stay_ids: list[int] = []
+        me_pub: dict[str, Any] | None = None
         to_self: list[dict[str, Any]] = []
 
-        # Peers who newly see us / we newly see
-        for oid in entered:
-            other = self._meta.get(oid)
-            if not other:
-                continue
-            other.setdefault("visible", set()).add(character_id)
-            # tell them we appeared
+        async with self._lock():
+            me = self._meta.get(character_id)
+            if me is None:
+                return []
+
+            old_visible: set[int] = set(me.get("visible") or set())
+            me["x"] = float(x)
+            me["y"] = float(y)
+            me["dirty"] = True
+            if seq is not None:
+                me["last_move_seq"] = int(seq)
+
+            new_visible = set(self.ids_nearby(character_id))
+            entered = new_visible - old_visible
+            left = old_visible - new_visible
+            stayed = old_visible & new_visible
+            me["visible"] = new_visible
+            me_pub = _public_meta(me)
+
+            for oid in entered:
+                other = self._meta.get(oid)
+                if not other:
+                    continue
+                other.setdefault("visible", set()).add(character_id)
+                other_pub = _public_meta(other)
+                join_peer.append((oid, other_pub))
+                to_self.append(
+                    {
+                        "type": "player_joined",
+                        "player_id": other_pub["id"],
+                        "name": other_pub["name"],
+                        "x": other_pub["x"],
+                        "y": other_pub["y"],
+                        "level": other_pub["level"],
+                        "in_combat": other_pub["in_combat"],
+                    }
+                )
+
+            for oid in left:
+                other = self._meta.get(oid)
+                name = (other or {}).get("name")
+                if other is not None:
+                    other.setdefault("visible", set()).discard(character_id)
+                leave_peer.append((oid, name if isinstance(name, str) else None))
+                to_self.append(
+                    {
+                        "type": "player_left",
+                        "player_id": oid,
+                        "name": name,
+                        "reason": "out_of_range",
+                    }
+                )
+
+            stay_ids = list(stayed)
+
+        assert me_pub is not None
+        for oid, _other_pub in join_peer:
             await self.send(
                 oid,
                 {
@@ -514,44 +554,18 @@ class ConnectionManager:
                     "in_combat": me_pub["in_combat"],
                 },
             )
-            # tell us they appeared
-            other_pub = _public_meta(other)
-            to_self.append(
-                {
-                    "type": "player_joined",
-                    "player_id": other_pub["id"],
-                    "name": other_pub["name"],
-                    "x": other_pub["x"],
-                    "y": other_pub["y"],
-                    "level": other_pub["level"],
-                    "in_combat": other_pub["in_combat"],
-                }
-            )
 
-        # Peers who lost sight
-        for oid in left:
-            other = self._meta.get(oid)
-            if other is not None:
-                other.setdefault("visible", set()).discard(character_id)
-                await self.send(
-                    oid,
-                    {
-                        "type": "player_left",
-                        "player_id": character_id,
-                        "name": me_pub["name"],
-                        "reason": "out_of_range",
-                    },
-                )
-            to_self.append(
+        for oid, name in leave_peer:
+            await self.send(
+                oid,
                 {
                     "type": "player_left",
-                    "player_id": oid,
-                    "name": (other or {}).get("name"),
+                    "player_id": character_id,
+                    "name": me_pub["name"],
                     "reason": "out_of_range",
-                }
+                },
             )
 
-        # Still visible — movement update
         move_msg = {
             "type": "player_moved",
             "player_id": character_id,
@@ -562,18 +576,58 @@ class ConnectionManager:
             "level": me_pub["level"],
             "in_combat": me_pub["in_combat"],
         }
-        for oid in stayed:
+        for oid in stay_ids:
             await self.send(oid, move_msg)
 
         return to_self
+
+    def find_by_prefix(self, prefix: str, *, limit: int = 20) -> list[dict[str, Any]]:
+        """Case-insensitive name prefix search over online roster (no coordinates)."""
+        if not prefix or not isinstance(prefix, str):
+            return []
+        key = prefix.strip().lower()
+        if not key or len(key) > 24:
+            return []
+        try:
+            lim = int(limit)
+        except (TypeError, ValueError):
+            lim = 20
+        # 0 must not fall through as "default 20" (bool(0) is False)
+        if lim < 1:
+            lim = 1
+        if lim > 50:
+            lim = 50
+        hits: list[dict[str, Any]] = []
+        for cid, meta in self._meta.items():
+            if cid not in self._connections:
+                continue
+            name = str(meta.get("name") or "")
+            if name.lower().startswith(key):
+                hits.append(_online_card(meta))
+        hits.sort(key=lambda p: str(p.get("name") or "").lower())
+        return hits[:lim]
 
     async def publish_level(self, character_id: int, level: int) -> None:
         me = self._meta.get(character_id)
         if me is None:
             return
         me["level"] = int(level)
+        name = str(me.get("name") or "Hero")
         # Pulse roster so other clients see the new level without a who refresh
         await self.publish_status(character_id, pulse_online=True)
+        # Nearby system chat — multiplayer celebration without global spam
+        await self.broadcast_nearby(
+            character_id,
+            {
+                "type": "chat",
+                "player_id": character_id,
+                "name": "System",
+                "text": f"{name} reached level {int(level)}!",
+                "channel": "system",
+                "system": True,
+            },
+            include_self=True,
+        )
 
     def session_id(self, character_id: int) -> int | None:
         meta = self._meta.get(character_id)

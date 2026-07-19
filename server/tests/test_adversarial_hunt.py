@@ -476,3 +476,409 @@ def test_ws_sell_equipped_end_to_end(tmp_path, monkeypatch):
         asyncio.run(flow())
     finally:
         stop_server(server)
+
+
+def test_combat_start_refuses_overwrite():
+    """Ongoing battle must not be silently replaced (HP/enemy desync)."""
+    from game.combat_engine import combat_engine, reset_combat_engine
+    from game.data_loader import battle_spells_at
+
+    reset_combat_engine()
+    hero = {
+        "id": 1,
+        "name": "H",
+        "level": 1,
+        "max_hp": 40,
+        "current_hp": 10,
+        "max_mp": 10,
+        "current_mp": 10,
+        "strength": 5,
+        "agility": 5,
+        "experience": 0,
+        "gold": "10",
+        "equipment_weapon": None,
+        "equipment_armor": None,
+        "equipment_shield": None,
+        "known_spells": battle_spells_at(1),
+    }
+    b1 = combat_engine.start(1, hero, "slime", seed=1)
+    b1.hero["hp"] = 3
+    try:
+        combat_engine.start(1, hero, "red_slime", seed=2)
+        raise AssertionError("expected RuntimeError on overwrite")
+    except RuntimeError as exc:
+        assert "already in combat" in str(exc).lower()
+    still = combat_engine.get(1)
+    assert still is b1
+    assert still.enemy["id"] == "slime"
+    assert still.hero["hp"] == 3
+    b2 = combat_engine.start(1, hero, "red_slime", seed=3, replace=True)
+    assert b2.enemy["id"] == "red_slime"
+    combat_engine.end(1)
+
+
+def test_digit_string_move_seq(tmp_path, monkeypatch):
+    """seq sent as string \"2\" should coerce and work (loose clients)."""
+    db_path = tmp_path / "seqstr.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "seq@ex.com", "SeqU", "SeqHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+                await ws.send(
+                    json.dumps({"type": "move", "x": 3, "y": 2, "seq": "1"})
+                )
+                m = await recv_until(ws, "move_ok", "error")
+                assert m.get("type") == "move_ok", m
+                assert m.get("ok") is True, m
+                assert m.get("x") == 3 and m.get("y") == 2
+                await asyncio.sleep(0.15)
+                await ws.send(
+                    json.dumps({"type": "move", "x": 4, "y": 2, "seq": True})
+                )
+                m2 = await recv_until(ws, "move_ok", "error")
+                assert m2.get("ok") is False
+                assert m2.get("reason") == "invalid seq"
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
+def test_field_shop_and_inn_rejected(tmp_path, monkeypatch):
+    """Shop/buy/rest must fail outside town."""
+    db_path = tmp_path / "fieldshop.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    config.ALLOW_DEBUG = True
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "fs@ex.com", "FsU", "FsHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async def drain(ws, s=0.12):
+                end = time.monotonic() + s
+                while time.monotonic() < end:
+                    try:
+                        await asyncio.wait_for(ws.recv(), 0.05)
+                    except Exception:
+                        break
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+                path = [(2, 3), (3, 3), (4, 3), (5, 3), (6, 3)]
+                seq = 0
+                for x, y in path:
+                    seq += 1
+                    await asyncio.sleep(0.15)
+                    await ws.send(
+                        json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                    )
+                    m = await recv_until(ws, "move_ok", "error", "combat_start")
+                    if m.get("type") == "combat_start":
+                        for _ in range(12):
+                            await ws.send(json.dumps({"type": "flee"}))
+                            try:
+                                mf = await recv_until(
+                                    ws,
+                                    "combat_end",
+                                    "combat_update",
+                                    "error",
+                                    timeout=1,
+                                )
+                                if mf.get("type") == "combat_end" or mf.get(
+                                    "outcome"
+                                ) == "fled":
+                                    break
+                            except TimeoutError:
+                                pass
+                        await drain(ws)
+                        seq += 1
+                        await asyncio.sleep(0.15)
+                        await ws.send(
+                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                        )
+                        await recv_until(ws, "move_ok", "error", "combat_start")
+
+                await ws.send(json.dumps({"type": "sync"}))
+                snap = await recv_until(ws, "world_state")
+                assert snap.get("zone") == "field", snap
+
+                await ws.send(json.dumps({"type": "shop"}))
+                m = await recv_until(ws, "error", "shop_list")
+                assert m.get("type") == "error"
+                assert "town" in (m.get("reason") or "")
+
+                await ws.send(json.dumps({"type": "buy", "item": "herb"}))
+                m = await recv_until(ws, "error", "inventory_update")
+                assert m.get("type") == "error"
+
+                await ws.send(json.dumps({"type": "rest"}))
+                m = await recv_until(ws, "error", "rest_ok")
+                assert m.get("type") == "error"
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
+def test_ws_guards_oversized_and_no_combat_actions(tmp_path, monkeypatch):
+    """Oversized frames rejected; attack/flee without combat error cleanly."""
+    db_path = tmp_path / "guard.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "gd@ex.com", "GdU", "GdHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+
+                await ws.send("x" * 20000)
+                err = await recv_until(ws, "error")
+                assert err.get("reason") == "message too large"
+
+                await ws.send("{not-json")
+                err = await recv_until(ws, "error")
+                assert "json" in (err.get("reason") or "").lower()
+
+                await ws.send(json.dumps({"type": "attack"}))
+                err = await recv_until(ws, "error")
+                assert "combat" in (err.get("reason") or "").lower()
+
+                await ws.send(json.dumps({"type": "flee"}))
+                err = await recv_until(ws, "error")
+                assert "combat" in (err.get("reason") or "").lower()
+
+                await ws.send(json.dumps({"type": "sell"}))
+                err = await recv_until(ws, "error")
+                assert err.get("type") == "error"
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
+def test_defeat_gold_halved_on_persist():
+    """Defeat halves gold via _persist_battle_end (DQ1-ish)."""
+    import os
+
+    import aiosqlite
+
+    from database.db import close_db, init_db
+    from game.combat_engine import combat_engine, reset_combat_engine
+    from game.player_manager import get_character
+    from network.message_handler import _persist_battle_end
+
+    async def scenario():
+        path = Path(tempfile.mkdtemp()) / "def.db"
+        import config
+
+        os.environ["DATABASE_URL"] = str(path)
+        config.DATABASE_URL = str(path)
+        await close_db()
+        gen = await init_db()
+        try:
+            db = await aiosqlite.connect(path)
+            await db.execute(
+                "INSERT INTO users (email, password_hash, username) VALUES ('d@e.com','x','DU')"
+            )
+            await db.execute(
+                """
+                INSERT INTO characters
+                (user_id, name, max_hp, current_hp, max_mp, current_mp, gold, world_x, world_y, level)
+                VALUES (1, 'D', 40, 1, 10, 10, '100', 2, 2, 1)
+                """
+            )
+            await db.commit()
+            await db.close()
+            reset_combat_engine()
+            char = await get_character(1)
+            assert char is not None
+            hero = dict(char)
+            hero["known_spells"] = []
+            b = combat_engine.start(1, hero, "dragonlord", seed=1)
+            for _ in range(40):
+                if b.outcome != "ongoing":
+                    break
+                b.act({"type": "attack"})
+            assert b.outcome == "defeat", b.outcome
+            out = await _persist_battle_end(1, b)
+            assert str(out.get("gold")) == "50", out
+            assert int(out.get("current_hp") or 0) >= 1
+            assert int(out.get("world_x") or -1) == 2
+            assert int(out.get("world_y") or -1) == 2
+        finally:
+            await close_db(gen)
+
+    _run(scenario())
+
+
+def test_find_limit_zero_not_default_twenty():
+    """limit=0 must not expand to 20 via falsy `or` (adversarial regression)."""
+    from network.websocket_manager import ConnectionManager
+
+    mgr = ConnectionManager()
+
+    class WS:
+        async def send_text(self, t):
+            pass
+
+        async def close(self, *a, **k):
+            pass
+
+    async def scenario():
+        for i in range(5):
+            await mgr.connect(i + 1, WS(), name=f"Px{i}", x=2, y=2, map_id=1)
+        hits0 = mgr.find_by_prefix("Px", limit=0)
+        assert len(hits0) == 1, hits0  # clamped to min 1
+        hits_neg = mgr.find_by_prefix("Px", limit=-3)
+        assert len(hits_neg) == 1
+        hits_big = mgr.find_by_prefix("Px", limit=999)
+        assert len(hits_big) == 5
+
+    asyncio.run(scenario())
+
+
+def test_reserved_chat_channel_rejected(tmp_path, monkeypatch):
+    """Clients cannot post on system/admin channels (spoof prevention)."""
+    db_path = tmp_path / "rsv.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "rsv@ex.com", "RsvU", "RsvHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+                for ch_name in ("system", "SYSTEM", "admin", "server"):
+                    await asyncio.sleep(0.8)
+                    await ws.send(
+                        json.dumps(
+                            {
+                                "type": "chat",
+                                "channel": ch_name,
+                                "text": "spoof attempt",
+                            }
+                        )
+                    )
+                    m = await recv_until(ws, "error", "chat")
+                    assert m.get("type") == "error", m
+                    assert "reserved" in (m.get("reason") or "").lower()
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
+def test_reserved_character_names_blocked():
+    from pydantic import ValidationError
+
+    from models.player import CharacterCreate
+
+    for bad in ("System", "SYSTEM", "admin", "GM", "console"):
+        try:
+            CharacterCreate(name=bad)
+            raise AssertionError(f"expected reject for {bad}")
+        except ValidationError:
+            pass
+    ok = CharacterCreate(name="HeroBob")
+    assert ok.name == "HeroBob"

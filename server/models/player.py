@@ -67,6 +67,10 @@ class CharacterCreate(BaseModel):
             raise ValueError("Name may only use letters, numbers, spaces, _ and -")
         if v.strip() != v or "  " in v:
             raise ValueError("Invalid name spacing")
+        # Block spoofing system / staff chat identity
+        reserved = {"system", "admin", "server", "gm", "moderator", "console"}
+        if v.casefold() in reserved:
+            raise ValueError("That name is reserved")
         return v
 
 

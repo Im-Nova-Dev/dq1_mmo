@@ -651,6 +651,9 @@ function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
       elseif line.channel == "zone" then
         tag = "[zone] "
         UI.color("gold")
+      elseif line.channel == "system" or line.system then
+        tag = "[*] "
+        UI.color("gold_bright")
       elseif line.kind == "emote" then
         tag = "* "
         UI.color("gold")

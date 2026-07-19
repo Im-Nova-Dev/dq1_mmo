@@ -12,11 +12,13 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone)/emotes/whisper/look, who + online roster + session_id | Multi-map worlds |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/look/find/status, who + roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell (incl. equipped), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · reconnect soft grace | Binary protocol |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · reconnect soft grace · locked AOI moves | Binary protocol |
 
-**Version:** `0.5.19` (`server/config.py` → `VERSION`) · **103** tests in `server/tests/run_tests.py`
+**Version:** `0.5.24` (`server/config.py` → `VERSION`) · **121** tests in `server/tests/run_tests.py`  
+**Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
+When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.
 
 ## Documentation map (do not mix)
 
@@ -83,6 +85,8 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `client/client/assets.lua` | PNG loader (`client/assets/…`); missing → procedural fallback |
 | `client/client/renderer.lua` | Overworld tiles + actors |
 | `client/assets/` | `tiles/`, `sprites/heroes/`, `sprites/enemies/`, `svg/`, `ATTRIBUTION.md` |
+| `tools/import_open_assets.py` | Kenney CC0 import + SVG enemy placeholders |
+| `tools/gen_placeholder_assets.sh` | Thin wrapper around import / scale path |
 | `client/client/network.lua` | WS client, reconnect, `Network.chat` |
 | `client/client/world.lua` | Prediction queue, remote players |
 | `client/states/login.lua` | Auth UI |
@@ -116,7 +120,10 @@ All messages are JSON objects with a `type` string.
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `who` | — | Nearby players + `online` count (lightweight; no full map) |
 | `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
-| `ping` | `t`, optional `sync` | Heartbeat / presence refresh |
+| `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
+| `find` / `search` | `q`/`query`/`name`, optional `limit` | Online roster prefix search (no coords). Rate-exempt. |
+| `help` / `commands` | — | Command list + version. Rate-exempt. |
+| `ping` | `t`, optional `sync` | Heartbeat; pong echoes `t` + `server_t` + `online` |
 | `sync` | — | Full nearby snapshot; **rebuilds AOI** server-side |
 | `debug_encounter` | `enemy`, optional `seed` | Only if `ALLOW_DEBUG` |
 
@@ -129,7 +136,11 @@ All messages are JSON objects with a `type` string.
 | `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `duplicate`/`reason` |
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
 | `player_update` | `level`, `in_combat`, position |
-| `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby` \| `zone` \| `whisper`); zone may include `zone`; whisper has `to` / `to_id` |
+| `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby` \| `zone` \| `whisper` \| `system`); system level-up nearby; whisper has `to` / `to_id` |
+| `find` | `query`, `players` (roster cards), `count`, `online` |
+| `help` | `commands[]`, `channels`, `version`, `online` |
+| `combat_end` | `result`, `xp`, `gold`; on defeat also `gold_lost`, `respawn` |
+| `pong` | `t` (echo), `server_t`, `online` |
 | `combat_start` / `combat_resume` / `combat_update` / `combat_end` | Battles |
 | `level_up` | After victory |
 | `inventory_update` / `shop_list` | Economy |
@@ -139,6 +150,8 @@ All messages are JSON objects with a `type` string.
 | `emote` | Nearby emote broadcast |
 | `who` | `players`, `online`, `roster`, `you` (incl. `repel`, `radiant`, `zone`) |
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
+| `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
+| `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
 | `online` | Global pulse: `online` count + `roster` (no positions); debounced ~150ms with delayed flush |
 | `error` | `reason` (+ sometimes `x`/`y`/`seq`/`retry_after`) |
 | `pong` | Echo `t` for RTT |
@@ -165,6 +178,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 16. REST: `DELETE /auth/characters/{id}` (owner only, 204). Character payloads may include `xp_progress`.
 17. **Nearby chat/emotes** use geometric AOI **union** cached `visible` — never only a stale non-empty visible set.
 18. **`sync` rebuilds AOI** (`rebuild_aoi`) so desync/reconnect storms re-link peers; `world_state` may include `zone`.
+19. **`combat_engine.start` refuses to clobber** an ongoing battle (raises unless `replace=True`); encounter paths check `is_in_combat` first.
+20. Move `seq`: bool rejected; digit **strings** coerced (`"2"` → 2); optional seq still allowed.
+21. **`publish_move` mutates AOI under the per-loop lock**; network sends after unlock (avoid deadlock with `send`→`disconnect`).
+22. Level-up → nearby **system** chat + roster pulse; `find` never returns coordinates.
 
 ## Tests (mandatory for your changes)
 
@@ -188,11 +205,13 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_teleport` | RETURN spell AOI + who under move spam |
 | `tests.test_online_roster` | Online pulse on join/leave + roster (no coords) |
 | `tests.test_mp_expand` | Whisper, repel soft-reconnect, socket replace, combat roster pulse |
-| `tests.test_adversarial_hunt` | Neg seq, delete kicks session, sell equipped, herb full HP, combat guards |
+| `tests.test_adversarial_hunt` | Neg seq, delete kicks, sell equipped, combat start no-overwrite, string seq, field shop, defeat gold |
 | `tests.test_features_v0513` | Radiant light, char delete, XP progress |
 | `tests.test_mp_look` | Look/examine, online debounce, 4-player stress, field spell in combat |
 | `tests.test_mp_session` | session_id, level roster pulse, reconnect presence |
 | `tests.test_mp_zone` | Zone chat, whisper-by-id, AOI rebuild, geometry-safe nearby |
+| `tests.test_features_v0521` | status/me, legal_actions mp_cost, combat hero status |
+| `tests.test_mp_find` | find prefix, level-up system chat, locked publish_move AOI |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

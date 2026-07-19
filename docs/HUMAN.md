@@ -9,7 +9,7 @@ For **people**: players, operators, and human contributors.
 | Swap sprites | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **agents only** |
 
-**Version:** 0.5.19 · docs refreshed 2026-07-19
+**Version:** 0.5.24 · docs refreshed 2026-07-19
 
 ---
 
@@ -21,8 +21,8 @@ A multiplayer **Dragon Quest I–style** game:
 - Shared **town / field / dungeon** on one map
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
-- Chat: **global**, **nearby**, **zone**, and **whisper**
-- Emotes, **look** at other players, live **online roster**, status sheet (EXP to next)
+- Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups nearby)
+- Emotes, **look**, **`/find`**, live **online roster**, status sheet (**F** / `/status`)
 - Shop, gear (sell equipped OK), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
 
@@ -57,7 +57,7 @@ Your current zone shows as a **ZONE** badge on the HUD.
 
 Menu: **Attack** · **Flee** · **Spells** · **Herb (H)**.
 
-- Defeat → respawn in town, lose half your gold, partial HP
+- Defeat → respawn in town, **lose half your gold** (shown as gold lost), partial HP
 - Disconnect mid-fight: about **60 seconds** to reconnect and resume
 
 ---
@@ -113,7 +113,11 @@ You can **sell equipped** gear (the slot clears automatically).
 | **/w Name message** | Whisper (private); also `/tell` |
 | **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
-| **F** | Status sheet (stats, gear, EXP to next, spells) |
+| **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
+| **/status** or **/me** | Same status sheet via chat |
+| **/find Name** | Search who’s online by name prefix (no positions) |
+| **/help** or **?** | Server list of commands / keys |
+| **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list |
 | **L** | Look at a nearby (or roster) adventurer |
 | **C** | Toggle chat panel |
@@ -130,8 +134,10 @@ Chat tags in the log:
 | `[near]` | Nearby (in view range) |
 | `[zone]` | Same zone type |
 | `[w]` | Whisper |
+| `[*]` | System (e.g. nearby level-up) |
 
-Only **online** characters can be whispered (by name).
+Only **online** characters can be whispered (by name in the client: `/w Name message`).  
+**`/find`** never reveals map positions — only names, levels, and combat flag.
 
 ---
 
@@ -140,7 +146,7 @@ Only **online** characters can be whispered (by name).
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · E · F · L · R · H/M · K · O · ? · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /find · /status · E · F · L · R · H/M · K · O · ? · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · U unequip · Tab shop |
 
@@ -180,16 +186,21 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 103 passed
+# expect: 121 passed
 ```
 
 ---
 
 ## Humans vs agents
 
-| Audience | Docs |
-|:---------|:-----|
-| **You (human)** | This file + [README](../README.md) |
-| **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) for protocol, hot paths, tests, reliability |
+| Audience | Docs | What belongs here |
+|:---------|:-----|:------------------|
+| **You (human)** | This file + [README](../README.md) | Install, controls, gameplay, hosting |
+| **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) **only** | WebSocket protocol, reliability rules, test matrix |
 
-Do **not** put long WebSocket protocol tables in human docs — they live only in `AGENTS.md`.
+| Do | Don’t |
+|:---|:------|
+| Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
+| Keep slash-commands accurate (`/w` `/z` `/find` `/status`) | Document unfinished features as shipped |
+
+Index & rules → [docs/README.md](README.md)

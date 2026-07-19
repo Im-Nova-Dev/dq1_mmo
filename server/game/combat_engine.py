@@ -141,14 +141,25 @@ class Battle:
     def legal_actions(self) -> list[dict]:
         if self.phase != "awaiting_hero" or self.outcome != "ongoing":
             return []
-        acts: list[dict] = [{"type": "attack"}, {"type": "flee"}]
+        acts: list[dict] = [
+            {"type": "attack", "name": "Attack"},
+            {"type": "flee", "name": "Flee"},
+        ]
         if not self.hero["status"]["stopspell"]:
             for sid in self.hero["known_spells"]:
                 sp = get_spell(sid)
                 if not sp or not sp.get("battle"):
                     continue
-                if self.hero["mp"] >= int(sp.get("mp_cost", 0)):
-                    acts.append({"type": "spell", "id": sid})
+                cost = int(sp.get("mp_cost", 0))
+                if self.hero["mp"] >= cost:
+                    acts.append(
+                        {
+                            "type": "spell",
+                            "id": sid,
+                            "name": sp.get("name") or str(sid).upper(),
+                            "mp_cost": cost,
+                        }
+                    )
         return acts
 
     def act(self, action: dict) -> dict:
@@ -643,7 +654,19 @@ class CombatEngine:
     def get(self, character_id: int) -> Battle | None:
         return self.active.get(character_id)
 
-    def start(self, character_id: int, hero: dict, enemy_id: str, seed: int | None = None) -> Battle:
+    def start(
+        self,
+        character_id: int,
+        hero: dict,
+        enemy_id: str,
+        seed: int | None = None,
+        *,
+        replace: bool = False,
+    ) -> Battle:
+        """Begin a battle. Refuses to clobber an ongoing fight unless replace=True."""
+        existing = self.active.get(character_id)
+        if existing is not None and existing.outcome == "ongoing" and not replace:
+            raise RuntimeError(f"character {character_id} already in combat")
         self.grace_until.pop(character_id, None)
         battle = Battle(hero, enemy_id, seed=seed)
         self.active[character_id] = battle

@@ -110,6 +110,7 @@ def _combat_update(battle, events: list | None = None) -> dict:
         player_mp=snap["hero"]["mp"],
         player_max_hp=snap["hero"]["max_hp"],
         player_max_mp=snap["hero"]["max_mp"],
+        hero=snap["hero"],  # includes status (sleep / stopspell)
         enemy=snap["enemy"],
         events=events or [],
         legal_actions=snap["legal_actions"],
@@ -121,9 +122,11 @@ def _combat_update(battle, events: list | None = None) -> dict:
 
 async def _persist_battle_end(character_id: int, battle) -> dict:
     patch = battle.character_patch()
+    gold_lost = 0
     if battle.outcome == "defeat":
         # DQ1-ish: wake at town, keep XP, lose half gold
         gold = int(str(patch.get("gold", "0")))
+        gold_lost = gold - (gold // 2)
         gold = gold // 2
         patch["gold"] = str(gold)
         patch["current_hp"] = max(1, int(patch.get("max_hp", 15)) // 2)
@@ -135,6 +138,8 @@ async def _persist_battle_end(character_id: int, battle) -> dict:
         return {}
     char["known_spells"] = battle_spells_at(int(char["level"]))
     char["bonuses"] = equipment_bonuses(char)
+    if gold_lost:
+        char["gold_lost"] = gold_lost
     return char
 
 
@@ -150,9 +155,18 @@ async def handle_message(
     if msg_type == ClientMessageType.PING:
         if character_id is not None:
             manager.touch(character_id)
-        # Echo client timestamp for RTT; optional presence bundle
+        # Echo client timestamp for RTT; include server monotonic for diagnostics
+        import time as _time
+
         client_t = data.get("t")
-        outbound.append(msg(ServerMessageType.PONG, t=client_t))
+        outbound.append(
+            msg(
+                ServerMessageType.PONG,
+                t=client_t,
+                server_t=_time.time(),
+                online=len(manager.online_ids()),
+            )
+        )
         if data.get("sync") or data.get("presence"):
             if character_id is not None:
                 nearby = manager.nearby_players(character_id)
@@ -262,6 +276,119 @@ async def handle_message(
             card["y"] = tmeta.get("y")
             card["map_id"] = tmeta.get("map_id")
         outbound.append(msg(ServerMessageType.LOOK, player=card))
+        return character_id, user_id, outbound, None
+
+    # --- Self status (lightweight sheet; no inventory dump) ---
+    if msg_type in (ClientMessageType.STATUS, ClientMessageType.ME, "status", "me"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        char = await get_character(character_id)
+        meta = manager.get_meta(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        x = int(meta["x"]) if meta else int(char.get("world_x") or SPAWN_X)
+        y = int(meta["y"]) if meta else int(char.get("world_y") or SPAWN_Y)
+        try:
+            z = zone_at(x, y)
+        except Exception:
+            z = None
+        from game.progression import xp_to_next_level
+
+        xp_prog = xp_to_next_level(
+            int(char.get("experience") or 0),
+            int(char.get("level") or 1),
+        )
+        outbound.append(
+            msg(
+                ServerMessageType.STATUS,
+                character={
+                    "id": character_id,
+                    "name": char.get("name"),
+                    "level": char.get("level"),
+                    "current_hp": char.get("current_hp"),
+                    "max_hp": char.get("max_hp"),
+                    "current_mp": char.get("current_mp"),
+                    "max_mp": char.get("max_mp"),
+                    "gold": char.get("gold"),
+                    "strength": char.get("strength"),
+                    "agility": char.get("agility"),
+                    "experience": char.get("experience"),
+                    "xp_progress": xp_prog,
+                    "equipment_weapon": char.get("equipment_weapon"),
+                    "equipment_armor": char.get("equipment_armor"),
+                    "equipment_shield": char.get("equipment_shield"),
+                    "known_spells": battle_spells_at(int(char.get("level") or 1)),
+                    "field_spells": field_spells_at(int(char.get("level") or 1)),
+                },
+                you={
+                    "x": x,
+                    "y": y,
+                    "zone": z,
+                    "in_combat": combat_engine.is_in_combat(character_id),
+                    "repel": manager.repel_remaining(character_id),
+                    "radiant": manager.radiant_remaining(character_id),
+                },
+                online=len(manager.online_ids()),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Help (slash/key command list for clients) ---
+    if msg_type in (ClientMessageType.HELP, "help", "commands"):
+        if character_id is not None:
+            manager.touch(character_id)
+        outbound.append(
+            msg(
+                ServerMessageType.HELP,
+                commands=[
+                    {"cmd": "move", "hint": "WASD / arrow keys"},
+                    {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
+                    {"cmd": "whisper", "hint": "/w Name message"},
+                    {"cmd": "find", "hint": "/find Name — online prefix search"},
+                    {"cmd": "status", "hint": "F or /status — self sheet"},
+                    {"cmd": "look", "hint": "L — examine a player"},
+                    {"cmd": "who", "hint": "O — online + nearby"},
+                    {"cmd": "emote", "hint": "E — cycle emotes"},
+                    {"cmd": "rest", "hint": "R — inn (town only)"},
+                    {"cmd": "inventory", "hint": "I — bag / shop"},
+                    {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
+                    {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
+                ],
+                channels=["global", "nearby", "zone", "whisper"],
+                version=__import__("config", fromlist=["VERSION"]).VERSION,
+                online=len(manager.online_ids()),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Find online players by name prefix (no coordinates) ---
+    if msg_type in (ClientMessageType.FIND, "find", "search"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        q = data.get("q") or data.get("query") or data.get("name") or data.get("prefix") or ""
+        if not isinstance(q, str) or not q.strip():
+            outbound.append(msg(ServerMessageType.ERROR, reason="find query required"))
+            return character_id, user_id, outbound, None
+        limit = data.get("limit") or 20
+        try:
+            limit_i = int(limit)
+        except (TypeError, ValueError):
+            limit_i = 20
+        hits = manager.find_by_prefix(q, limit=limit_i)
+        outbound.append(
+            msg(
+                ServerMessageType.FIND,
+                query=q.strip()[:24],
+                players=hits,
+                online=len(manager.online_ids()),
+                count=len(hits),
+            )
+        )
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.AUTH:
@@ -597,16 +724,17 @@ async def handle_message(
             if char.get("level"):
                 manager.set_level(character_id, int(char["level"]))
             await manager.publish_status(character_id, pulse_online=True)
-            outbound.append(
-                msg(
-                    ServerMessageType.COMBAT_END,
-                    result=battle.outcome,
-                    xp=(battle.rewards or {}).get("xp", 0),
-                    gold=(battle.rewards or {}).get("gold", 0),
-                    character=char,
-                    events=events,
-                )
-            )
+            end_payload = {
+                "result": battle.outcome,
+                "xp": (battle.rewards or {}).get("xp", 0),
+                "gold": (battle.rewards or {}).get("gold", 0),
+                "character": char,
+                "events": events,
+            }
+            if battle.outcome == "defeat":
+                end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
+                end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
+            outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
             if battle.outcome == "defeat":
                 # Respawn in town with AOI refresh
                 aoi_msgs = await manager.publish_move(
@@ -627,15 +755,31 @@ async def handle_message(
 
     # --- Movement (server-authoritative, ack'd, rate-limited, DB-deferred) ---
     if msg_type == ClientMessageType.MOVE:
-        seq = data.get("seq")
-        if isinstance(seq, float):
-            seq = int(seq)
-        if not isinstance(seq, int):
+        raw_seq = data.get("seq")
+        seq: int | None
+        # bool is a subclass of int — reject before numeric coercion
+        if isinstance(raw_seq, bool):
             seq = None
+            _bad_seq = True
+        elif isinstance(raw_seq, int):
+            seq = raw_seq
+            _bad_seq = False
+        elif isinstance(raw_seq, float):
+            seq = int(raw_seq)
+            _bad_seq = False
+        elif isinstance(raw_seq, str) and raw_seq.strip().lstrip("-").isdigit():
+            # Loose clients may send "2" — coerce digit strings
+            seq = int(raw_seq.strip())
+            _bad_seq = False
+        elif raw_seq is None:
+            seq = None
+            _bad_seq = False  # seq optional
+        else:
+            seq = None
+            _bad_seq = True
         # Reject non-positive seq (client always starts at 1; negatives used to
         # trip the duplicate path because last_move_seq defaults to 0).
-        if seq is not None and (isinstance(seq, bool) or seq < 1):
-            # bool is a subclass of int in Python — reject True/False too
+        if _bad_seq or (seq is not None and seq < 1):
             meta = manager.get_meta(character_id)
             mx = int(meta["x"]) if meta else 0
             my = int(meta["y"]) if meta else 0
@@ -645,7 +789,7 @@ async def handle_message(
                     ok=False,
                     x=mx,
                     y=my,
-                    seq=seq if not isinstance(seq, bool) else None,
+                    seq=seq if isinstance(seq, int) and not isinstance(raw_seq, bool) else None,
                     reason="invalid seq",
                 )
             )
@@ -746,9 +890,13 @@ async def handle_message(
             manager.mark_clean(character_id)
 
             char = await get_character(character_id)
-            if char:
+            if char and not combat_engine.is_in_combat(character_id):
                 char["known_spells"] = battle_spells_at(int(char["level"]))
-                battle = combat_engine.start(character_id, char, enemy_id)
+                try:
+                    battle = combat_engine.start(character_id, char, enemy_id)
+                except RuntimeError:
+                    # Concurrent start race — leave player out of a forced fight
+                    return character_id, user_id, outbound, None
                 manager.set_in_combat(character_id, True)
                 await manager.publish_status(character_id, pulse_online=True)
                 start_events = battle._take_batch()
@@ -837,7 +985,13 @@ async def handle_message(
         meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
         # Explicit channel wins; `say` defaults nearby, `chat` defaults global
-        channel = (data.get("channel") or "").lower()
+        channel = (data.get("channel") or "").lower().strip()
+        # Reserved for server-originated traffic only (level-up fanfare, etc.)
+        if channel in ("system", "admin", "server", "gm"):
+            outbound.append(
+                msg(ServerMessageType.ERROR, reason="reserved channel")
+            )
+            return character_id, user_id, outbound, None
         if channel not in ("global", "nearby", "local", "whisper", "zone", "area"):
             if msg_type in (ClientMessageType.SAY, "say"):
                 channel = "nearby"
@@ -1040,16 +1194,17 @@ async def handle_message(
                 combat_engine.end(character_id)
                 manager.set_in_combat(character_id, False)
                 await manager.publish_status(character_id, pulse_online=True)
-                outbound.append(
-                    msg(
-                        ServerMessageType.COMBAT_END,
-                        result=battle.outcome,
-                        xp=(battle.rewards or {}).get("xp", 0),
-                        gold=(battle.rewards or {}).get("gold", 0),
-                        character=char,
-                        events=events,
-                    )
-                )
+                end_payload = {
+                    "result": battle.outcome,
+                    "xp": (battle.rewards or {}).get("xp", 0),
+                    "gold": (battle.rewards or {}).get("gold", 0),
+                    "character": char,
+                    "events": events,
+                }
+                if battle.outcome == "defeat":
+                    end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
+                    end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
+                outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
                 if battle.outcome == "defeat":
                     aoi_msgs = await manager.publish_move(
                         character_id, SPAWN_X, SPAWN_Y, seq=None
@@ -1134,7 +1289,8 @@ async def handle_message(
 
     if msg_type == ClientMessageType.SHOP:
         meta = manager.get_meta(character_id)
-        if meta and zone_at(int(meta["x"]), int(meta["y"])) != "town":
+        # Require live presence + town (was: missing meta skipped the town check)
+        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
@@ -1237,7 +1393,11 @@ async def handle_message(
         seed = data.get("seed")
         if seed is not None and not isinstance(seed, int):
             seed = None
-        battle = combat_engine.start(character_id, char, str(enemy_id), seed=seed)
+        try:
+            battle = combat_engine.start(character_id, char, str(enemy_id), seed=seed)
+        except RuntimeError:
+            outbound.append(msg(ServerMessageType.ERROR, reason="already in combat"))
+            return character_id, user_id, outbound, None
         manager.set_in_combat(character_id, True)
         await manager.publish_status(character_id, pulse_online=True)
         start_events = battle._take_batch()

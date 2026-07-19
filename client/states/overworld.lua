@@ -168,6 +168,59 @@ local function bind_handlers(self)
     end
   end)
 
+  Network.on("status", function(data)
+    if data.character then
+      Session.character = Session.character or {}
+      for k, v in pairs(data.character) do
+        Session.character[k] = v
+      end
+    end
+    if data.you then
+      if data.you.repel ~= nil then
+        self.repel = tonumber(data.you.repel) or 0
+      end
+      if data.you.radiant ~= nil then
+        self.radiant = tonumber(data.you.radiant) or 0
+      end
+      if data.you.zone then
+        self.zone = data.you.zone
+      end
+    end
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    self.show_stats = true
+  end)
+
+  Network.on("find", function(data)
+    local players = data.players or {}
+    local n = #players
+    if n == 0 then
+      UI.toast("No online match for " .. tostring(data.query or "?"), "info")
+      return
+    end
+    local names = {}
+    for i = 1, math.min(n, 6) do
+      local p = players[i]
+      names[#names + 1] = string.format("%s Lv%d", tostring(p.name or "?"), tonumber(p.level) or 1)
+    end
+    local more = n > 6 and (" +" .. tostring(n - 6)) or ""
+    UI.toast(string.format("Find (%d): %s%s", n, table.concat(names, ", "), more), "info")
+  end)
+
+  Network.on("help", function(data)
+    local cmds = data.commands or {}
+    local bits = {}
+    for i = 1, math.min(#cmds, 8) do
+      local c = cmds[i]
+      bits[#bits + 1] = tostring(c.hint or c.cmd or "?")
+    end
+    UI.toast(table.concat(bits, " · "), "info")
+    if data.version then
+      self.net_info = "v" .. tostring(data.version)
+    end
+  end)
+
   Network.on("move_ok", function(data)
     World.apply_move_ok(data)
     if World.local_player then
@@ -659,10 +712,19 @@ function Overworld:keypressed(key)
         if not zmsg then
           zmsg = text:match("^[/%!]zone%s+(.+)$")
         end
+        local wants_status = text:match("^[/%!]status%s*$") or text:match("^[/%!]me%s*$")
+        local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
+        local wants_help = text:match("^[/%!]help%s*$") or text:match("^[/%!]commands%s*$")
         if wname and wmsg then
           Network.whisper(wname, wmsg)
         elseif zmsg and zmsg ~= "" then
           Network.chat(zmsg, "zone")
+        elseif wants_status then
+          Network.status()
+        elseif find_q and find_q ~= "" then
+          Network.find(find_q)
+        elseif wants_help then
+          Network.send({ type = "help" })
         elseif self.chat_channel == "nearby" then
           Network.say(text)
         else
@@ -700,8 +762,11 @@ function Overworld:keypressed(key)
     Network.emote(em)
     UI.toast("Emote: " .. em, "info")
   elseif key == "f" and not self.locked then
-    self.show_stats = not self.show_stats
     if self.show_stats then
+      self.show_stats = false
+    else
+      -- Refresh from server (hp/mp/gold/spells/zone/buffs)
+      Network.status()
       UI.toast("Status (F to close)", "info")
     end
   elseif key == "r" and not self.locked then
@@ -822,11 +887,13 @@ function Overworld:keypressed(key)
     UI.toast(msg, "info")
   elseif key == "c" and not self.locked then
     self.show_chat = not self.show_chat
-  elseif (key == "/" or key == "?") and not self.locked then
-    UI.toast(
-      "WASD · T/Y chat · /w whisper · /z zone · E emote · F stats · L look · R inn · H/M · O who · I inv",
-      "info"
-    )
+  elseif key == "?" and not self.locked then
+    Network.send({ type = "help" })
+  elseif key == "/" and not self.locked then
+    self.chat_channel = "global"
+    self.chat_open = true
+    self.chat_draft = "/"
+    self.show_chat = true
   end
 end
 

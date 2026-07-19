@@ -10,8 +10,8 @@
 | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG names & licenses |
 | [../plan.md](../plan.md) | Historical only | Original roadmap — **not** live source of truth |
 
-**Last docs refresh:** **v0.5.19** (2026-07-19)  
-Zone chat (`/z`) · AOI rebuild on sync · whisper by id · Kenney + SVG art · **103** tests · protocol only in AGENTS.md.
+**Last docs refresh:** **v0.5.24** (2026-07-19)  
+Help command · defeat gold_lost · pong server_t · **121** tests · protocol only in AGENTS.md.
 
 ---
 
@@ -24,7 +24,7 @@ Zone chat (`/z`) · AOI rebuild on sync · whisper by id · Kenney + SVG art · 
 | Treat `plan.md` as history | Treat `plan.md` as the current backlog |
 | Bump `VERSION` in `server/config.py` with user-visible changes | Leave README / HUMAN version badges out of date |
 | Link across audiences (README → HUMAN / AGENTS) | Mix long agent protocol into human prose |
-| Keep chat slash-commands (`/w`, `/z`) accurate in HUMAN | Claim client features that only exist on the server |
+| Keep slash-commands (`/w`, `/z`, `/find`, `/status`) accurate in HUMAN | Claim client features that only exist on the server |
 
 ### Quick map
 

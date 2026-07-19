@@ -272,6 +272,14 @@ function Network.look(name_or_id)
   return Network.send({ type = "look", name = tostring(name_or_id or "") })
 end
 
+function Network.status()
+  return Network.send({ type = "status" })
+end
+
+function Network.find(query)
+  return Network.send({ type = "find", q = tostring(query or "") })
+end
+
 function Network.ping(with_presence)
   local payload = { type = "ping", t = now() }
   if with_presence then

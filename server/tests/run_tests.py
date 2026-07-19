@@ -87,6 +87,9 @@ def main() -> int:
         "tests.test_mp_look",
         "tests.test_mp_session",
         "tests.test_mp_zone",
+        "tests.test_features_v0521",
+        "tests.test_mp_find",
+        "tests.test_features_v0524",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)

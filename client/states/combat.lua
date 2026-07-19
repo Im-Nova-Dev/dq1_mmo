@@ -35,7 +35,11 @@ local function rebuild_menu(self)
   for _, a in ipairs(self.legal or {}) do
     if a.type == "spell" then
       local id = tostring(a.id or "?")
-      local pretty = id:gsub("^%l", string.upper)
+      local pretty = tostring(a.name or id):gsub("^%l", string.upper)
+      local cost = tonumber(a.mp_cost)
+      if cost and cost > 0 then
+        pretty = string.format("%s  (%d MP)", pretty, cost)
+      end
       self.menu[#self.menu + 1] = {
         label = pretty,
         hint = "✦",
@@ -99,7 +103,10 @@ function Combat:enter(payload)
     if data.enemy then
       self.enemy = data.enemy
     end
-    if data.player_hp ~= nil then
+    if data.hero then
+      -- Full hero public (status sleep/stopspell, names)
+      self.hero = data.hero
+    elseif data.player_hp ~= nil then
       self.hero.hp = data.player_hp
       self.hero.mp = data.player_mp or self.hero.mp
       self.hero.max_hp = data.player_max_hp or self.hero.max_hp
@@ -127,7 +134,12 @@ function Combat:enter(payload)
     if data.result == "fled" then
       line = "You fled."
     elseif data.result == "defeat" then
-      line = "Defeated… returned to town."
+      local lost = tonumber(data.gold_lost) or 0
+      if lost > 0 then
+        line = string.format("Defeated… lost %d G · returned to town.", lost)
+      else
+        line = "Defeated… returned to town."
+      end
     else
       line = string.format("Victory! +%s XP  +%s G", tostring(data.xp or 0), tostring(data.gold or 0))
     end
@@ -298,8 +310,22 @@ function Combat:draw()
     local mmp = math.max(0, self.hero.max_mp or 0)
     UI.set_font("body")
     UI.color("gold")
+    local hname = self.hero.name or "Hero"
+    local hst = self.hero.status
+    if type(hst) == "table" then
+      local tags = {}
+      if hst.sleep then
+        tags[#tags + 1] = "SLEEP"
+      end
+      if hst.stopspell then
+        tags[#tags + 1] = "MUTE"
+      end
+      if #tags > 0 then
+        hname = hname .. "  [" .. table.concat(tags, ",") .. "]"
+      end
+    end
     love.graphics.print(
-      string.format("%s   Lv %d", self.hero.name or "Hero", self.hero.level or 1),
+      string.format("%s   Lv %d", hname, self.hero.level or 1),
       44,
       56
     )
