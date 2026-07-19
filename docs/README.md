@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.46** (2026-07-19) · suite green **197** tests · `VERSION` in `server/config.py`  
+**Last docs refresh:** **v0.5.49** (2026-07-19) · suite green **209** tests · `VERSION` in `server/config.py`  
 **Rule:** humans never need protocol files; agents never treat README as the contract.
 
 ---
@@ -45,18 +45,18 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 
 - Install & quick start · overworld / combat / inventory keys
 - Zones (town / field / dungeon) · zone badge · zone-enter chat notes
-- **`/zone`** shows **who is in your area** (names/levels) + population by zone type
-- Bag limits: **12** item kinds · **8** each; *stack full* / *inventory full* at the shop
-- Nearby system lines when someone is **defeated** in battle
-- Shop buy/sell gold toasts · need-N-G when short · helmets in shop · inn · field magic
-- Social: `/say` · `/g` · `/w` · `/z` · `/emote` · `/find` (+ `zone:`) · `/who` · `/players` · `/near` · `/zone` · `/ignore` · `/r` · `/status`
-- Join welcome toast with online count; nearby list via `/near`
-- Chat & emotes always appear once for you (no missing / double self-lines)
+- **`/zone`** shows **who is in your area** + population by zone type
+- Bag limits: **12** kinds · **8** each · title shows **used/max** · **D** discard to free space
+- Nearby system lines: **defeated**, **entered zone**, **is fighting!**, level-ups
+- **`/roll`** · **`/dice`** nearby dice (default d100; e.g. `/roll 20`)
+- Shop buy/sell gold toasts · need-N-G when short · helmets · inn · field magic
+- Social: `/say` · `/g` · `/w` · `/z` · `/emote` · `/find` · `/who` · `/players` · `/near` · `/zone` · `/ignore` · `/r` · `/status` · `/roll`
+- Join welcome toast with online count
+- Chat & emotes always appear once for you
 - **`/ignores`** keeps names if someone goes offline
 - High-tier shop gear: Broad Sword · Half/Full Plate · Silver Shield · helmets
-- Shop **town only** and **not in combat**; bag Tab checks town before requesting shop
-- Status sheet: **own** position + zone + repel/light; online roster shows **zone type** only (never others’ coords)
-- Nearby join toasts may show peer **zone**; zone chat stays within town / field / dungeon
+- Shop **town only** and **not in combat**
+- Status sheet: **own** position + zone + repel/light; roster shows **zone type** only (never others’ coords)
 - CC0 pixel art + optional SVG companions under `client/assets/`
 
 ---
@@ -70,7 +70,7 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 **Belongs only in AGENTS.md** (do not paste into README / HUMAN):
 
 - Full WebSocket message catalogs (client ↔ server)
-- Reliability rules (AOI, soft grace, rates, reconnect, finite coords, bag caps, …)
+- Reliability rules (AOI, soft grace, rates, reconnect, bag caps, discard, whisper delivery, …)
 - Test module matrix (`server/tests/run_tests.py`)
 - Hot paths, architecture, coding constraints
 

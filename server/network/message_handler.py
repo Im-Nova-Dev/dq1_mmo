@@ -13,6 +13,7 @@ from game.item_manager import (
     REPEL_STEPS,
     buy_item,
     character_public,
+    discard_item,
     equip_item,
     equipment_bonuses,
     list_items,
@@ -41,6 +42,8 @@ _CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 async def _inventory_msg(character_id: int) -> dict:
+    from game.item_manager import MAX_BAG_SLOTS, MAX_STACK_QTY
+
     db = await get_db()
     char = await get_character(character_id)
     items = await list_items(db, character_id)
@@ -48,7 +51,18 @@ async def _inventory_msg(character_id: int) -> dict:
         char["known_spells"] = battle_spells_at(int(char["level"]))
         char["field_spells"] = field_spells_at(int(char["level"]))
         char = character_public(char, items)
-    return msg(ServerMessageType.INVENTORY_UPDATE, items=items, character=char)
+    # Bag caps for client UI (distinct stacks / per-stack max)
+    bag = {
+        "used": len(items),
+        "max_slots": MAX_BAG_SLOTS,
+        "max_stack": MAX_STACK_QTY,
+    }
+    return msg(
+        ServerMessageType.INVENTORY_UPDATE,
+        items=items,
+        character=char,
+        bag=bag,
+    )
 
 
 async def handle_disconnect(character_id: int) -> None:
@@ -200,13 +214,17 @@ async def handle_message(
                 sync_zone = zone_at(int(meta["x"]), int(meta["y"]))
             except Exception:
                 sync_zone = None
+        nearby_list = nearby
         outbound.append(
             msg(
                 ServerMessageType.WORLD_STATE,
-                players=nearby,
+                players=nearby_list,
                 enemies=[],
                 map=map_payload(),
                 online=len(manager.online_ids()),
+                nearby_count=len(nearby_list),
+                zones=manager.zone_counts(),
+                roster=manager.online_roster(),
                 you=(
                     {
                         "x": meta["x"],
@@ -219,6 +237,7 @@ async def handle_message(
                 repel=manager.repel_remaining(character_id),
                 radiant=manager.radiant_remaining(character_id),
                 zone=sync_zone,
+                session_id=manager.session_id(character_id),
             )
         )
         return character_id, user_id, outbound, None
@@ -284,6 +303,7 @@ async def handle_message(
                 nearby_count=len(nearby),
                 online=len(manager.online_ids()),
                 zone=you_zone,
+                zones=manager.zone_counts(),
             )
         )
         return character_id, user_id, outbound, None
@@ -456,10 +476,12 @@ async def handle_message(
                     {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
                     {"cmd": "rest", "hint": "R — inn (town only)"},
                     {"cmd": "inventory", "hint": "I — bag (12 stacks · max 8) / shop"},
+                    {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
+                    {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
                 ],
                 channels=["global", "nearby", "zone", "whisper"],
                 version=__import__("config", fromlist=["VERSION"]).VERSION,
@@ -1197,6 +1219,21 @@ async def handle_message(
                     return character_id, user_id, outbound, None
                 manager.set_in_combat(character_id, True)
                 await manager.publish_status(character_id, pulse_online=True)
+                # Multiplayer: nearby notice that a hero engaged (not global spam)
+                hero_nm = (manager.get_meta(character_id) or {}).get("name") or "Hero"
+                await manager.broadcast_nearby(
+                    character_id,
+                    msg(
+                        ServerMessageType.CHAT,
+                        player_id=character_id,
+                        name="System",
+                        text=f"{hero_nm} is fighting!",
+                        channel="system",
+                        system=True,
+                    ),
+                    include_self=False,
+                    respect_ignore=False,
+                )
                 start_events = battle._take_batch()
                 outbound.append(
                     msg(
@@ -1296,8 +1333,11 @@ async def handle_message(
             to=tname,
             to_id=target_id,
         )
-        # Deliver to target + echo to self (so UI shows the send)
-        await manager.send(target_id, whisper_msg)
+        # Deliver to target; fail closed if socket is dead (don't echo a lie)
+        delivered = await manager.send(target_id, whisper_msg)
+        if not delivered:
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
         outbound.append(whisper_msg)
         # Target remembers us for their /r; we remember them if they reply later
         manager.note_whisper_from(target_id, character_id, name)
@@ -1382,7 +1422,10 @@ async def handle_message(
                 to=tname,
                 to_id=target_id,
             )
-            await manager.send(target_id, whisper_msg)
+            delivered = await manager.send(target_id, whisper_msg)
+            if not delivered:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
             outbound.append(whisper_msg)
             manager.note_whisper_from(target_id, character_id, name)
             manager.note_whisper_from(character_id, target_id, tname)
@@ -1429,6 +1472,52 @@ async def handle_message(
                 respect_ignore=True,
             )
         outbound.append(chat_msg)
+        return character_id, user_id, outbound, None
+
+    # --- Social roll (nearby 1d100 — multiplayer icebreaker) ---
+    if msg_type in ("roll", "dice", "d100"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        name = (meta or {}).get("name") or "Hero"
+        # Optional sides: {type:roll, sides:20} default 100, clamp 2..1000
+        sides = data.get("sides") or data.get("d") or 100
+        try:
+            sides_i = int(sides)
+        except (TypeError, ValueError):
+            sides_i = 100
+        if sides_i < 2:
+            sides_i = 2
+        if sides_i > 1000:
+            sides_i = 1000
+        import random as _random
+
+        value = _random.randint(1, sides_i)
+        roll_text = f"{name} rolls d{sides_i}: {value}"
+        roll_msg = msg(
+            ServerMessageType.CHAT,
+            player_id=character_id,
+            name="System",
+            text=roll_text,
+            channel="system",
+            system=True,
+            roll={"sides": sides_i, "value": value, "name": name},
+        )
+        await manager.broadcast_nearby(
+            character_id, roll_msg, include_self=False, respect_ignore=False
+        )
+        outbound.append(roll_msg)
         return character_id, user_id, outbound, None
 
     # --- Emotes (nearby only) ---
@@ -1736,6 +1825,34 @@ async def handle_message(
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
+    # Discard / drop from bag (destroy — free a slot when bag is full)
+    if msg_type in ("discard", "drop", "destroy", "throw_away"):
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        item_id = data.get("item") or data.get("item_id")
+        qty = data.get("quantity") or data.get("qty") or 1
+        if not item_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
+            return character_id, user_id, outbound, None
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        async with db_write() as db:
+            ok, reason, info = await discard_item(db, char, str(item_id), qty)
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            return character_id, user_id, outbound, None
+        inv = await _inventory_msg(character_id)
+        inv["discarded"] = info
+        inv["message"] = (
+            f"Discarded {info.get('quantity', 1)}× "
+            f"{info.get('item_name') or item_id}"
+        )
+        outbound.append(inv)
+        return character_id, user_id, outbound, None
+
     if msg_type == ClientMessageType.BUY:
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
@@ -1824,6 +1941,20 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.set_in_combat(character_id, True)
         await manager.publish_status(character_id, pulse_online=True)
+        hero_nm = (manager.get_meta(character_id) or {}).get("name") or "Hero"
+        await manager.broadcast_nearby(
+            character_id,
+            msg(
+                ServerMessageType.CHAT,
+                player_id=character_id,
+                name="System",
+                text=f"{hero_nm} is fighting!",
+                channel="system",
+                system=True,
+            ),
+            include_self=False,
+            respect_ignore=False,
+        )
         start_events = battle._take_batch()
         outbound.append(
             msg(

@@ -9,7 +9,7 @@ For **people**: players, operators, and human contributors.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
-**Version:** 0.5.46 · **197** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.49 · **209** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -21,10 +21,10 @@ A multiplayer **Dragon Quest I–style** game:
 - Shared **town / field / dungeon** on one map
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
-- Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · nearby defeats)
-- Emotes, **look**, **`/find`** (optional **zone:** filter), **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/ignore`** / **`/ignores`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
+- Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · fights · defeats)
+- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/roll`**, **`/ignore`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
 - Join toast with **online count** when you enter the world
-- Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each), swappable PNG art
+- Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each · **D** discard), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
 
 **Not in the MVP:** parties, PvP, trade, quests, multi-map worlds.
@@ -54,7 +54,7 @@ Hero select: **N** new · **D** delete (confirm **Y**) · max 3 heroes.
 Your current zone shows as a **ZONE** badge on the HUD and on the **F** status sheet.  
 Use **`/zone`** (or **`/where`**) anytime for your area, map position, **who is in the same zone**, and how many heroes are in town / field / dungeon.  
 When someone nearby walks from town → field (or similar), you may see a short **system** line: *“Name entered the field.”*  
-If a nearby hero falls in battle, you may see *“Name was defeated!”*  
+When a nearby hero starts a fight: *“Name is fighting!”* · if they fall: *“Name was defeated!”*  
 **`/who`** (or **O**) also shows online + zone counts.
 
 ---
@@ -114,7 +114,8 @@ If you can’t afford an item, the toast shows **how much gold you need**.
 Helmets for sale include **Leather Helmet**, **Iron Helmet**, and **Dragon’s Scale**.  
 Weapons include up through **Broad Sword**; armor includes **Half Plate** and **Full Plate**; shields up through **Silver Shield**.  
 You cannot open the **shop** (or buy/sell) while in combat.  
-Your bag holds up to **12** kinds of items, **8** of each (DQ-style limit). Buying more shows *stack full* or *inventory full*.
+Your bag holds up to **12** kinds of items, **8** of each (DQ-style limit). Buying more shows *stack full* or *inventory full*.  
+Press **D** in the bag to **discard** one unit of the selected item (frees space; cannot undo).
 
 ---
 
@@ -129,6 +130,7 @@ Your bag holds up to **12** kinds of items, **8** of each (DQ-style limit). Buyi
 | **/w Name message** | Whisper (private); also `/tell` |
 | **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
+| **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
 | **/status** or **/me** | Same status sheet via chat |
@@ -181,9 +183,9 @@ Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names a
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /find · /who · /players · /near · /zone · /ignore · /ignores · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /find · /who · /players · /near · /zone · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
-| **Inventory** | Enter · R inn · S sell · U unequip · Tab shop |
+| **Inventory** | Enter · R inn · S sell · D discard · U unequip · Tab shop |
 
 ---
 
@@ -242,7 +244,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 197 passed
+# expect: 209 passed
 ```
 
 ---
@@ -257,6 +259,6 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/z` `/find` `/who` `/players` `/near` `/zone` `/ignore` `/status`) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/find` `/who` `/players` `/near` `/zone` `/ignore` `/status`) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

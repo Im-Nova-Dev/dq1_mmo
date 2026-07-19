@@ -8,6 +8,7 @@ local Inventory = {
   mode = "bag", -- bag | shop
   items = {},
   shop = {},
+  bag = nil, -- {used, max_slots, max_stack} from server
   selected = 1,
   status = "",
   character = nil,
@@ -32,26 +33,42 @@ function Inventory:enter()
   Network.clear_handlers()
   Network.on("inventory_update", function(data)
     self.items = data.items or {}
+    if data.bag then
+      self.bag = data.bag
+    end
     if data.character then
       self.character = data.character
       Session.character = data.character
     end
     local gold = tostring((self.character and self.character.gold) or "0")
+    local bagbit = ""
+    if self.bag and self.bag.max_slots then
+      bagbit = string.format(
+        " · bag %d/%d",
+        tonumber(self.bag.used) or #self.items,
+        tonumber(self.bag.max_slots) or 12
+      )
+    end
     if data.sold and data.sold.gold_gained then
       local gained = tonumber(data.sold.gold_gained) or 0
       local name = data.sold.item_name or data.sold.item_id or "item"
-      self.status = string.format("Sold %s +%d G · total %s G", tostring(name), gained, gold)
+      self.status = string.format("Sold %s +%d G · total %s G%s", tostring(name), gained, gold, bagbit)
       UI.toast(self.status, "ok")
     elseif data.bought and data.bought.gold_spent then
       local spent = tonumber(data.bought.gold_spent) or 0
       local name = data.bought.item_name or data.bought.item_id or "item"
-      self.status = string.format("Bought %s −%d G · total %s G", tostring(name), spent, gold)
+      self.status = string.format("Bought %s −%d G · total %s G%s", tostring(name), spent, gold, bagbit)
       UI.toast(self.status, "ok")
+    elseif data.discarded then
+      local name = data.discarded.item_name or data.discarded.item_id or "item"
+      local q = tonumber(data.discarded.quantity) or 1
+      self.status = string.format("Discarded %d× %s%s", q, tostring(name), bagbit)
+      UI.toast(self.status, "info")
     elseif data.message then
-      self.status = tostring(data.message)
+      self.status = tostring(data.message) .. bagbit
       UI.toast(self.status, "ok")
     else
-      self.status = "Gold: " .. gold
+      self.status = "Gold: " .. gold .. bagbit
     end
     if self.selected > math.max(1, #self.items) then
       self.selected = 1
@@ -68,6 +85,10 @@ function Inventory:enter()
     -- Mirror overworld inn/shop path: show how much gold is needed
     if data.cost and r == "not enough gold" then
       r = string.format("not enough gold (need %s G)", tostring(data.cost))
+    elseif r == "stack full" then
+      r = "stack full (max 8 of that item) — sell or discard"
+    elseif r == "inventory full" then
+      r = "bag full (12 kinds) — sell or discard (D)"
     end
     self.status = r
     UI.toast(r, "danger")
@@ -200,6 +221,13 @@ function Inventory:keypressed(key)
     if item then
       Network.send({ type = "sell", item = item.item_id })
     end
+  elseif (key == "d" or key == "delete") and self.mode == "bag" then
+    local item = list[self.selected]
+    if item and item.item_id then
+      Network.send({ type = "discard", item = item.item_id, quantity = 1 })
+    else
+      self.status = "Nothing to discard"
+    end
   elseif key == "r" then
     Network.send({ type = "rest" })
   end
@@ -263,8 +291,16 @@ function Inventory:draw()
   -- Bag / shop list
   local rx = left_x + 300
   local rw = w - margin * 2 - 348
+  local bag_title = "Bag"
+  if self.mode ~= "shop" and self.bag and self.bag.max_slots then
+    bag_title = string.format(
+      "Bag %d/%d",
+      tonumber(self.bag.used) or #self.items,
+      tonumber(self.bag.max_slots) or 12
+    )
+  end
   UI.panel(rx, top, rw, h - top - 100, {
-    title = self.mode == "shop" and "For sale" or "Bag",
+    title = self.mode == "shop" and "For sale" or bag_title,
     subtitle = self.status or "",
     title_h = 28,
     no_ornament = true,
@@ -325,7 +361,7 @@ function Inventory:draw()
     h - 68,
     w - margin * 2 - 32,
     36,
-    "Enter equip/use/buy   ·   R inn rest   ·   S sell   ·   U unequip   ·   Tab shop   ·   Esc"
+    "Enter equip/use/buy   ·   R inn   ·   S sell   ·   D discard   ·   U unequip   ·   Tab shop   ·   Esc"
   )
   UI.reset_color()
 end

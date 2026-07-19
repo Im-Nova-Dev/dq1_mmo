@@ -16,7 +16,7 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat · zone on presence · `/players` · `/near` · `/zone` · auth welcome | Binary protocol |
 
-**Version:** `0.5.46` (`server/config.py` → `VERSION`) · **197** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.49` (`server/config.py` → `VERSION`) · **209** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -233,6 +233,13 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 66. `pong` includes `zones`, `nearby_count`, `session_id` when authed.
 67. Bag caps: **12** stacks · **8** per stack (`inventory full` / `stack full` on buy/equip/unequip).
 68. Defeat broadcasts nearby **system** chat `"{name} was defeated!"` (both combat end paths).
+69. Reserved hero names include god/null/npc/staff/… (spoof system identity).
+70. `inventory_update` includes `bag: {used, max_slots, max_stack}` for client UI.
+71. Whisper: `send()` failure → `player not online` (no self-echo / no reply peer note).
+72. `sync` / join `world_state`: `zones`, `roster`, `nearby_count`, `session_id` for multiplayer resync.
+73. `/roll` · `/dice` (msg `roll`/`dice`/`d100`) → nearby system 1dN (default 100); chat-rate limited.
+74. Combat start → nearby system `"{name} is fighting!"` (not to self).
+75. `discard` / `drop` destroys bag items (not equipped; blocked in combat) so full bags can free slots.
 
 ## Tests (mandatory for your changes)
 
@@ -278,6 +285,9 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_v0539` | find zone:moon → invalid zone; non-integer move rejected; whisper self blocked |
 | `tests.test_features_v0544` | whisper self/offline must not burn chat rate; global self-echo |
 | `tests.test_mp_reliability_v0545` | zone roster; chat/emote single self-echo; ignore names offline; pong zones |
+| `tests.test_features_v0546` | bag stack/slot caps; defeat system chat |
+| `tests.test_features_v0547` | bag meta on inventory; reserved God/null/NPC; empty chat no rate burn |
+| `tests.test_mp_expand_v0548` | whisper send fail-closed; sync zones/roster; /roll; combat engage chat |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |

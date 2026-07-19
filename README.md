@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.46-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.49-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-197_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-209_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@
 ---
 
 Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
-Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag), and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/ignore`**, emotes, and look.
+Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag · discard to free space), and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/roll`**, **`/ignore`**, emotes, and look.
 
 > [!NOTE]
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
@@ -82,7 +82,7 @@ protocol · tests · not for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.46** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.49** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -98,17 +98,17 @@ protocol · tests · not for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.46-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-197_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.49-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-209_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.46** |
+| | **v0.5.49** |
 |:--|:--|
-| 🎒 | **Bag limits** — 12 item kinds · max 8 each (DQ-style) |
-| 💀 | Nearby heroes see when someone is **defeated** |
-| 💬 | Slash: **`/say`** · **`/g`** · **`/emote`** · zone toast lists **who is here** |
-| ✅ | **197** automated tests |
+| 🗑️ | **Discard** items from the bag (**D** in inventory) to free space |
+| 🎒 | Bag UI shows **used / max** slots (e.g. `3/12`) |
+| 💬 | Clearer *stack full* / *bag full* tips |
+| ✅ | **209** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -117,15 +117,15 @@ protocol · tests · not for players
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.45** | `/zone` who-is-here · reliable chat/emote self-echo · ignore names offline · richer pong |
-| **0.5.44** | Failed whispers no longer block the next chat · global self-echo |
-| **0.5.43** | `/zone` · wings/respawn zone · Full Plate / Silver Shield · fairy water |
+| **0.5.48** | `/roll` · fight notices · safer whispers · richer reconnect snapshot |
+| **0.5.47** | More reserved hero names · bag size on inventory payload |
+| **0.5.46** | Bag limits (12×8) · defeat notices · `/say` `/g` `/emote` |
+| **0.5.45** | `/zone` who-is-here · reliable chat/emote self-echo · ignore names offline |
+| **0.5.44** | Failed whispers no longer block the next chat |
+| **0.5.43** | `/zone` · wings/respawn zone · Full Plate / Silver Shield |
 | **0.5.42** | Welcome toast · `/near` · live name lookup |
-| **0.5.41** | Shop combat gate · Broad Sword / Half Plate |
-| **0.5.40** | Presence zone · `/players` · live zone chat |
-| **0.5.39** | Invalid find zones · integer-only moves |
-| **0.5.35–38** | Helmets · status position · zone find · gold toasts |
-| **0.5.19–34** | Zone chat · `/r` · presence self-heal · open art |
+| **0.5.40–41** | Presence zone · `/players` · shop combat gate · mid-tier gear |
+| **0.5.19–39** | Zone chat · `/r` · open art · helmets · gold toasts |
 
 </details>
 
@@ -149,7 +149,7 @@ protocol · tests · not for players
 |:--|:--|
 | 🗺️ | Shared grid · safe **town** · field · **dungeon** |
 | ⚔️ | Server-side DQ1 1v1 · reconnect mid-fight |
-| 🏠 | Inn · shop · equip · sell equipped gear |
+| 🏠 | Inn · shop · equip · sell · **discard** |
 | ✨ | Heal · Return · **Repel** · **Radiant** · Outside |
 
 </td>
@@ -159,7 +159,7 @@ protocol · tests · not for players
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · whisper · **`/r` reply** · emotes |
+| 💬 | Global · nearby · **zone** · whisper · **`/r` reply** · emotes · **`/roll`** |
 | 🔍 | **`/find`** · **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/ignore`** · look |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
@@ -171,10 +171,10 @@ protocol · tests · not for players
 | Also | |
 |:-----|:--|
 | **Items** | Herb · wings · fairy water · weapons · armor · **helmets** · Full Plate · Silver Shield |
-| **Bag** | **12** stacks · **8** per stack · buy blocked when full |
+| **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · **your position** · nearby/online · repel · light · status (**F**) |
 | **Shop UX** | Buy/sell gold toasts · need-N-G when short · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **197** tests |
+| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **209** tests |
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -213,14 +213,14 @@ love client
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
 3. **Enter World** — spawn in **town** (safe) · welcome toast with online count
-4. **R** inn · **I** bag/shop · field for fights · **F** status · **`/near`** / **`/zone`** for multiplayer awareness
+4. **R** inn · **I** bag/shop (**D** discard) · field for fights · **`/near`** · **`/zone`** · **`/roll`**
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 197 passed
+# expect: 209 passed
 ```
 
 ---
@@ -240,6 +240,7 @@ python tests/run_tests.py
 | **/g msg** · **/global msg** | Global chat (slash) |
 | **/w Name msg** | Whisper (also `/tell`) |
 | **/z msg** | Zone chat (same area type: town / field / dungeon) |
+| **/roll** · **/dice** · **/roll 20** | Nearby dice roll |
 | **/emote wave** · **/e wave** | Emote by name |
 | **/find Name** | Search online players by name prefix |
 | **/find zone:town** | List everyone online in that zone |
@@ -288,12 +289,14 @@ python tests/run_tests.py
 
 | Key | Action |
 |:---:|:-------|
-| **Enter** | Use / equip |
-| **S** / **U** | Sell · unequip |
+| **Enter** | Use / equip / buy |
+| **S** | Sell *(town)* |
+| **D** | **Discard** one unit of selected item |
+| **U** | Unequip |
 | **R** | Inn *(town)* |
 | **Tab** | Shop list *(town)* |
 
-Bag holds **12** item kinds, up to **8** of each.
+Bag holds **12** item kinds, up to **8** of each. Title shows **used/max**.
 
 </details>
 
@@ -320,6 +323,7 @@ Bag holds **12** item kinds, up to **8** of each.
 | `/g message` · `/global message` | Global chat |
 | `/w Name message` | Private whisper (`/tell` works too) |
 | `/z message` | Zone chat (everyone in town *or* field *or* dungeon) |
+| `/roll` · `/dice` · `/roll 20` | Nearby dice roll (default d100) |
 | `/emote wave` · `/e wave` | Emote by name |
 | `/find Name` | Online search by prefix — zone type only, **no map positions** |
 | `/find Name zone:field` | Limit search to town / field / dungeon |
@@ -492,7 +496,7 @@ Agents → AGENTS.md ONLY
 
 <p align="center">
   <sub>
-    <b>v0.5.46</b> · 197 tests ·
+    <b>v0.5.49</b> · 209 tests ·
     <a href="docs/HUMAN.md">Player guide</a> ·
     <a href="AGENTS.md">Agent contract</a> ·
     <a href="docs/README.md">Docs map</a>

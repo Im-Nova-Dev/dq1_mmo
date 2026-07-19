@@ -138,6 +138,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 "unmute",
                 "ignore_list",
                 "reply",
+                "roll",
+                "dice",
+                "d100",
+                "discard",
+                "drop",
+                "destroy",
+                "throw_away",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
@@ -210,6 +217,9 @@ async def websocket_endpoint(websocket: WebSocket):
                             "zone": join_zone,
                         },
                         online=len(manager.online_ids()),
+                        nearby_count=len(peers),
+                        zones=manager.zone_counts(),
+                        roster=manager.online_roster(),
                         repel=manager.repel_remaining(connect_meta["character_id"]),
                         radiant=manager.radiant_remaining(connect_meta["character_id"]),
                         zone=join_zone,

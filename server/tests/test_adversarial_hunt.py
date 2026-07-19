@@ -874,7 +874,7 @@ def test_reserved_character_names_blocked():
 
     from models.player import CharacterCreate
 
-    for bad in ("System", "SYSTEM", "admin", "GM", "console"):
+    for bad in ("System", "SYSTEM", "admin", "GM", "console", "God", "null", "NPC"):
         try:
             CharacterCreate(name=bad)
             raise AssertionError(f"expected reject for {bad}")

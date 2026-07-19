@@ -636,6 +636,10 @@ local function bind_handlers(self)
     local r = tostring(data.reason or "error")
     if data.cost and r == "not enough gold" then
       r = string.format("not enough gold (need %s G)", tostring(data.cost))
+    elseif r == "stack full" then
+      r = "stack full — sell or discard (I then D)"
+    elseif r == "inventory full" then
+      r = "bag full — sell or discard (I then D)"
     end
     self.status = "Error: " .. r
     UI.toast(r, "danger")
@@ -925,6 +929,12 @@ function Overworld:keypressed(key)
         local say_msg = text:match("^[/%!]say%s+(.+)$") or text:match("^[/%!]s%s+(.+)$")
         local global_msg = text:match("^[/%!]g%s+(.+)$") or text:match("^[/%!]global%s+(.+)$")
         local emote_cmd = text:match("^[/%!]emote%s+(%S+)$") or text:match("^[/%!]e%s+(%S+)$")
+        local wants_roll = text:match("^[/%!]roll%s*$")
+          or text:match("^[/%!]dice%s*$")
+          or text:match("^[/%!]d100%s*$")
+        local roll_sides = text:match("^[/%!]roll%s+(%d+)%s*$")
+          or text:match("^[/%!]dice%s+(%d+)%s*$")
+          or text:match("^[/%!]d(%d+)%s*$")
         if wname and wmsg then
           Network.whisper(wname, wmsg)
           self.last_whisper_from = wname
@@ -944,6 +954,12 @@ function Overworld:keypressed(key)
         elseif emote_cmd and emote_cmd ~= "" then
           Network.emote(emote_cmd:lower())
           UI.toast("Emote: " .. emote_cmd:lower(), "info")
+        elseif wants_roll or roll_sides then
+          local payload = { type = "roll" }
+          if roll_sides then
+            payload.sides = tonumber(roll_sides)
+          end
+          Network.send(payload)
         elseif zmsg and zmsg ~= "" then
           Network.chat(zmsg, "zone")
         elseif wants_status then

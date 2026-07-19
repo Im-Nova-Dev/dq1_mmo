@@ -191,6 +191,33 @@ async def remove_item(db, character_id: int, item_id: str, quantity: int = 1) ->
     return True
 
 
+async def discard_item(
+    db, character: dict, item_id: str, quantity: int = 1
+) -> tuple[bool, str, dict]:
+    """Destroy bag items (not equipped). Required when bag caps are full."""
+    try:
+        qty = int(quantity)
+    except (TypeError, ValueError):
+        qty = 1
+    if qty < 1:
+        return False, "bad quantity", {}
+    defn = get_item_def(item_id)
+    if not defn:
+        return False, "unknown item", {}
+    if not await remove_item(db, character["id"], item_id, qty):
+        return False, "not in inventory", {}
+    await db.commit()
+    return (
+        True,
+        "ok",
+        {
+            "item_id": item_id,
+            "item_name": defn.get("name") or item_id,
+            "quantity": qty,
+        },
+    )
+
+
 async def equip_item(db, character: dict, slot: str, item_id: str) -> tuple[bool, str]:
     if slot not in VALID_SLOTS:
         return False, "invalid slot"
