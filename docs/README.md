@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.129** (2026-07-19) · suite **667** tests · played/version/time multiplayer census · humans ≠ agents
+**Last docs refresh:** **v0.5.129** (2026-07-19) · suite **667** tests · README GitHub polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -32,6 +32,7 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 | **Curious about history** | [../plan.md](../plan.md) | Original roadmap — **not** live truth |
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1e3a8a', 'primaryTextColor': '#f8fafc', 'lineColor': '#64748b', 'secondaryColor': '#5b21b6', 'tertiaryColor': '#0f172a'}}}%%
 flowchart TB
   subgraph humans ["HUMANS"]
     R[README.md · GitHub]
@@ -46,7 +47,15 @@ flowchart TB
     G --> HP[Hot paths]
   end
   humans -.->|never mix contents| agents
+  style humans fill:#1e3a8a,stroke:#93c5fd,color:#fff
+  style agents fill:#5b21b6,stroke:#c4b5fd,color:#fff
 ```
+
+<p align="center">
+  <img alt="humans" src="https://img.shields.io/badge/humans-README_·_HUMAN_·_art-2563eb?style=for-the-badge" />
+  <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/live-v0.5.129_·_667-059669?style=for-the-badge" />
+</p>
 
 ---
 

@@ -7,13 +7,20 @@
 </p>
 
 <p align="center">
-  <img src="client/assets/sprites/heroes/hero.png" alt="Hero" height="64" />
+  <img src="client/assets/sprites/heroes/hero.png" alt="Hero" height="72" />
+  &nbsp;
+  <img src="client/assets/ui/icon_sword.png" alt="Sword" height="40" />
   &nbsp;
   <img src="client/assets/tiles/town.png" alt="Town" height="48" />
   <img src="client/assets/tiles/field.png" alt="Field" height="48" />
   <img src="client/assets/tiles/dungeon.png" alt="Dungeon" height="48" />
+  <img src="client/assets/tiles/water.png" alt="Water" height="48" />
   &nbsp;
-  <img src="client/assets/sprites/heroes/other.png" alt="Other hero" height="64" />
+  <img src="client/assets/sprites/enemies/slime.png" alt="Slime" height="56" />
+  <img src="client/assets/sprites/enemies/drakee.png" alt="Drakee" height="56" />
+  <img src="client/assets/sprites/enemies/ghost.png" alt="Ghost" height="56" />
+  &nbsp;
+  <img src="client/assets/sprites/heroes/other.png" alt="Other hero" height="72" />
 </p>
 
 <p align="center">
@@ -39,10 +46,12 @@
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo/network/members"><img alt="forks" src="https://img.shields.io/github/forks/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=github&color=94a3b8" /></a>
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo/issues"><img alt="issues" src="https://img.shields.io/github/issues/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=github" /></a>
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=git&color=6366f1" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/actions"><img alt="ci" src="https://img.shields.io/badge/CI-local_suite-22c55e?style=flat-square&logo=githubactions&logoColor=white" /></a>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
   <img alt="love2d" src="https://img.shields.io/badge/Love2D-11.x-EA316E?style=flat-square&logo=lua&logoColor=white" />
   <img alt="fastapi" src="https://img.shields.io/badge/FastAPI-WebSocket-009688?style=flat-square&logo=fastapi&logoColor=white" />
   <img alt="sqlite" src="https://img.shields.io/badge/SQLite-local_first-003B57?style=flat-square&logo=sqlite&logoColor=white" />
+  <img alt="websockets" src="https://img.shields.io/badge/realtime-WebSockets-0ea5e9?style=flat-square&logo=socketdotio&logoColor=white" />
   <img alt="license" src="https://img.shields.io/badge/fan_project-not_Square_Enix-6b7280?style=flat-square" />
 </p>
 
@@ -88,6 +97,8 @@
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
   <img alt="suite" src="https://img.shields.io/badge/tests-667_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
+  <img alt="meta" src="https://img.shields.io/badge/meta-/played_·_/version_·_/time-06b6d4?style=flat-square" />
+  <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -103,6 +114,10 @@
 play · controls · hosting  
 <sub>plain language only</sub>
 
+<p>
+  <img alt="guide" src="https://img.shields.io/badge/start_here-player_guide-2563eb?style=flat-square" />
+</p>
+
 </td>
 <td width="33%" valign="top" align="center">
 
@@ -110,6 +125,10 @@ play · controls · hosting
 **[ATTRIBUTION.md](client/assets/ATTRIBUTION.md)**  
 drop-in PNGs anytime  
 <sub>CC0 · filenames are the contract</sub>
+
+<p>
+  <img alt="cc0" src="https://img.shields.io/badge/art-CC0_pixel-10b981?style=flat-square" />
+</p>
 
 </td>
 <td width="33%" valign="top" align="center">
@@ -119,9 +138,22 @@ drop-in PNGs anytime
 protocol · tests · reliability  
 <sub>not a player guide</sub>
 
+<p>
+  <img alt="agents" src="https://img.shields.io/badge/contract-AGENTS.md-7c3aed?style=flat-square" />
+</p>
+
 </td>
 </tr>
 </table>
+
+<p align="center">
+  <sub><b>At a glance</b></sub><br/>
+  <img alt="town" src="https://img.shields.io/badge/🗺️_Town-safe-22c55e?style=for-the-badge" />
+  <img alt="field" src="https://img.shields.io/badge/🌿_Field-encounters-eab308?style=for-the-badge" />
+  <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
+  <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
+  <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
+</p>
 
 <p align="center">
   <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_social-334155?style=for-the-badge" />
@@ -478,7 +510,7 @@ flowchart TB
 | 📍 | **`@share`** / **`@from`** · **`@emote`** / **`@emotedby`** — two-way social memory (needs the **@**) |
 | 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · **`/fighting`** · **`/social`** |
 | 🔍 | **`/find`** · **`/find combat:yes`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
-| 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** |
+| 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/version`** · **`/time`** · **`/bag`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |
 | 🛒 | **`/buy copper sword`** · **`/sell`** · **`/use`** · **`/equip`** · **`/shop`** |
 | ✨ | **`/cast`** · **`/repel`** · **`/return`** field magic from chat |
@@ -514,6 +546,7 @@ flowchart TB
 Player-facing picture only — no wire protocol here. Agents: see **[AGENTS.md](AGENTS.md)**.
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#312e81', 'primaryTextColor': '#e0e7ff', 'lineColor': '#818cf8', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
 flowchart TB
   subgraph client ["Love2D client"]
     UI[Overworld · Combat · Inventory UI]
@@ -539,11 +572,29 @@ flowchart TB
 | **Server** | Truth for fights, gold, position, who is online |
 | **SQLite** | Heroes, inventory, accounts (local-first) |
 | **Soft reconnect** | Brief disconnects keep mute list, **`/played` age**, **last whisper peer card**, **share · emote · invite** partners, and buffs when possible |
+| **Peeks** | **`/status`**, **`/gold`**, **`/played`**, **`/version`**, **`/time`** — short plain lines so you know the room |
 
 <p align="center">
   <img alt="authority" src="https://img.shields.io/badge/authority-server_wins-f43f5e?style=for-the-badge" />
   <img alt="protocol" src="https://img.shields.io/badge/wire_protocol-AGENTS.md_only-7c3aed?style=for-the-badge" />
+  <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
 </p>
+
+<details>
+<summary><b>ASCII postcard</b> · same idea without mermaid</summary>
+
+```text
+  ┌──────── Love2D ────────┐         ┌──────── FastAPI ────────┐
+  │  Overworld · Combat    │  JSON   │  WebSocket hub          │
+  │  Inventory · Chat UI   │◄───────►│  Combat · World · Shop  │
+  └────────────────────────┘   WS    │         │               │
+                                     │         ▼               │
+                                     │      SQLite             │
+                                     └─────────────────────────┘
+         You press keys · server keeps the truth
+```
+
+</details>
 
 ---
 
@@ -553,7 +604,15 @@ flowchart TB
   <img alt="py" src="https://img.shields.io/badge/need-Python_3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
   <img alt="love" src="https://img.shields.io/badge/need-Love2D_11.x-EA316E?style=flat-square" />
   <img alt="port" src="https://img.shields.io/badge/port-8000-0ea5e9?style=flat-square" />
+  <img alt="ws" src="https://img.shields.io/badge/realtime-WebSocket-009688?style=flat-square&logo=socketdotio&logoColor=white" />
 </p>
+
+```mermaid
+flowchart LR
+  A[venv + pip] --> B[./run.sh :8000]
+  B --> C[love client]
+  C --> D[Register · hero · town]
+```
 
 <table>
 <tr>
@@ -950,14 +1009,26 @@ flowchart LR
 | **Inspiration** | *Dragon Quest I / Dragon Warrior* (NES-era combat math — not a ROM dump) |
 | **Combat reference** | [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) |
 | **Art (CC0)** | [Kenney.nl](https://kenney.nl) · [Tiny Creatures](https://opengameart.org/content/tiny-creatures) — [ATTRIBUTION](client/assets/ATTRIBUTION.md) |
+| **Badges / icons** | [shields.io](https://shields.io) · [skillicons.dev](https://skillicons.dev) · GitHub-flavored markdown · mermaid |
 | **Disclaimer** | Fan project — **not** Square Enix |
 
 ---
 
 <p align="center">
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo">
+    <img alt="dq1_mmo" src="https://github-readme-stats.vercel.app/api/pin/?username=Im-Nova-Dev&repo=dq1_mmo&theme=radical&hide_border=true" />
+  </a>
+  &nbsp;
+  <a href="https://skillicons.dev">
+    <img alt="stack" src="https://skillicons.dev/icons?i=py,fastapi,lua,sqlite,linux&theme=dark" />
+  </a>
+</p>
+
+<p align="center">
   <img alt="v" src="https://img.shields.io/badge/v0.5.129-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/667_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
+  <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -968,6 +1039,8 @@ flowchart LR
   <a href="docs/README.md"><img alt="map" src="https://img.shields.io/badge/🗺_Docs_map-475569?style=for-the-badge" /></a>
   &nbsp;
   <a href="client/assets/ATTRIBUTION.md"><img alt="art" src="https://img.shields.io/badge/🎨_Art-10b981?style=for-the-badge" /></a>
+  &nbsp;
+  <a href="#-quick-start"><img alt="play" src="https://img.shields.io/badge/▶_Quick_start-0ea5e9?style=for-the-badge" /></a>
 </p>
 
 <p align="center">
