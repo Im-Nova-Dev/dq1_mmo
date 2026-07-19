@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.126</b> · <b>654</b> tests green · <code>/look</code> near/far · <code>/ignores</code> · soft reconnect · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.127</b> · <b>658</b> tests green · <code>/look</code> near/far · <code>/ignores</code> · soft reconnect · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.126-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.127-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-654_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-658_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -86,7 +86,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-654_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-658_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -170,7 +170,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.126** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.127** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -187,27 +187,27 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.126-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/654_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.127-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/658_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-look_·_near_far-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-status_·_census-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.126** — clearer look · **654** tests |
+| | **v0.5.127** — status sheet knows the room · **658** tests |
 |:--|:--|
-| 👁 | **`/look`** / **L** shows a plain sentence (near spot or far zone) |
-| 📍 | Still only shows map coords when they are **nearby** |
-| 🔁 | **`/look @emote`** / **`@share`** / **`@pending`** keep working |
-| 🧪 | **654** automated tests green |
+| 📊 | **`/status`** / **F** shows nearby counts and online census |
+| 💬 | Plain sentence summary (HP · zone · nearby · social hints) |
+| 🔁 | Soft reconnect social peers can appear on the sheet |
+| 🧪 | **658** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.126-7c3aed?style=for-the-badge" />
-  <img alt="look" src="https://img.shields.io/badge//look-near_·_far-0ea5e9?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/654_tests-059669?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.127-7c3aed?style=for-the-badge" />
+  <img alt="status" src="https://img.shields.io/badge//status_·_F-multiplayer_census-a855f7?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/658_tests-059669?style=for-the-badge" />
 </p>
 
 <table>
@@ -344,6 +344,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.127** | Status sheet multiplayer census + plain message · **658** tests |
 | **0.5.126** | Clearer `/look` · near coords · far zone · **654** tests |
 | **0.5.125** | Mute list shows near/far online peers · **648** tests |
 | **0.5.124** | Soft reconnect welcome notes session timer restored · **642** tests |
@@ -472,7 +473,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **654** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **658** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -570,7 +571,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 654 passed
+# expect: 658 passed
 ```
 
 ---
@@ -623,7 +624,7 @@ python tests/run_tests.py
 | **/near** · **/here** | Heroes in view |
 | **/zone** · **/where** · **/whereami** · **/mapinfo** | Your area + who is here |
 | **/whereis Name** · **/profile Name** | Examine a hero (or yourself) |
-| **/status** · **/me** · **/whoami** · **/stats** · **F** | Status sheet |
+| **/status** · **/me** · **/whoami** · **/stats** · **F** | Status sheet (nearby census · plain summary) |
 | **/hp** · **/vitals** | HP / MP peek |
 | **/xp** · **/level** | Level + XP to next |
 | **/buffs** · **/effects** | Repel · radiant · AFK |
@@ -847,9 +848,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-654_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-658_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.126-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.127-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -927,8 +928,8 @@ flowchart LR
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.126-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/654_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.127-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/658_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.126-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-654-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.127-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-658-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.126 · **654** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.127 · **658** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.126):** **`/look`** / **L** includes a short plain message (nearby spot or far zone) · still no map coords when far · **654** tests.
+**Recent for players/ops (v0.5.127):** **`/status`** / **F** includes nearby online counts and a short plain summary · social peers may be mentioned · **658** tests.
 
 ---
 
@@ -170,8 +170,8 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
 | **/counts** · **/census** | Online + nearby + zone population totals |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
-| **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
-| **/status** or **/me** or **/whoami** | Same status sheet via chat |
+| **F** | Status sheet — stats, gear, EXP, spells, zone, buffs, nearby census |
+| **/status** or **/me** or **/whoami** | Status sheet via chat — HP/MP plus nearby counts and a plain summary |
 | **/version** · **/about** · **/server** · **/info** | Server version + online count + uptime |
 | **/time** · **/uptime** | Server clock and how long the world has been up |
 | **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — survives a brief disconnect · also shows zone and online counts |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 654 passed
+# expect: 658 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.126** · **654** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.127** · **658** tests).
 
 | Do | Don’t |
 |:---|:------|
