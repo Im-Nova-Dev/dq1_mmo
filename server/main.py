@@ -138,6 +138,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 "look",
                 "examine",
                 "inspect",
+                "profile",
+                "card",
+                "player_info",
+                "whereis",
+                "where_is",
                 "status",
                 "me",
                 "whoami",
@@ -162,6 +167,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 "controls",
                 "keybinds",
                 "keymap",
+                "played",
+                "session",
+                "session_time",
+                "online_time",
                 "spells",
                 "magic",
                 "spell_list",
@@ -172,6 +181,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "version",
                 "ver",
                 "about",
+                "server",
+                "info",
                 "time",
                 "uptime",
                 "servertime",
@@ -213,6 +224,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "logout",
                 "exit",
                 "leave_world",
+                "mapinfo",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
@@ -283,6 +295,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 last_whisper = None
                 if lw_id is not None or lw_name:
                     last_whisper = {"id": lw_id, "name": lw_name}
+                repel_n = manager.repel_remaining(connect_meta["character_id"])
+                radiant_n = manager.radiant_remaining(connect_meta["character_id"])
+                # Explicit soft-reconnect hygiene flags for multiplayer clients
+                restored = {
+                    "ignores": len(ignores_snap) > 0,
+                    "last_whisper": last_whisper is not None,
+                    "repel": repel_n > 0,
+                    "radiant": radiant_n > 0,
+                }
+                restored_any = any(restored.values())
                 outbound.append(
                     msg(
                         ServerMessageType.WORLD_STATE,
@@ -293,17 +315,19 @@ async def websocket_endpoint(websocket: WebSocket):
                             "x": connect_meta["x"],
                             "y": connect_meta["y"],
                             "zone": join_zone,
+                            "session_id": sid,
                         },
                         online=len(manager.online_ids()),
                         nearby_count=len(peers),
                         zones=manager.zone_counts(),
                         roster=manager.online_roster(),
-                        repel=manager.repel_remaining(connect_meta["character_id"]),
-                        radiant=manager.radiant_remaining(connect_meta["character_id"]),
+                        repel=repel_n,
+                        radiant=radiant_n,
                         zone=join_zone,
                         session_id=sid,
                         ignores=ignores_snap,
                         last_whisper=last_whisper,
+                        restored=restored,
                     )
                 )
                 # Stamp session id + multiplayer welcome on auth_ok (not a chat
@@ -317,6 +341,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 welcome = (
                     f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}{near_bit}."
                 )
+                if restored_any:
+                    bits = []
+                    if restored["ignores"]:
+                        bits.append("mute list")
+                    if restored["last_whisper"]:
+                        bits.append("last whisper")
+                    if restored["repel"] or restored["radiant"]:
+                        bits.append("buffs")
+                    if bits:
+                        welcome += " Restored: " + ", ".join(bits) + "."
                 for o in outbound:
                     if o.get("type") == ServerMessageType.AUTH_OK:
                         o["session_id"] = sid
@@ -326,12 +360,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         o["welcome"] = welcome
                         o["ignores"] = ignores_snap
                         o["last_whisper"] = last_whisper
-                        o["repel"] = manager.repel_remaining(
-                            connect_meta["character_id"]
-                        )
-                        o["radiant"] = manager.radiant_remaining(
-                            connect_meta["character_id"]
-                        )
+                        o["repel"] = repel_n
+                        o["radiant"] = radiant_n
+                        o["restored"] = restored
 
             # Deliver auth_ok / world_state / combat_resume BEFORE any global pulse so
             # clients always see auth_ok as the first post-auth message (not `online`).

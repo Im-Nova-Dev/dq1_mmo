@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.69-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-318-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.73-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-339-059669?style=for-the-badge" />
 </p>
 
 For **people**: players, operators, and human contributors.  
@@ -16,7 +16,7 @@ Coding agents use **[AGENTS.md](../AGENTS.md) only** — you do **not** need tha
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.69 · **318** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.73 · **339** tests · matches `server/config.py` → `VERSION`
 
 ---
 
@@ -31,8 +31,8 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · equip · sell · discard (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside |
-| **Social** | Global · nearby · zone · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** · look · inspect · find · who |
-| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/spells`** · **`/bag`** · **`/keys`** · **`/status`** |
+| **Social** | Global · nearby · zone · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** · look · profile · find · who · mapinfo |
+| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/spells`** · **`/bag`** · **`/keys`** · **`/status`** |
 | **Meta** | AFK roster · soft reconnect · join welcome · mute list · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
@@ -147,8 +147,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
 | **/status** or **/me** or **/whoami** | Same status sheet via chat |
-| **/version** · **/about** | Server version + online count + uptime |
+| **/version** · **/about** · **/server** · **/info** | Server version + online count + uptime |
 | **/time** · **/uptime** | Server clock and how long the world has been up |
+| **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — also shows your zone and how many are online/nearby |
 | **/motd** · **/rules** | Message of the day |
 | **/afk** · **/away** · **/back** | Show AFK on the roster (clears when you chat, emote, or **walk**) |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
@@ -157,15 +158,16 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
 | **/find afk** · **/find afk:yes** | List heroes marked AFK (combine with `zone:…`) |
+| **/find idle** · **/find idle:yes** | List idle heroes (AFK or soft timeout) |
 | **/help** or **?** | Server list of commands / keys |
 | **/ignore Name** | Mute chat/emotes from that hero |
 | **/unignore Name** | Stop ignoring |
 | **/ignores** · **/blocklist** | List who you are ignoring (names stay if they log off) |
-| **/inspect Name** | Same as look / examine |
+| **/inspect Name** · **/profile Name** · **/card Name** · **/whereis Name** | Same as look / examine |
 | **/who** | Online / nearby + zone counts (same as **O**) |
 | **/players** | Same as `/who` |
 | **/near** · **/here** | List heroes nearby (view range) |
-| **/zone** · **/where** · **/whereami** · **/coords** | Your zone, map position, **who is here**, population by area |
+| **/zone** · **/where** · **/whereami** · **/coords** · **/mapinfo** | Your zone, map position, **who is here**, population by area |
 | **/stats** · **/sheet** | Same as **/status** |
 | **/gold** · **/money** | How much gold you have |
 | **/hp** · **/vitals** · **/mp** | Quick HP / MP check |
@@ -218,7 +220,7 @@ Whispering someone who is AFK still delivers the message; you get a short note t
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /counts · /find · /who · /near · /zone · /hp · /xp · /last · /unequip · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /s · /g · /played · /profile · /mapinfo · /roll · /counts · /find · /who · /near · /zone · /hp · /xp · /last · /unequip · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · D discard · U unequip · Tab shop |
 
@@ -279,7 +281,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 318 passed
+# expect: 339 passed
 ```
 
 ---
@@ -293,11 +295,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.69** · **318** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.73** · **339** tests).
 
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/r` `/last` `/hp` `/xp` `/gold` `/unequip` `/zone` `/who` …) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/r` `/played` `/profile` `/mapinfo` `/hp` `/zone` `/who` …) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

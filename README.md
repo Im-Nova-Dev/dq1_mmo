@@ -10,9 +10,10 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.69-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.73-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-318_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-339_passing-059669?style=for-the-badge" />
+  <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
@@ -55,9 +56,9 @@ Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
-  <img alt="peeks" src="https://img.shields.io/badge/peeks-/hp_/xp_/buffs_/keys-f97316?style=flat-square" />
+  <img alt="peeks" src="https://img.shields.io/badge/peeks-/hp_/xp_/buffs_/played-f97316?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
-  <img alt="art" src="https://img.shields.io/badge/art-CC0_drop--in_PNGs-10b981?style=flat-square" />
+  <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -68,22 +69,25 @@ Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</
 <td width="33%" valign="top" align="center">
 
 ### 👤 Players
-[docs/HUMAN.md](docs/HUMAN.md)  
-play · controls · hosting
+**[docs/HUMAN.md](docs/HUMAN.md)**  
+play · controls · hosting  
+<sub>plain language only</sub>
 
 </td>
 <td width="33%" valign="top" align="center">
 
 ### 🎨 Artists
-[ATTRIBUTION.md](client/assets/ATTRIBUTION.md)  
-swap PNGs anytime
+**[ATTRIBUTION.md](client/assets/ATTRIBUTION.md)**  
+drop-in PNGs anytime  
+<sub>CC0 · names are the contract</sub>
 
 </td>
 <td width="33%" valign="top" align="center">
 
 ### 🤖 Agents / LLMs
-[AGENTS.md](AGENTS.md) **only**  
-protocol · tests · **not** for players
+**[AGENTS.md](AGENTS.md) only**  
+protocol · tests · reliability  
+<sub>not a player guide</sub>
 
 </td>
 </tr>
@@ -101,7 +105,7 @@ protocol · tests · **not** for players
 
 <p align="center">
   <sub>
-    <b>Docs:</b>
+    <b>Docs stay split:</b>
     <a href="docs/HUMAN.md">players</a> ·
     <a href="client/assets/ATTRIBUTION.md">artists</a> ·
     <a href="AGENTS.md">agents only</a> ·
@@ -115,7 +119,7 @@ protocol · tests · **not** for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.69** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.73** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -131,16 +135,17 @@ protocol · tests · **not** for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.69-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/318_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.73-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/339_tests_green-059669?style=for-the-badge" />
 </p>
 
-| | **v0.5.69** |
+| | **v0.5.73** |
 |:--|:--|
-| ✨ | **`/buffs`** — repel, radiant, AFK at a glance |
-| ⌨️ | **`/keys`** · **`/controls`** — keybind cheat sheet |
-| 👁 | **`/inspect Name`** · **`/blocklist`** aliases |
-| ✅ | **318** automated tests |
+| ⏱ | **`/played`** shows zone · online · nearby · AFK (this connection’s age) |
+| 🪪 | **`/whereis`** look alias · **`/mapinfo`** zone · **`/server`** · **`/info`** |
+| 💬 | **`/s`** nearby · **`/g`** global · mute list survives brief disconnects |
+| 🔄 | Live reconnect keeps your session timer; full rejoin starts a fresh one |
+| ✅ | **339** automated tests (new + regression) |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -149,6 +154,10 @@ protocol · tests · **not** for players
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.72** | `/played` · `/profile` · `/mapinfo` · `/server` · `/s` `/g` wiring |
+| **0.5.71** | Adversarial lock-in · combat move gate · first-join restored flags |
+| **0.5.70** | counts.you · find idle · soft restored flags |
+| **0.5.69** | `/buffs` · `/keys` · `/inspect` · `/blocklist` |
 | **0.5.68** | Shout=zone · bare buy/sell · invalid afk filter |
 | **0.5.67** | Join refreshes roster · `/find afk` · session on roll/counts |
 | **0.5.66** | `/hp` · `/xp` · `/unequip` · `/last` · equip toasts |
@@ -194,8 +203,8 @@ protocol · tests · **not** for players
 | | |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** |
-| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · look · **`/inspect`** |
-| 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/spells`** · **`/bag`** · **`/keys`** |
+| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/profile`** · **`/inspect`** |
+| 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** · **`/keys`** |
 | 🔄 | Soft reconnect · mute list · AFK · fast leave roster |
 | 🦸 | Up to **3 heroes** · create / delete |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
@@ -210,7 +219,7 @@ protocol · tests · **not** for players
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **318** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **339** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -252,14 +261,14 @@ love client
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
 3. **Enter World** — spawn in **town** · welcome toast with online count
-4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/buffs`** · **`/w Name`**
+4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/played`** · **`/w Name`**
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 318 passed
+# expect: 339 passed
 ```
 
 ---
@@ -297,8 +306,11 @@ python tests/run_tests.py
 | **/bag** · **/inv** · **/items** · **I** | Inventory / bag |
 | **/inspect Name** · **/look Name** | Examine a hero |
 | **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
-| **/version** · **/about** | Server version + uptime |
+| **/version** · **/about** · **/server** · **/info** | Server version + uptime |
 | **/time** · **/uptime** | Server clock + uptime |
+| **/played** · **/session** | How long this session has been open (+ zone / online) |
+| **/profile** · **/card** · **/whereis** | Look / examine a hero (or yourself) |
+| **/mapinfo** | Same as **/zone** — area + who is here |
 | **/motd** · **/afk** · **/back** · **/quit** | Welcome · AFK · leave world |
 | **/block** · **/blocklist** · **/unblock** | Mute list helpers |
 | **/ignore** · **/unignore** · **/ignores** | Mute list |
@@ -374,9 +386,11 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/buffs` · `/effects` | Repel · radiant · AFK flags |
 | `/keys` · `/controls` | Keybind cheat sheet |
 | `/gold` · `/spells` · `/bag` · `/inv` | Wallet · magic list · inventory |
-| `/inspect Name` · `/look Name` | Examine a hero |
+| `/inspect Name` · `/look Name` · `/profile Name` · `/whereis Name` | Examine a hero |
 | `/unequip weapon` · `/takeoff armor` | Unequip a gear slot |
-| `/version` · `/about` · `/time` · `/whoami` · `/stats` | Server info · self sheet |
+| `/version` · `/server` · `/info` · `/time` · `/whoami` | Server info · self sheet |
+| `/played` · `/session` | This connection’s age |
+| `/mapinfo` · `/zone` · `/where` | Your area + who is here |
 | `/motd` · `/afk` · `/back` · `/quit` | Welcome blurb · AFK badge · leave world |
 | `/block` · `/blocklist` · `/ignore` · `/unignore` · `/ignores` | Mute list |
 | `/inn` · `/rest` | Inn cost quote |
@@ -466,7 +480,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-318_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-339_green-059669?style=for-the-badge" />
+  &nbsp;
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.73-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -542,8 +558,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.69-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/318_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.73-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/339_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

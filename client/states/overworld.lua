@@ -132,6 +132,22 @@ local function bind_handlers(self)
       World.server_y = World.local_player.y
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
+    -- Soft-reconnect hygiene toast (mute list / whisper partner / buffs)
+    if type(data.restored) == "table" then
+      local bits = {}
+      if data.restored.ignores then
+        bits[#bits + 1] = "mute list"
+      end
+      if data.restored.last_whisper then
+        bits[#bits + 1] = "last whisper"
+      end
+      if data.restored.repel or data.restored.radiant then
+        bits[#bits + 1] = "buffs"
+      end
+      if #bits > 0 then
+        UI.toast("Restored: " .. table.concat(bits, ", "), "info")
+      end
+    end
   end)
 
   Network.on("who", function(data)
@@ -401,6 +417,10 @@ local function bind_handlers(self)
 
   Network.on("controls", function(data)
     UI.toast(tostring(data.message or "Controls updated"), "info")
+  end)
+
+  Network.on("played", function(data)
+    UI.toast(tostring(data.message or "Session time updated"), "info")
   end)
 
   Network.on("lastwhisper", function(data)
@@ -1044,6 +1064,8 @@ function Overworld:keypressed(key)
         local wants_version = text:match("^[/%!]version%s*$")
           or text:match("^[/%!]ver%s*$")
           or text:match("^[/%!]about%s*$")
+          or text:match("^[/%!]server%s*$")
+          or text:match("^[/%!]info%s*$")
         local wants_time = text:match("^[/%!]time%s*$")
           or text:match("^[/%!]uptime%s*$")
           or text:match("^[/%!]clock%s*$")
@@ -1080,6 +1102,9 @@ function Overworld:keypressed(key)
         local wants_buffs = text:match("^[/%!]buffs%s*$")
           or text:match("^[/%!]effects%s*$")
           or text:match("^[/%!]debuffs%s*$")
+        local wants_played = text:match("^[/%!]played%s*$")
+          or text:match("^[/%!]session%s*$")
+          or text:match("^[/%!]online_time%s*$")
         local wants_keys = text:match("^[/%!]keys%s*$")
           or text:match("^[/%!]controls%s*$")
           or text:match("^[/%!]keybinds%s*$")
@@ -1088,6 +1113,9 @@ function Overworld:keypressed(key)
         local inspect_name = text:match("^[/%!]inspect%s+(%S+)$")
           or text:match("^[/%!]look%s+(%S+)$")
           or text:match("^[/%!]examine%s+(%S+)$")
+          or text:match("^[/%!]profile%s+(%S+)$")
+          or text:match("^[/%!]whereis%s+(%S+)$")
+          or text:match("^[/%!]where_is%s+(%S+)$")
         local unequip_slot = text:match("^[/%!]unequip%s+(%S+)$")
           or text:match("^[/%!]takeoff%s+(%S+)$")
           or text:match("^[/%!]remove%s+(%S+)$")
@@ -1106,6 +1134,7 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]coords%s*$")
           or text:match("^[/%!]pos%s*$")
           or text:match("^[/%!]position%s*$")
+          or text:match("^[/%!]mapinfo%s*$")
         local wants_counts = text:match("^[/%!]counts%s*$")
           or text:match("^[/%!]census%s*$")
           or text:match("^[/%!]population%s*$")
@@ -1176,6 +1205,8 @@ function Overworld:keypressed(key)
           Network.send({ type = "lastwhisper" })
         elseif wants_buffs then
           Network.send({ type = "buffs" })
+        elseif wants_played then
+          Network.send({ type = "played" })
         elseif wants_keys then
           Network.send({ type = "keys" })
         elseif wants_blocklist then

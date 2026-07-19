@@ -17,15 +17,16 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs · vitals/xp/buffs peeks · keys/controls · unequip aliases | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/buffs` · `/keys` · `/last` · `/inspect` · auth welcome | Binary protocol |
+| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs · vitals/xp/buffs/`played` peeks · keys/controls · unequip · profile/mapinfo/server aliases | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/buffs` · `/keys` · `/last` · `/inspect` · `/played` · auth welcome | Binary protocol |
 
-**Version:** `0.5.69` (`server/config.py` → `VERSION`) · **318** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.73` (`server/config.py` → `VERSION`) · **339** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
+Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
 
 ## Documentation map (do not mix)
@@ -122,13 +123,17 @@ All messages are JSON objects with a `type` string.
 | `buy` / `sell` / `shop` / `inventory` | `item` | Shop only in **town** |
 | `use_item` | `item` / `item_id` | Herb (heal), Wings (town), Fairy Water (repel 64 steps). Herb OK in combat (uses turn). |
 | `rest` / `inn` | optional `preview` | Town inn: full HP/MP for gold (`level*4`, min 4). Not in combat. |
-| `chat` | `text`, optional `channel` | Default **global**; `nearby` AOI; `zone` same tile-zone; `whisper` + `to`/`to_id` |
-| `say` | `text` | **Nearby** (AOI) chat |
+| `chat` / `g` | `text`, optional `channel` | Default **global**; `nearby` AOI; `zone` same tile-zone; `whisper` + `to`/`to_id`. Type `g` forces global. |
+| `say` / `s` / `nearby_chat` | `text` | **Nearby** (AOI) chat |
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
 | `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `who` / `players` / `online_list` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
-| `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
+| `look` / `examine` / `inspect` / `profile` / `card` / `player_info` | `name` or `player_id` | Public card; coords only if nearby. Bare → self. Rate-exempt. |
+| `zone` / `where` / `mapinfo` / `whereami` / `coords` | — | Self zone + x/y + same-zone roster + zone counts. Rate-exempt. |
+| `version` / `ver` / `about` / `server` / `info` | — | `{version, online, zones, uptime, service}`. Rate-exempt. |
+| `played` / `session` / `session_time` / `online_time` | — | Connection age + multiplayer snapshot (`seconds`, `name`, `zone`, `online`, `nearby_count`, `afk`, `idle`, `message`). Rate-exempt. |
+| `whereis` / `where_is` | `name` or `player_id` | Look alias. Rate-exempt. |
 | `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
 | `find` / `search` | `q`/`query`/`name`, optional `limit`, optional `zone` | Online roster prefix search (no coords); zone filter town/field/dungeon. Rate-exempt. |
 | `help` / `commands` | — | Command list + version. Rate-exempt. |
@@ -160,6 +165,8 @@ All messages are JSON objects with a `type` string.
 | `emote` | Nearby emote broadcast |
 | `who` | `players`, `nearby_count`, `online`, `roster`, `zones`, `you` (`id`, `name`, `level`, `x`/`y`, `idle`, `in_combat`, `repel`, `radiant`, `zone`) |
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
+| `played` | `seconds`, `session_id`, `name`, `zone`, `online`, `nearby_count`, `afk`, `idle`, `message` |
+| `zone` | `zone`, `x`/`y`, `zones`, `players` (same-zone cards), `population`, `online`, `session_id` |
 | `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
 | `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
 | `online` | Global pulse: `online` count + `roster` (no positions) + `zones` counts; debounced ~150ms with delayed flush |
@@ -296,6 +303,15 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 124. Find `afk:` token only accepts yes/no/1/0/true/false; else `invalid afk filter`.
 125. `buffs`/`effects`/`debuffs` → repel/radiant/combat/AFK peek; `keys`/`controls`/`keybinds` → control summary.
 126. `inspect` aliases look; `blocklist`/`blocks` alias ignores list; discard bare → `item required`.
+127. `counts` includes `you` card (zone/afk/idle/session/nearby); find supports `idle:yes|no` (invalid → error).
+128. Connect meta stores **`session_started`** (monotonic) for `/played`. Soft reconnect (after disconnect) → **new** age; **live socket replace** preserves `session_started`.
+129. Look aliases: `profile`/`card`/`player_info`/`whereis`/`where_is`; zone aliases add `mapinfo`; version aliases add `server`/`info`.
+130. Chat type `s`/`nearby_chat` → nearby; type `g` → global (channel override still wins when valid).
+131. `played`/`session`/`session_time`/`online_time` → multiplayer snapshot + pretty `message` (rate-exempt in `main.py`).
+132. `counts.you.played` = session age seconds; zone responses include `session_id`.
+133. Tests: `test_mp_reliability_v0573` + `test_features_v0573` lock played/chat aliases + soft reconnect + regressions.
+128. Auth `world_state`/`auth_ok` include `restored.{ignores,last_whisper,repel,radiant}` after soft grace; welcome may note restores.
+129. Move while in combat → `error` + `move_ok ok=false` reason `in combat` (client reconcile); first join `restored` all false (no false "Restored" welcome).
 
 ## Tests (mandatory for your changes)
 
@@ -364,6 +380,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v0567` | force join online; find afk; roll/counts session_id; zone ignore; replace count |
 | `tests.test_adversarial_v0568` | bare buy/sell; shout=zone; invalid afk filter; sell equipped; ignore self |
 | `tests.test_features_v0569` | buffs/repel; keys; inspect; blocklist; discard bare; help |
+| `tests.test_mp_reliability_v0570` | counts.you; find idle; soft restored flags; shout ignore; replace |
+| `tests.test_adversarial_v0571` | combat move gate; first-join restored; ignore whispers; concurrent peeks |
+| `tests.test_mp_reliability_v0573` | played snapshot; s/g chat; live-replace timer; soft ignore; whisper/who regression |
+| `tests.test_features_v0573` | played unauth; rate-exempt peeks; empty s chat; help whereis |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |

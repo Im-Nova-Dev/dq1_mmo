@@ -197,6 +197,16 @@ class ConnectionManager:
             now = time.monotonic()
             self._session_seq += 1
             session_id = self._session_seq
+            # Live socket replace (double-login / reconnect race): keep /played timer.
+            # Fresh connect or soft-grace rejoin: new connection age.
+            session_started = now
+            if old_meta is not None and old is not None:
+                try:
+                    prev = float(old_meta.get("session_started") or 0.0)
+                    if prev > 0:
+                        session_started = prev
+                except (TypeError, ValueError):
+                    session_started = now
             self._connections[character_id] = websocket
             self._meta[character_id] = {
                 "id": character_id,
@@ -217,6 +227,7 @@ class ConnectionManager:
                 "repel_steps": grace_repel,
                 "radiant_steps": grace_radiant,
                 "session_id": session_id,
+                "session_started": session_started,  # monotonic — for /played session age
                 "visible": set(),  # peer ids currently in AOI
                 "ignore": grace_ignore,  # cid set — do not receive chat/emotes from these
                 "ignore_names": grace_ignore_names,  # tid -> name for offline display
@@ -976,12 +987,14 @@ class ConnectionManager:
         limit: int = 20,
         zone: str | None = None,
         afk: bool | None = None,
+        idle: bool | None = None,
     ) -> list[dict[str, Any]]:
         """Case-insensitive name prefix search over online roster (no coordinates).
 
         Optional zone filter: town | field | dungeon (never returns x/y).
         Optional afk filter: True = only AFK, False = only not-AFK, None = all.
-        Empty prefix + zone and/or afk lists matching online heroes.
+        Optional idle filter: True = only idle (soft or AFK), False = active only.
+        Empty prefix + zone/afk/idle lists matching online heroes.
         """
         key = ""
         if isinstance(prefix, str):
@@ -996,8 +1009,8 @@ class ConnectionManager:
             else:
                 # Invalid zone → no hits (caller may surface error)
                 return []
-        # Need a name prefix and/or a valid zone/afk filter
-        if not key and zone_key is None and afk is None:
+        # Need a name prefix and/or a valid zone/afk/idle filter
+        if not key and zone_key is None and afk is None and idle is None:
             return []
         try:
             lim = int(limit)
@@ -1019,6 +1032,8 @@ class ConnectionManager:
             if zone_key and card.get("zone") != zone_key:
                 continue
             if afk is not None and bool(card.get("afk")) is not bool(afk):
+                continue
+            if idle is not None and bool(card.get("idle")) is not bool(idle):
                 continue
             hits.append(card)
         hits.sort(

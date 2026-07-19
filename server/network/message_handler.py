@@ -405,24 +405,65 @@ async def handle_message(
         online_n = len(manager.online_ids())
         nearby_n = len(manager.ids_nearby(character_id))
         sid = manager.session_id(character_id)
+        meta = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+        from game.world_manager import zone_at as _z_at
+
+        you_zone = None
+        if meta is not None:
+            try:
+                you_zone = _z_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                you_zone = None
+        played_sec = 0
+        if meta is not None:
+            import time as _time
+
+            try:
+                started = float(meta.get("session_started") or 0.0)
+                if started > 0:
+                    played_sec = max(0, int(_time.monotonic() - started))
+            except (TypeError, ValueError):
+                played_sec = 0
+        you = {
+            "id": character_id,
+            "name": (meta or {}).get("name"),
+            "nearby_count": nearby_n,
+            "afk": bool((meta or {}).get("afk")),
+            "idle": _idle_chk(meta) if meta else False,
+            "zone": you_zone,
+            "in_combat": bool((meta or {}).get("in_combat")),
+            "played": played_sec,
+        }
+        if sid is not None:
+            you["session_id"] = sid
         body = {
             "type": "counts",
             "online": online_n,
             "nearby_count": nearby_n,
             "zones": zones,
+            "you": you,
+            "session_id": sid,
             "message": (
                 f"{online_n} online · nearby {nearby_n} · "
                 f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
                 f"dungeon {zones.get('dungeon', 0)}"
             ),
         }
-        if sid is not None:
-            body["session_id"] = sid
         outbound.append(body)
         return character_id, user_id, outbound, None
 
     # --- Where am I / zone population (multiplayer social) ---
-    if msg_type in ("zone", "where", "area", "whereami", "coords", "pos", "position"):
+    if msg_type in (
+        "zone",
+        "where",
+        "area",
+        "whereami",
+        "coords",
+        "pos",
+        "position",
+        "mapinfo",
+    ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -440,33 +481,40 @@ async def handle_message(
         # Same-zone roster (public cards, no x/y) for multiplayer social overview
         mates = manager.zone_roster(character_id, include_self=True)
         zone_pop = int(zones.get(you_zone, 0)) if you_zone else len(mates)
-        outbound.append(
-            msg(
-                "zone",
-                zone=you_zone,
-                x=x,
-                y=y,
-                zones=zones,
-                players=mates,
-                zone_count=len(mates),
-                population=zone_pop,
-                online=len(manager.online_ids()),
-                message=(
-                    f"You are in the {you_zone} ({len(mates)} here)."
-                    if you_zone in ("town", "field", "dungeon")
-                    else "You are somewhere on the map."
-                ),
-            )
-        )
+        zone_body = {
+            "type": "zone",
+            "zone": you_zone,
+            "x": x,
+            "y": y,
+            "zones": zones,
+            "players": mates,
+            "zone_count": len(mates),
+            "population": zone_pop,
+            "online": len(manager.online_ids()),
+            "message": (
+                f"You are in the {you_zone} ({len(mates)} here)."
+                if you_zone in ("town", "field", "dungeon")
+                else "You are somewhere on the map."
+            ),
+        }
+        sid_z = manager.session_id(character_id)
+        if sid_z is not None:
+            zone_body["session_id"] = sid_z
+        outbound.append(zone_body)
         return character_id, user_id, outbound, None
 
-    # --- Look / examine / inspect (public card; full coords only if nearby) ---
+    # --- Look / examine / inspect / profile / whereis (public card; coords if nearby) ---
     if msg_type in (
         ClientMessageType.LOOK,
         ClientMessageType.EXAMINE,
         "look",
         "examine",
         "inspect",
+        "profile",
+        "card",
+        "player_info",
+        "whereis",
+        "where_is",
     ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
@@ -811,13 +859,13 @@ async def handle_message(
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
                     {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
-                    {"cmd": "find", "hint": "/find Name · zone:town · afk:yes"},
+                    {"cmd": "find", "hint": "/find Name · zone:town · afk:yes · idle:yes"},
                     {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
-                    {"cmd": "look", "hint": "L · /look · /inspect — examine (bare = yourself)"},
+                    {"cmd": "look", "hint": "L · /look · /inspect · /profile · /whereis"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
-                    {"cmd": "zone", "hint": "/zone · /where · /whereami · /coords"},
-                    {"cmd": "counts", "hint": "/counts · /census — online + zone totals"},
+                    {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
+                    {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
                     {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
                     {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
@@ -825,6 +873,7 @@ async def handle_message(
                     {"cmd": "hp", "hint": "/hp · /vitals — HP/MP peek"},
                     {"cmd": "xp", "hint": "/xp · /level — level + XP to next"},
                     {"cmd": "buffs", "hint": "/buffs · /effects — repel · radiant · AFK"},
+                    {"cmd": "played", "hint": "/played · /session — this connection length"},
                     {"cmd": "keys", "hint": "/keys · /controls — keybind summary"},
                     {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
                     {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
@@ -835,7 +884,7 @@ async def handle_message(
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
-                    {"cmd": "version", "hint": "/version · /about — server version"},
+                    {"cmd": "version", "hint": "/version · /server · /info — server version"},
                     {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
                     {"cmd": "motd", "hint": "/motd — message of the day"},
                     {"cmd": "afk", "hint": "/afk · /away · /back — AFK badge"},
@@ -974,7 +1023,7 @@ async def handle_message(
         return None, user_id, outbound, None
 
     # --- Server version / about (multiplayer ops + client HUD) ---
-    if msg_type in ("version", "ver", "about"):
+    if msg_type in ("version", "ver", "about", "server", "info"):
         from config import PROCESS_STARTED_AT, VERSION as _VER
         import time as _time
 
@@ -990,6 +1039,51 @@ async def handle_message(
                 service="dq1-mmo",
             )
         )
+        return character_id, user_id, outbound, None
+
+    # --- Session play time this connection (multiplayer self snapshot) ---
+    if msg_type in ("played", "session", "session_time", "online_time"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        meta = manager.get_meta(character_id)
+        if not meta:
+            outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
+            return character_id, user_id, outbound, None
+        import time as _time
+        from network.websocket_manager import _is_idle as _idle_played
+
+        started = float(meta.get("session_started") or 0.0)
+        now = _time.monotonic()
+        age = max(0, int(now - started)) if started else 0
+        h, rem = divmod(age, 3600)
+        m, s = divmod(rem, 60)
+        if h:
+            pretty = f"{h}h {m}m {s}s"
+        elif m:
+            pretty = f"{m}m {s}s"
+        else:
+            pretty = f"{s}s"
+        you_zone = None
+        try:
+            you_zone = zone_at(int(meta["x"]), int(meta["y"]))
+        except Exception:
+            you_zone = None
+        sid = manager.session_id(character_id)
+        body = {
+            "type": "played",
+            "seconds": age,
+            "session_id": sid,
+            "name": meta.get("name"),
+            "zone": you_zone,
+            "online": len(manager.online_ids()),
+            "nearby_count": len(manager.ids_nearby(character_id)),
+            "afk": bool(meta.get("afk")),
+            "idle": _idle_played(meta),
+            "message": f"This session: {pretty}.",
+        }
+        outbound.append(body)
         return character_id, user_id, outbound, None
 
     # --- Server time / uptime ---
@@ -1132,8 +1226,27 @@ async def handle_message(
         q = data.get("q") or data.get("query") or data.get("name") or data.get("prefix") or ""
         zone_f = data.get("zone") or data.get("area")
         afk_f = data.get("afk")
+        idle_f = data.get("idle")
         q_clean = q.strip() if isinstance(q, str) else ""
-        # Pull zone:/in: and afk: tokens from free text (order-independent)
+
+        def _parse_yn_token(raw: Any) -> bool | None | str:
+            """Return True/False, None if unset, or 'bad' if invalid string."""
+            if raw is None or raw == "":
+                return None
+            if isinstance(raw, bool):
+                return raw
+            if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+                return bool(int(raw))
+            if isinstance(raw, str) and raw.strip():
+                s = raw.strip().lower()
+                if s in ("yes", "1", "true", "afk", "away", "idle"):
+                    return True
+                if s in ("no", "0", "false", "back", "active"):
+                    return False
+                return "bad"
+            return "bad"
+
+        # Pull zone:/in:, afk:, idle: tokens from free text (order-independent)
         if isinstance(q_clean, str) and q_clean:
             m_zone = re.search(r"(?:^|\s)(?:zone|in):(\w+)\b", q_clean, flags=re.I)
             if m_zone:
@@ -1149,9 +1262,22 @@ async def handle_message(
                     return character_id, user_id, outbound, None
                 afk_f = tok in ("yes", "1", "true")
                 q_clean = (q_clean[: m_afk.start()] + q_clean[m_afk.end() :]).strip()
+            m_idle = re.search(r"(?:^|\s)idle:(\w+)\b", q_clean, flags=re.I)
+            if m_idle:
+                tok = m_idle.group(1).lower()
+                if tok not in ("yes", "no", "1", "0", "true", "false"):
+                    outbound.append(
+                        msg(ServerMessageType.ERROR, reason="invalid idle filter")
+                    )
+                    return character_id, user_id, outbound, None
+                idle_f = tok in ("yes", "1", "true")
+                q_clean = (q_clean[: m_idle.start()] + q_clean[m_idle.end() :]).strip()
             # Bare "afk" / "away" as whole residual query
             if q_clean.lower() in ("afk", "away"):
                 afk_f = True
+                q_clean = ""
+            if q_clean.lower() in ("idle",):
+                idle_f = True
                 q_clean = ""
         # Validate zone first so "zone:moon" → invalid zone (not "find query required")
         if isinstance(zone_f, str) and zone_f.strip():
@@ -1162,20 +1288,16 @@ async def handle_message(
             zone_f = znorm
         else:
             zone_f = None
-        # Normalize afk filter: True / False / None (no filter)
-        afk_filter: bool | None = None
-        if isinstance(afk_f, bool):
-            afk_filter = afk_f
-        elif isinstance(afk_f, (int, float)) and not isinstance(afk_f, bool):
-            afk_filter = bool(int(afk_f))
-        elif isinstance(afk_f, str) and afk_f.strip():
-            s = afk_f.strip().lower()
-            if s in ("yes", "1", "true", "afk", "away"):
-                afk_filter = True
-            elif s in ("no", "0", "false", "back"):
-                afk_filter = False
-        # Bare zone and/or afk with empty name is OK
-        if not q_clean and zone_f is None and afk_filter is None:
+        afk_filter = _parse_yn_token(afk_f)
+        if afk_filter == "bad":
+            outbound.append(msg(ServerMessageType.ERROR, reason="invalid afk filter"))
+            return character_id, user_id, outbound, None
+        idle_filter = _parse_yn_token(idle_f)
+        if idle_filter == "bad":
+            outbound.append(msg(ServerMessageType.ERROR, reason="invalid idle filter"))
+            return character_id, user_id, outbound, None
+        # Bare zone and/or afk/idle with empty name is OK
+        if not q_clean and zone_f is None and afk_filter is None and idle_filter is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="find query required"))
             return character_id, user_id, outbound, None
         limit = data.get("limit") or 20
@@ -1184,7 +1306,11 @@ async def handle_message(
         except (TypeError, ValueError):
             limit_i = 20
         hits = manager.find_by_prefix(
-            q_clean, limit=limit_i, zone=zone_f, afk=afk_filter
+            q_clean,
+            limit=limit_i,
+            zone=zone_f,
+            afk=afk_filter,
+            idle=idle_filter,
         )
         bits: list[str] = []
         if q_clean:
@@ -1195,12 +1321,17 @@ async def handle_message(
             bits.append("afk:yes")
         elif afk_filter is False:
             bits.append("afk:no")
+        if idle_filter is True:
+            bits.append("idle:yes")
+        elif idle_filter is False:
+            bits.append("idle:no")
         outbound.append(
             msg(
                 ServerMessageType.FIND,
                 query=" ".join(bits),
                 zone=zone_f,
                 afk=afk_filter,
+                idle=idle_filter,
                 players=hits,
                 online=len(manager.online_ids()),
                 count=len(hits),
@@ -1941,15 +2072,23 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
-    # --- Chat: global / nearby AOI / zone (`say` defaults nearby) ---
-    if msg_type in (ClientMessageType.CHAT, ClientMessageType.SAY, "chat", "say"):
+    # --- Chat: global / nearby AOI / zone (`say`/`s` nearby; `chat`/`g` global) ---
+    if msg_type in (
+        ClientMessageType.CHAT,
+        ClientMessageType.SAY,
+        "chat",
+        "say",
+        "s",
+        "g",
+        "nearby_chat",
+    ):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
-        # Explicit channel wins; `say` defaults nearby, `chat` defaults global
+        # Explicit channel wins; say/s/nearby_chat → nearby; g → global; chat → global
         channel = (data.get("channel") or "").lower().strip()
         # Reserved for server-originated traffic only (level-up fanfare, etc.)
         # Check before rate-limit so clients get a clear reason, not chat_rate_limit.
@@ -1959,8 +2098,10 @@ async def handle_message(
             )
             return character_id, user_id, outbound, None
         if channel not in ("global", "nearby", "local", "whisper", "zone", "area", "shout"):
-            if msg_type in (ClientMessageType.SAY, "say"):
+            if msg_type in (ClientMessageType.SAY, "say", "s", "nearby_chat"):
                 channel = "nearby"
+            elif msg_type == "g":
+                channel = "global"
             else:
                 channel = "global"
         if channel == "local":

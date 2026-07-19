@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.69** (2026-07-19) · suite green **318** tests · `VERSION` in `server/config.py`  
+**Last docs refresh:** **v0.5.73** (2026-07-19) · suite **339** tests · `VERSION` in `server/config.py` · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -70,6 +70,9 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - `/gold` · `/spells` · `/bag` · `/inv` · `/items`
 - `/hp` · `/vitals` · `/xp` · `/level` · `/last` · `/unequip` · `/takeoff`
 - `/buffs` · `/effects` · `/keys` · `/controls` · `/inspect` · `/blocklist`
+- `/played` · `/session` — this connection’s age (+ zone / online) · `/profile` · `/whereis`
+- `/mapinfo` zone alias · `/server` · `/info` version · `/s` nearby · `/g` global
+- Soft reconnect keeps mute list; live socket replace keeps session timer
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, or walk
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up
@@ -78,7 +81,7 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - Safer buy/sell/discard quantities (0 and fractions rejected); bare buy/sell/discard need an item
 - Soft reconnect keeps mute list and last whisper partner
 - Equip / unequip show clear toasts
-- CC0 pixel art + SVG companions
+- CC0 pixel art (Kenney + Tiny Creatures) + SVG companions
 
 ---
 
