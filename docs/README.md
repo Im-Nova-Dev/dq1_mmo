@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.112** (2026-07-19) · suite **564** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish · `/thank` · offline invite clear · last push `3a5c5c2` (v0.5.98)
+**Last docs refresh:** **v0.5.112** (2026-07-19) · suite **564** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish (mermaid · skillicons · asset previews) · last ship `7b2b714`
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -31,18 +31,21 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 | **Coding agent / LLM** | [../AGENTS.md](../AGENTS.md) **only** | Protocol, hot paths, tests, reliability |
 | **Curious about history** | [../plan.md](../plan.md) | Original roadmap — **not** live truth |
 
-```text
-┌─────────────────────────┐          ┌─────────────────────────┐
-│         HUMANS          │          │     AGENTS / LLMs       │
-├─────────────────────────┤          ├─────────────────────────┤
-│ README.md  (GitHub)     │          │ AGENTS.md  (only file)  │
-│ docs/HUMAN.md           │          │  · WebSocket catalog    │
-│ docs/README.md (map)    │          │  · reliability rules    │
-│ client/assets/          │          │  · test matrix          │
-│   ATTRIBUTION.md        │          │  · hot paths            │
-└────────────┬────────────┘          └────────────┬────────────┘
-             │                                    │
-             └──────── never mix contents ────────┘
+```mermaid
+flowchart TB
+  subgraph humans ["HUMANS"]
+    R[README.md · GitHub]
+    H[docs/HUMAN.md]
+    A[ATTRIBUTION.md]
+    M[docs/README.md · map]
+  end
+  subgraph agents ["AGENTS / LLMs"]
+    G[AGENTS.md only]
+    G --> P[Protocol]
+    G --> T[Tests · reliability]
+    G --> HP[Hot paths]
+  end
+  humans -.->|never mix contents| agents
 ```
 
 ---

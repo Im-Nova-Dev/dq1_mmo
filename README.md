@@ -1,13 +1,29 @@
 # Dragon Quest 1 MMO
 
+<!-- GitHub face for humans — protocol lives in AGENTS.md only -->
+
 <p align="center">
-  <img alt="banner" src="https://img.shields.io/badge/DQ1_MMO-Server--authoritative_multiplayer-1e1b4b?style=for-the-badge&labelColor=0f172a" />
+  <img alt="DQ1 MMO" src="https://img.shields.io/badge/⚔️_DQ1_MMO-Server--authoritative_multiplayer-1e1b4b?style=for-the-badge&labelColor=0f172a" />
+</p>
+
+<p align="center">
+  <img src="client/assets/sprites/heroes/hero.png" alt="Hero" height="64" />
+  &nbsp;
+  <img src="client/assets/tiles/town.png" alt="Town" height="48" />
+  <img src="client/assets/tiles/field.png" alt="Field" height="48" />
+  <img src="client/assets/tiles/dungeon.png" alt="Dungeon" height="48" />
+  &nbsp;
+  <img src="client/assets/sprites/heroes/other.png" alt="Other hero" height="64" />
 </p>
 
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.112</b> · <b>564</b> tests green · meetup · thank · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.112</b> · <b>564</b> tests green · meetup · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+</p>
+
+<p align="center">
+  <a href="https://skillicons.dev"><img src="https://skillicons.dev/icons?i=python,fastapi,lua,sqlite&theme=dark" alt="Python · FastAPI · Lua · SQLite" /></a>
 </p>
 
 <p align="center">
@@ -19,12 +35,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=flat-square&color=fbbf24" /></a>
-  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/network/members"><img alt="forks" src="https://img.shields.io/github/forks/Im-Nova-Dev/dq1_mmo?style=flat-square&color=94a3b8" /></a>
-  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/issues"><img alt="issues" src="https://img.shields.io/github/issues/Im-Nova-Dev/dq1_mmo?style=flat-square" /></a>
-  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/Im-Nova-Dev/dq1_mmo?style=flat-square&color=6366f1" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=github&color=fbbf24" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/network/members"><img alt="forks" src="https://img.shields.io/github/forks/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=github&color=94a3b8" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/issues"><img alt="issues" src="https://img.shields.io/github/issues/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=github" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/Im-Nova-Dev/dq1_mmo?style=flat-square&logo=git&color=6366f1" /></a>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
-  <img alt="love2d" src="https://img.shields.io/badge/Love2D-11.x-EA316E?style=flat-square" />
+  <img alt="love2d" src="https://img.shields.io/badge/Love2D-11.x-EA316E?style=flat-square&logo=lua&logoColor=white" />
   <img alt="fastapi" src="https://img.shields.io/badge/FastAPI-WebSocket-009688?style=flat-square&logo=fastapi&logoColor=white" />
   <img alt="sqlite" src="https://img.shields.io/badge/SQLite-local_first-003B57?style=flat-square&logo=sqlite&logoColor=white" />
   <img alt="license" src="https://img.shields.io/badge/fan_project-not_Square_Enix-6b7280?style=flat-square" />
@@ -36,6 +52,8 @@
   <a href="#-whats-new"><b>What's new</b></a>
   ·
   <a href="#-highlights"><b>Highlights</b></a>
+  ·
+  <a href="#-how-it-fits-together"><b>Architecture</b></a>
   ·
   <a href="#-controls"><b>Controls</b></a>
   ·
@@ -50,13 +68,13 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · thanks · AFK · soft reconnect.
+  Server-side 1v1 · shop · whisper · meetup · near/far · thanks · AFK · soft reconnect.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/social-invite_·_share_·_askwhere_·_thank_·_poke-8b5cf6?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/social-invite_·_share_·_near%2Ffar-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
@@ -105,15 +123,19 @@ protocol · tests · reliability
   <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_social-334155?style=for-the-badge" />
 </p>
 
-```text
-  Register  →  Create hero (clothes + herbs)  →  Town (safe)
-       │              │                              │
-       │              └──── /shop · inn · equip ─────┤
-       │                                              ▼
-       │  /invite · /share · /askwhere · /thank · /poke · /accept · /wave
-       └──────── /busy · /fighting ◄── Field / Dungeon
-                      │
-                 /stuck home · logout
+```mermaid
+flowchart LR
+  A[Register] --> B[Create hero]
+  B --> C[Town · safe]
+  C --> D[Field / Dungeon]
+  D --> E[Fight 1v1]
+  E --> C
+  C --> F[Shop · inn · equip]
+  F --> C
+  C --> G[Social meetup]
+  G --> C
+  D --> H["/busy · AFK"]
+  H --> D
 ```
 
 <table>
@@ -121,7 +143,7 @@ protocol · tests · reliability
 <td align="center" width="20%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
 <td align="center" width="20%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
 <td align="center" width="20%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
-<td align="center" width="20%"><b>👋 Social</b><br/><sub>invite · thank · share</sub></td>
+<td align="center" width="20%"><b>👋 Social</b><br/><sub>invite · near/far</sub></td>
 <td align="center" width="20%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
 </tr>
 </table>
@@ -144,6 +166,7 @@ protocol · tests · reliability
 |:--|:--------|
 | 🆕 | [What's new](#-whats-new) — **v0.5.112** |
 | ✨ | [Highlights](#-highlights) |
+| 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
 | 🎨 | [Look & art](#-look--art) |
@@ -192,7 +215,7 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.112** | Social near/far badges · whisper private delivery · **564** tests |
+| **0.5.112** | Social near/far · reliable whispers · **564** tests |
 | **0.5.111** | Accept/decline zone · `r` reply alias · lastemote badges · **556** tests |
 | **0.5.110** | Find multi-token filters (no residual prefix) · **547** tests |
 | **0.5.109** | `/pending`/`/lastinvite` zone badges · find `you` tag · **540** tests |
@@ -311,6 +334,44 @@ protocol · tests · reliability
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
+
+---
+
+## 🧩 How it fits together
+
+Player-facing picture only — no wire protocol here. Agents: see **[AGENTS.md](AGENTS.md)**.
+
+```mermaid
+flowchart TB
+  subgraph client ["Love2D client"]
+    UI[Overworld · Combat · Inventory UI]
+    NET[Network layer]
+    UI --> NET
+  end
+  subgraph server ["FastAPI server"]
+    WS[WebSocket hub]
+    COMBAT[Combat engine · DQ1 1v1]
+    WORLD[World · presence · chat]
+    DB[(SQLite)]
+    WS --> COMBAT
+    WS --> WORLD
+    WORLD --> DB
+    COMBAT --> DB
+  end
+  NET <-->|JSON over WebSocket| WS
+```
+
+| Piece | Role for players |
+|:------|:-----------------|
+| **Client** | What you see and press — movement prediction, combat menus, chat |
+| **Server** | Truth for fights, gold, position, who is online |
+| **SQLite** | Heroes, inventory, accounts (local-first) |
+| **Soft reconnect** | Brief disconnects keep mute list, last whisper partner, buffs when possible |
+
+<p align="center">
+  <img alt="authority" src="https://img.shields.io/badge/authority-server_wins-f43f5e?style=for-the-badge" />
+  <img alt="protocol" src="https://img.shields.io/badge/wire_protocol-AGENTS.md_only-7c3aed?style=for-the-badge" />
+</p>
 
 ---
 
@@ -545,6 +606,18 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 Drop PNGs into [`client/assets/`](client/assets/) — **filenames are the contract**.  
 Missing files fall back to procedural drawing.
 
+<p align="center">
+  <img src="client/assets/tiles/town.png" alt="town" height="40" />
+  <img src="client/assets/tiles/field.png" alt="field" height="40" />
+  <img src="client/assets/tiles/dungeon.png" alt="dungeon" height="40" />
+  <img src="client/assets/tiles/water.png" alt="water" height="40" />
+  <img src="client/assets/tiles/wall.png" alt="wall" height="40" />
+  &nbsp;&nbsp;
+  <img src="client/assets/sprites/heroes/hero.png" alt="hero" height="48" />
+  <img src="client/assets/sprites/heroes/hero_battle.png" alt="battle" height="48" />
+  <img src="client/assets/sprites/heroes/other.png" alt="other" height="48" />
+</p>
+
 | Path | Files |
 |:-----|:------|
 | `tiles/` | `field` · `wall` · `town` · `water` · `dungeon` |
@@ -660,10 +733,11 @@ dq1_mmo/
 | **[AGENTS.md](AGENTS.md)** | **Only** agent entry |
 | | Protocol · hot paths · tests · reliability |
 
-```text
-┌──────── HUMANS ────────┐     ┌────── AGENTS ──────┐
-│ README · HUMAN · Art   │  ≠  │ AGENTS.md ONLY     │
-└────────────────────────┘     └────────────────────┘
+```mermaid
+flowchart LR
+  H[README · HUMAN · Art] -.->|never mix| A[AGENTS.md only]
+  style H fill:#1e3a8a,stroke:#93c5fd,color:#fff
+  style A fill:#5b21b6,stroke:#c4b5fd,color:#fff
 ```
 
 </td>
