@@ -1,4 +1,5 @@
 import re
+import math
 from typing import Any
 
 from auth.jwt_handler import decode_access_token
@@ -359,7 +360,7 @@ async def handle_message(
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
                     {"cmd": "whisper", "hint": "/w Name message"},
-                    {"cmd": "find", "hint": "/find Name — online prefix search"},
+                    {"cmd": "find", "hint": "/find Name · /find Name zone:field"},
                     {"cmd": "status", "hint": "F or /status — self sheet"},
                     {"cmd": "look", "hint": "L — examine a player"},
                     {"cmd": "who", "hint": "O or /who — online + zone counts"},
@@ -369,7 +370,7 @@ async def handle_message(
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
-                    {"cmd": "reply", "hint": "/r message — reply last whisper"},
+                    {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                 ],
                 channels=["global", "nearby", "zone", "whisper"],
                 version=__import__("config", fromlist=["VERSION"]).VERSION,
@@ -478,11 +479,22 @@ async def handle_message(
             limit_i = int(limit)
         except (TypeError, ValueError):
             limit_i = 20
-        hits = manager.find_by_prefix(q, limit=limit_i)
+        zone_f = data.get("zone") or data.get("area")
+        # Allow "/find bob zone:field" style via query suffix
+        q_clean = q.strip()
+        if " zone:" in q_clean.lower() or " in:" in q_clean.lower():
+            import re as _re
+
+            m = _re.search(r"\s+(?:zone|in):(\w+)\s*$", q_clean, flags=_re.I)
+            if m:
+                zone_f = m.group(1)
+                q_clean = q_clean[: m.start()].strip()
+        hits = manager.find_by_prefix(q_clean, limit=limit_i, zone=zone_f)
         outbound.append(
             msg(
                 ServerMessageType.FIND,
-                query=q.strip()[:24],
+                query=q_clean[:24],
+                zone=zone_f if isinstance(zone_f, str) else None,
                 players=hits,
                 online=len(manager.online_ids()),
                 count=len(hits),
@@ -916,10 +928,17 @@ async def handle_message(
 
         x = data.get("x")
         y = data.get("y")
-        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+
+        def _finite_num(v: Any) -> bool:
+            return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(float(v))
+
+        if not _finite_num(x) or not _finite_num(y):
             meta = manager.get_meta(character_id)
-            mx = int(meta["x"]) if meta else 0
-            my = int(meta["y"]) if meta else 0
+            try:
+                mx = int(meta["x"]) if meta and math.isfinite(float(meta["x"])) else 0
+                my = int(meta["y"]) if meta and math.isfinite(float(meta["y"])) else 0
+            except (TypeError, ValueError, OverflowError):
+                mx, my = 0, 0
             _reject("invalid move", mx, my)
             return character_id, user_id, outbound, None
 
@@ -929,7 +948,14 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="not connected"))
             return character_id, user_id, outbound, None
 
-        fx, fy = int(meta["x"]), int(meta["y"])
+        # Defend against corrupted meta (e.g. prior non-finite inject)
+        try:
+            fx, fy = int(meta["x"]), int(meta["y"])
+            if not math.isfinite(float(meta["x"])) or not math.isfinite(float(meta["y"])):
+                raise ValueError("non-finite meta pos")
+        except (TypeError, ValueError, OverflowError):
+            fx, fy = SPAWN_X, SPAWN_Y
+            meta["x"], meta["y"] = float(fx), float(fy)
 
         # Duplicate / old seq: ignore but confirm current pos (idempotent)
         last_seq = int(meta.get("last_move_seq") or 0)
@@ -1014,23 +1040,47 @@ async def handle_message(
 
         return character_id, user_id, outbound, None
 
-    # --- Whisper / tell (private, by name or player_id) ---
-    if msg_type in (ClientMessageType.WHISPER, ClientMessageType.TELL, "whisper", "tell"):
+    # --- Whisper / tell / reply (private, by name or player_id or last peer) ---
+    if msg_type in (
+        ClientMessageType.WHISPER,
+        ClientMessageType.TELL,
+        ClientMessageType.REPLY,
+        "whisper",
+        "tell",
+        "reply",
+    ):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
             return character_id, user_id, outbound, None
-        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        target_id = manager.find_id_by_player_id(
-            data.get("to_id") or data.get("player_id") or data.get("id")
+        # Server-side reply: use last whisper peer (survives soft reconnect)
+        want_reply = (
+            msg_type in (ClientMessageType.REPLY, "reply")
+            or bool(data.get("reply"))
+            or str(data.get("to") or "").strip().lower() in ("@last", "last", "!")
         )
-        if target_id is None and isinstance(target_name, str) and target_name.strip():
-            target_id = manager.find_id_by_name(target_name)
-        if target_id is None and not (
-            isinstance(target_name, str) and target_name.strip()
-        ) and data.get("to_id") is None and data.get("player_id") is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
-            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        if want_reply and (
+            target_name is None
+            or str(target_name).strip().lower() in ("@last", "last", "!", "")
+        ):
+            lid, lname = manager.last_whisper_from(character_id)
+            target_id = lid if lid is not None else None
+            if target_id is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to reply to"))
+                return character_id, user_id, outbound, None
+            target_name = lname
+        else:
+            target_id = manager.find_id_by_player_id(
+                data.get("to_id") or data.get("player_id") or data.get("id")
+            )
+            if target_id is None and isinstance(target_name, str) and target_name.strip():
+                target_id = manager.find_id_by_name(target_name)
+            if target_id is None and not (
+                isinstance(target_name, str) and target_name.strip()
+            ) and data.get("to_id") is None and data.get("player_id") is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
+                return character_id, user_id, outbound, None
         allowed, retry = manager.allow_chat(character_id)
         if not allowed:
             outbound.append(
@@ -1042,6 +1092,10 @@ async def handle_message(
             )
             return character_id, user_id, outbound, None
         if target_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        # Reply target may have gone offline — re-check online
+        if target_id not in manager.online_ids():
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         if target_id == character_id:
@@ -1073,6 +1127,9 @@ async def handle_message(
         # Deliver to target + echo to self (so UI shows the send)
         await manager.send(target_id, whisper_msg)
         outbound.append(whisper_msg)
+        # Target remembers us for their /r; we remember them if they reply later
+        manager.note_whisper_from(target_id, character_id, name)
+        manager.note_whisper_from(character_id, target_id, tname)
         return character_id, user_id, outbound, None
 
     # --- Chat: global / nearby AOI / zone (`say` defaults nearby) ---
@@ -1151,6 +1208,8 @@ async def handle_message(
             )
             await manager.send(target_id, whisper_msg)
             outbound.append(whisper_msg)
+            manager.note_whisper_from(target_id, character_id, name)
+            manager.note_whisper_from(character_id, target_id, tname)
             return character_id, user_id, outbound, None
         zone_name = None
         if meta is not None:
@@ -1490,11 +1549,18 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
         async with db_write() as db:
-            ok, reason = await sell_item(db, char, str(item_id or ""))
+            ok, reason, sold = await sell_item(db, char, str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
-        outbound.append(await _inventory_msg(character_id))
+        inv = await _inventory_msg(character_id)
+        # Surface sell result so clients can toast gold earned
+        if sold:
+            inv["sold"] = sold
+            inv["message"] = (
+                f"Sold {sold.get('item_name') or item_id} for {sold.get('gold_gained', 0)} G"
+            )
+        outbound.append(inv)
         return character_id, user_id, outbound, None
 
     # Debug/test: force encounter (ALLOW_DEBUG=1)

@@ -12,15 +12,16 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/look/find/status/ignore, who + idle roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell (incl. equipped), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · reconnect soft grace · locked AOI moves | Binary protocol |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who + idle roster + session_id | Multi-map worlds |
+| Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones | Binary protocol |
 
-**Version:** `0.5.28` (`server/config.py` → `VERSION`) · **137** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.34` (`server/config.py` → `VERSION`) · **156** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`.  
-Human “What’s new” should use plain language (no `session_id` / message-type catalogs).
+Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
+GitHub README may use badges and callouts; still **no** protocol dumps.
 
 ## Documentation map (do not mix)
 
@@ -119,11 +120,12 @@ All messages are JSON objects with a `type` string.
 | `chat` | `text`, optional `channel` | Default **global**; `nearby` AOI; `zone` same tile-zone; `whisper` + `to`/`to_id` |
 | `say` | `text` | **Nearby** (AOI) chat |
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
+| `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `who` | — | Nearby players + `online` count + `zones` counts (town/field/dungeon); lightweight |
 | `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
 | `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
-| `find` / `search` | `q`/`query`/`name`, optional `limit` | Online roster prefix search (no coords). Rate-exempt. |
+| `find` / `search` | `q`/`query`/`name`, optional `limit`, optional `zone` | Online roster prefix search (no coords); zone filter town/field/dungeon. Rate-exempt. |
 | `help` / `commands` | — | Command list + version. Rate-exempt. |
 | `ignore` / `unignore` / `ignores` | `name` or `player_id` | Mute chat/emotes from a player (session soft-grace). |
 | `ping` | `t`, optional `sync` | Heartbeat; pong echoes `t` + `server_t` + `online` |
@@ -140,7 +142,7 @@ All messages are JSON objects with a `type` string.
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
 | `player_update` | `level`, `in_combat`, position |
 | `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby` \| `zone` \| `whisper` \| `system`); system level-up nearby; whisper has `to` / `to_id` |
-| `find` | `query`, `players` (roster cards), `count`, `online` |
+| `find` | `query`, `players` (roster cards with optional `zone`, no coords), `count`, `online` |
 | `help` | `commands[]`, `channels`, `version`, `online` |
 | `combat_end` | `result`, `xp`, `gold`; on defeat also `gold_lost`, `respawn` |
 | `pong` | `t` (echo), `server_t`, `online` |
@@ -155,7 +157,7 @@ All messages are JSON objects with a `type` string.
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
 | `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
 | `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
-| `online` | Global pulse: `online` count + `roster` (no positions); debounced ~150ms with delayed flush |
+| `online` | Global pulse: `online` count + `roster` (no positions) + `zones` counts; debounced ~150ms with delayed flush |
 | `error` | `reason` (+ sometimes `x`/`y`/`seq`/`retry_after`) |
 | `pong` | Echo `t` for RTT |
 
@@ -190,6 +192,16 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 25. `ids_nearby` only counts **live sockets** (orphan meta never appears nearby/find/roster).
 26. Move **rate limit applies only after** adjacent+walkable validation (invalid steps do not burn budget).
 27. Reserved chat channels rejected **before** chat rate limit (clear `reserved channel` reason).
+28. Presence loop: **prune_stale_visible** every tick; full **reconcile_all_aoi** ~30s; online pulse includes **zones**.
+29. `GET /health` includes `zones` counts (ops visibility).
+30. Move coords must be **finite** (reject NaN/Inf/bool); `publish_move`/`set_position` refuse non-finite; corrupted meta pos recovers to spawn.
+31. Inventory bag items include **`sell_price`** (half buy); shop catalog already does.
+32. Moving updates **`last_seen`** (idle badge honest under walk-only play).
+33. Online/find cards may include **`zone`** (town/field/dungeon) never x/y.
+34. **`reply`** / last-whisper peer stored in meta + soft grace for reconnect.
+35. Successful **sell** includes `sold` + `message` on `inventory_update` (`gold_gained`).
+36. Chat and move both refresh **`last_seen`** (idle badges).
+37. **`player_moved` includes `idle`**; find accepts **`zone`** filter / `zone:field` query suffix.
 
 ## Tests (mandatory for your changes)
 
@@ -224,6 +236,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_ignore` | ignore/mute, idle roster, soft-grace, dead socket cleanup |
 | `tests.test_mp_aoi_fix` | disconnect geometric leave, status AOI, zone counts, global ignore, reconnect storm |
 | `tests.test_features_v0528` | invalid step no rate burn, reserved channel first, who zones |
+| `tests.test_mp_presence_heal` | AOI prune/reconcile, online zones, health zones, 4-player chat |
+| `tests.test_adversarial_nan` | NaN/Inf move rejection, meta recovery, no position corruption |
+| `tests.test_features_v0531` | inventory sell_price, zone_counts repairs NaN meta |
+| `tests.test_mp_reply_zone` | server reply whisper, roster zone, move clears idle, soft reconnect reply |
+| `tests.test_features_v0533` | sell gold_gained + sold payload on inventory_update |
+| `tests.test_mp_find_zone` | find zone filter, chat clears idle, player_moved idle |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

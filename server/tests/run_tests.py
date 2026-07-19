@@ -93,6 +93,12 @@ def main() -> int:
         "tests.test_mp_ignore",
         "tests.test_mp_aoi_fix",
         "tests.test_features_v0528",
+        "tests.test_mp_presence_heal",
+        "tests.test_adversarial_nan",
+        "tests.test_features_v0531",
+        "tests.test_mp_reply_zone",
+        "tests.test_features_v0533",
+        "tests.test_mp_find_zone",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)

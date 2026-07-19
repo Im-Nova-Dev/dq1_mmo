@@ -177,6 +177,9 @@ local function bind_handlers(self)
     if data.roster then
       self.roster = data.roster
     end
+    if data.zones then
+      self.zones = data.zones
+    end
   end)
 
   Network.on("status", function(data)
@@ -213,7 +216,11 @@ local function bind_handlers(self)
     local names = {}
     for i = 1, math.min(n, 6) do
       local p = players[i]
-      names[#names + 1] = string.format("%s Lv%d", tostring(p.name or "?"), tonumber(p.level) or 1)
+      local bit = string.format("%s Lv%d", tostring(p.name or "?"), tonumber(p.level) or 1)
+      if p.zone then
+        bit = bit .. " [" .. tostring(p.zone) .. "]"
+      end
+      names[#names + 1] = bit
     end
     local more = n > 6 and (" +" .. tostring(n - 6)) or ""
     UI.toast(string.format("Find (%d): %s%s", n, table.concat(names, ", "), more), "info")
@@ -283,6 +290,7 @@ local function bind_handlers(self)
       name = data.name,
       level = data.level,
       in_combat = data.in_combat,
+      idle = data.idle,
     })
   end)
 
@@ -298,6 +306,7 @@ local function bind_handlers(self)
       ty = math.floor(data.y or 0),
       level = data.level or (existing and existing.level) or 1,
       in_combat = data.in_combat and true or false,
+      idle = data.idle and true or false,
     }
     if not existing then
       UI.toast((data.name or "Hero") .. " appeared nearby", "join")
@@ -320,10 +329,24 @@ local function bind_handlers(self)
       name = data.name,
       level = data.level,
       in_combat = data.in_combat,
+      idle = data.idle,
     })
-    local p = World.players[data.player_id]
-    if p and data.in_combat == true then
-      -- optional soft toast once
+    -- Keep online roster combat/idle flags fresh without a full /who
+    if type(self.roster) == "table" and data.player_id then
+      for _, r in ipairs(self.roster) do
+        if r.id == data.player_id or r.name == data.name then
+          if data.in_combat ~= nil then
+            r.in_combat = data.in_combat
+          end
+          if data.idle ~= nil then
+            r.idle = data.idle
+          end
+          if data.level ~= nil then
+            r.level = data.level
+          end
+          break
+        end
+      end
     end
   end)
 
@@ -469,6 +492,11 @@ local function bind_handlers(self)
   end)
 
   Network.on("inventory_update", function(data)
+    if data.sold and data.sold.gold_gained then
+      local g = tonumber(data.sold.gold_gained) or 0
+      local n = data.sold.item_name or data.sold.item_id or "item"
+      UI.toast(string.format("Sold %s +%d G", tostring(n), g), "ok")
+    end
     if data.character then
       Session.character = data.character
     end
@@ -707,9 +735,21 @@ function Overworld:draw()
   -- Minimap (taller panel for title)
   UI.minimap(w - 148, 12, 120, World)
 
-  -- Player list
+  -- Player list: nearby (coords) + online roster (zone / idle, no radar)
   if self.show_list then
-    UI.player_list(w - 260, 170, 248, 210, World.local_player, World.players, "Nearby")
+    UI.player_list(w - 260, 170, 248, 150, World.local_player, World.players, "Nearby")
+    if type(self.roster) == "table" and #self.roster > 0 then
+      UI.player_list(
+        w - 260,
+        330,
+        248,
+        160,
+        nil,
+        self.roster,
+        "Online",
+        { mode = "roster" }
+      )
+    end
   end
 
   -- Character status sheet (F)
@@ -769,6 +809,7 @@ function Overworld:keypressed(key)
         local wants_who = text:match("^[/%!]who%s*$")
         local wants_ignores = text:match("^[/%!]ignores%s*$") or text:match("^[/%!]ignorelist%s*$")
         local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
+        -- /find Name zone:field or /find Name in:dungeon
         local wants_help = text:match("^[/%!]help%s*$") or text:match("^[/%!]commands%s*$") or text:match("^%?%s*$")
         local ign_name = text:match("^[/%!]ignore%s+(%S+)$") or text:match("^[/%!]mute%s+(%S+)$")
         local unign_name = text:match("^[/%!]unignore%s+(%S+)$") or text:match("^[/%!]unmute%s+(%S+)$")
@@ -777,7 +818,10 @@ function Overworld:keypressed(key)
           Network.whisper(wname, wmsg)
           self.last_whisper_from = wname
         elseif reply_msg and reply_msg ~= "" then
-          if self.last_whisper_from then
+          -- Prefer server-side last-peer (reliable after reconnect); client name as fallback
+          if Network.reply then
+            Network.reply(reply_msg)
+          elseif self.last_whisper_from then
             Network.whisper(self.last_whisper_from, reply_msg)
           else
             UI.toast("No one to reply to", "danger")

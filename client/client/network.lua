@@ -261,6 +261,11 @@ function Network.whisper(to_name, text)
   return Network.send({ type = "whisper", to = to_name, text = text })
 end
 
+--- Server-tracked reply to last whisper peer (survives reconnect soft grace).
+function Network.reply(text)
+  return Network.send({ type = "reply", text = text })
+end
+
 function Network.emote(emote)
   return Network.send({ type = "emote", emote = emote or "wave" })
 end
@@ -278,8 +283,12 @@ function Network.request_status()
   return Network.send({ type = "status" })
 end
 
-function Network.find(query)
-  return Network.send({ type = "find", q = tostring(query or "") })
+function Network.find(query, zone)
+  local payload = { type = "find", q = tostring(query or "") }
+  if zone and zone ~= "" then
+    payload.zone = tostring(zone)
+  end
+  return Network.send(payload)
 end
 
 function Network.who()

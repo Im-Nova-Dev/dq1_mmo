@@ -71,22 +71,43 @@ def equipment_bonuses(character: dict) -> dict:
     }
 
 
+def _sell_price_for_def(defn: dict | None) -> int:
+    """DQ-style half of buy price (min 1 if priced)."""
+    if not defn:
+        return 0
+    try:
+        price = int(defn.get("price") or 0)
+    except (TypeError, ValueError):
+        return 0
+    if price <= 0:
+        return 0
+    return max(1, price // 2)
+
+
 async def list_items(db, character_id: int) -> list[dict]:
     async with db.execute(
         "SELECT id, item_id, quantity, is_equipped FROM item_instances WHERE character_id = ? AND is_equipped = 0",
         (character_id,),
     ) as c:
         rows = await c.fetchall()
-    return [
-        {
-            "id": r["id"],
-            "item_id": r["item_id"],
-            "quantity": r["quantity"],
-            "is_equipped": False,
-            "def": get_item_def(r["item_id"]),
-        }
-        for r in rows
-    ]
+    out: list[dict] = []
+    for r in rows:
+        defn = get_item_def(r["item_id"])
+        # Attach sell_price for client bag UI (matches sell_item formula)
+        if isinstance(defn, dict):
+            defn = dict(defn)
+            defn["sell_price"] = _sell_price_for_def(defn)
+        out.append(
+            {
+                "id": r["id"],
+                "item_id": r["item_id"],
+                "quantity": r["quantity"],
+                "is_equipped": False,
+                "def": defn,
+                "sell_price": _sell_price_for_def(defn if isinstance(defn, dict) else None),
+            }
+        )
+    return out
 
 
 async def add_item(db, character_id: int, item_id: str, quantity: int = 1) -> None:
@@ -193,10 +214,11 @@ async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     return True, "ok"
 
 
-async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
+async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
+    """Sell one item. Returns (ok, reason, info) with gold_gained on success."""
     defn = get_item_def(item_id)
     if not defn:
-        return False, "unknown item"
+        return False, "unknown item", {}
     price = int(defn.get("price", 0)) // 2
 
     # Equipped gear lives on the character row, not in bag stacks — allow sell
@@ -214,7 +236,7 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
         )
         character[equipped_col] = None
     elif not await remove_item(db, character["id"], item_id, 1):
-        return False, "not in inventory"
+        return False, "not in inventory", {}
 
     try:
         gold = max(0, int(str(character.get("gold", "0") or "0"))) + price
@@ -226,7 +248,16 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     )
     await db.commit()
     character["gold"] = str(gold)
-    return True, "ok"
+    return (
+        True,
+        "ok",
+        {
+            "gold_gained": price,
+            "item_id": item_id,
+            "item_name": defn.get("name") or item_id,
+            "gold": str(gold),
+        },
+    )
 
 
 def _safe_gold(character: dict) -> int:

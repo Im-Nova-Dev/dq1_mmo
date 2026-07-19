@@ -10,12 +10,15 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.28-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.34-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-137_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-156_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=flat-square&color=fbbf24" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/issues"><img alt="issues" src="https://img.shields.io/github/issues/Im-Nova-Dev/dq1_mmo?style=flat-square" /></a>
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/commits/main"><img alt="last commit" src="https://img.shields.io/github/last-commit/Im-Nova-Dev/dq1_mmo?style=flat-square&color=6366f1" /></a>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
   <img alt="love2d" src="https://img.shields.io/badge/Love2D-11.x-EA316E?style=flat-square" />
   <img alt="fastapi" src="https://img.shields.io/badge/FastAPI-WebSocket-009688?style=flat-square&logo=fastapi&logoColor=white" />
@@ -40,9 +43,12 @@
 ---
 
 Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
-Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize — global / nearby / zone chat, whispers, **`/find`**, **`/who`**, **`/ignore`**, emotes, and look.
+Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`**, **`/ignore`**, emotes, and look.
 
-> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
+> [!NOTE]
+> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.  
+> **Players** start here and in [docs/HUMAN.md](docs/HUMAN.md).  
+> **Coding agents / LLMs** use [AGENTS.md](AGENTS.md) only (protocol & tests — not for players).
 
 ---
 
@@ -50,7 +56,7 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.28** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.34** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -66,18 +72,17 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.28-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-137_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.34-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-156_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.28** |
+| | **v0.5.34** |
 |:--|:--|
-| 📊 | **Status sheet (F / `/status`) works again** — fixed network name clash |
-| 🚶 | Bumping into walls no longer blocks your next real step |
-| 🗺️ | **`/who`** shows town / field / dungeon online counts |
-| 🔇 | **`/ignores`** lists who you muted · zone enter toasts |
-| ✅ | **137** automated tests |
+| 🔍 | **`/find Name zone:field`** — search people in a zone (still no map coords) |
+| 🚶 | Chat and walk both keep you **active** (no false AFK) |
+| 👥 | Nearby peers get **idle** updates as you move |
+| ✅ | **156** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -86,11 +91,11 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.27** | Ghost-player leave fix · combat flags more reliable · zone counts on who |
-| **0.5.26** | Status ATK/DEF · `/r` reply · shop sell prices |
-| **0.5.24** | `/help` · gold lost on defeat shown clearly |
-| **0.5.22** | `/find` · level-up celebration nearby |
-| **0.5.19–21** | Zone chat · open art · shop town gate |
+| **0.5.33** | Sell gold toast · online roster panel with zone |
+| **0.5.32** | Server `/r` reply · find zone type · walk clears AFK |
+| **0.5.31** | Shop/bag sell-back prices |
+| **0.5.29–30** | Presence self-heal · safe coordinates |
+| **0.5.19–28** | Zone chat · `/who` · status sheet · open art |
 
 </details>
 
@@ -124,8 +129,8 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · whisper · emotes |
-| 🔍 | **`/find`** · **`/who`** · **`/ignore`** · look · roster |
+| 💬 | Global · nearby · **zone** · whisper · **`/r` reply** · emotes |
+| 🔍 | **`/find`** (zone type) · **`/who`** · **`/ignore`** · look |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -137,7 +142,7 @@ Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic*
 |:-----|:--|
 | **Items** | Herb · wings · fairy water · weapons & armor |
 | **HUD** | HP/MP · gold · nearby/online · repel · light · status (**F**) |
-| **Stability** | Server-authoritative movement · combat resume · automated multiplayer tests |
+| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **156** tests |
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -164,7 +169,7 @@ pip install -r requirements.txt
 | | URL |
 |:--|:----|
 | OpenAPI | http://127.0.0.1:8000/docs |
-| Health | http://127.0.0.1:8000/health |
+| Health | http://127.0.0.1:8000/health · online + zone counts |
 | WebSocket | `ws://127.0.0.1:8000/ws` |
 
 ### 2 · Client
@@ -183,7 +188,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 137 passed
+# expect: 156 passed
 ```
 
 ---
@@ -273,12 +278,13 @@ python tests/run_tests.py
 |:--------|:-------|
 | `/w Name message` | Private whisper (`/tell` works too) |
 | `/z message` | Zone chat (everyone in town *or* field *or* dungeon) |
-| `/find Name` | Online search by prefix — **no map positions** |
+| `/find Name` | Online search by prefix — zone type only, **no map positions** |
+| `/find Name zone:field` | Limit search to town / field / dungeon |
 | `/who` | Online roster + nearby + town/field/dungeon counts |
 | `/ignore Name` · `/unignore Name` | Mute / unmute chat & emotes |
 | `/ignores` | List who you are ignoring |
 | `/status` · `/me` | Status sheet (stats, gear, EXP, buffs) |
-| `/r message` | Reply to the last whisper you received |
+| `/r message` | Reply to last whisper (works after a brief reconnect) |
 | `/help` · **?** | Server command list |
 
 <p align="center">
@@ -389,13 +395,13 @@ dq1_mmo/
 └──────────┬───────────┘           └──────────┬───────────┘
            │                                  │
            ▼                                  ▼
-      README.md                           AGENTS.md
-      docs/HUMAN.md                       · WebSocket catalog
-      docs/README.md                      · hot paths & tests
-      ATTRIBUTION.md                      · reliability rules
-      (gameplay & install only)           · test module matrix
+      README.md  (this page)              AGENTS.md only
+      docs/HUMAN.md                       · protocol tables
+      docs/README.md                      · reliability rules
+      ATTRIBUTION.md                      · test matrix
+      (play · host · swap art)            · hot paths
            │                                  │
-           └──────── no protocol dumps ───────┘
+           └──── never mix these two ─────────┘
 ```
 
 | Role | Start here |
@@ -407,7 +413,7 @@ dq1_mmo/
 
 | Do | Don’t |
 |:---|:------|
-| Keep install & controls in human docs | Paste full WebSocket catalogs into README / HUMAN |
+| Keep install & controls in human docs | Paste protocol / message catalogs into README / HUMAN |
 | Put protocol, reliability, test matrices in `AGENTS.md` | Treat `plan.md` as the live backlog |
 | Link across audiences | Mix agent-only tables into player prose |
 | Keep slash-commands accurate for players | Document unfinished features as shipped |
@@ -416,7 +422,20 @@ dq1_mmo/
 
 ## 🙏 Credits
 
-- Inspired by **Dragon Quest I / Dragon Warrior** (NES-era combat math; not a ROM dump)
-- Related library: [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat)
-- Art: [Kenney.nl](https://kenney.nl) (CC0) + [Tiny Creatures](https://opengameart.org/content/tiny-creatures) by Clint Bellanger (CC0) — see [ATTRIBUTION](client/assets/ATTRIBUTION.md)
-- Fan project — **not** Square Enix
+| | |
+|:--|:--|
+| **Inspiration** | *Dragon Quest I / Dragon Warrior* (NES-era combat math — not a ROM dump) |
+| **Combat reference** | [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) |
+| **Art (CC0)** | [Kenney.nl](https://kenney.nl) · [Tiny Creatures](https://opengameart.org/content/tiny-creatures) (Clint Bellanger) — [ATTRIBUTION](client/assets/ATTRIBUTION.md) |
+| **Disclaimer** | Fan project — **not** Square Enix |
+
+---
+
+<p align="center">
+  <sub>
+    <b>v0.5.34</b> · 156 tests ·
+    <a href="docs/HUMAN.md">Player guide</a> ·
+    <a href="AGENTS.md">Agent contract</a> ·
+    <a href="docs/README.md">Docs map</a>
+  </sub>
+</p>

@@ -89,7 +89,7 @@ def test_sell_equipped_weapon_clears_slot():
         assert not any(i["item_id"] == "club" for i in bag)
 
         gold_before = int(char["gold"])
-        ok, reason = await sell_item(db, char, "club")
+        ok, reason, _sold = await sell_item(db, char, "club")
         assert ok, reason
         assert char.get("equipment_weapon") in (None, "")
         assert int(char["gold"]) > gold_before

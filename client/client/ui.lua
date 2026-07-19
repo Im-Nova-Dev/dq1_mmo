@@ -485,7 +485,10 @@ function UI.draw_toasts()
   UI.reset_color()
 end
 
-function UI.player_list(x, y, w, h, local_p, others, title)
+function UI.player_list(x, y, w, h, local_p, others, title, opts)
+  opts = opts or {}
+  -- mode "nearby" shows coords; "roster" shows zone/idle (no radar coords)
+  local mode = opts.mode or "nearby"
   UI.panel(x, y, w, h, { title = title or "Adventurers", title_h = 30, no_ornament = true })
   local row = y + 42
   UI.set_font("small")
@@ -504,38 +507,70 @@ function UI.player_list(x, y, w, h, local_p, others, title)
   end
 
   local count = 0
-  for _, p in pairs(others or {}) do
+  local function draw_peer(p)
     count = count + 1
     if row + 24 > y + h - 12 then
       UI.color("muted")
       love.graphics.print("…", x + 32, row)
-      break
+      return false
     end
     if p.in_combat then
       UI.color("danger")
+    elseif p.idle then
+      UI.color("muted")
     else
       UI.color("other_p")
     end
     love.graphics.circle("fill", x + 20, row + 10, 5)
     UI.color("text")
-    local combat = p.in_combat and "  ⚔" or ""
+    local tags = ""
+    if p.in_combat then
+      tags = tags .. " ⚔"
+    end
+    if p.idle then
+      tags = tags .. " zzz"
+    end
+    local loc = ""
+    if mode == "roster" then
+      if p.zone then
+        loc = " [" .. tostring(p.zone) .. "]"
+      end
+    else
+      if p.x ~= nil and p.y ~= nil then
+        loc = string.format(" (%d,%d)", math.floor((p.x or 0) + 0.01), math.floor((p.y or 0) + 0.01))
+      elseif p.zone then
+        loc = " [" .. tostring(p.zone) .. "]"
+      end
+    end
     love.graphics.print(
-      string.format(
-        "%s  Lv%d  (%d,%d)%s",
-        p.name or "?",
-        p.level or 1,
-        math.floor((p.x or 0) + 0.01),
-        math.floor((p.y or 0) + 0.01),
-        combat
-      ),
+      string.format("%s  Lv%d%s%s", p.name or "?", p.level or 1, loc, tags),
       x + 32,
       row + 4
     )
-    row = row + 24
+    row = row + 26
+    return true
+  end
+
+  -- others may be map (nearby World.players) or array (roster)
+  if type(others) == "table" then
+    if others[1] ~= nil then
+      for i = 1, #others do
+        if not draw_peer(others[i]) then
+          break
+        end
+      end
+    else
+      for _, p in pairs(others) do
+        if not draw_peer(p) then
+          break
+        end
+      end
+    end
   end
   if count == 0 then
     UI.color("muted")
-    love.graphics.print("No other adventurers nearby", x + 20, row + 4)
+    local empty = mode == "roster" and "No one else online" or "No other adventurers nearby"
+    love.graphics.print(empty, x + 20, row + 4)
   end
   UI.reset_color()
 end

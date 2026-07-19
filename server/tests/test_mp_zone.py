@@ -208,42 +208,49 @@ def test_zone_chat_ws(tmp_path, monkeypatch):
                                 wc, "combat_end", "combat_update", "error", timeout=1.0
                             )
                             if mf.get("type") == "combat_end" or mf.get("outcome") == "fled":
+                                await drain(wc, 0.15)
+                                return
+                            # leftover "not in combat" from spam — keep trying briefly
+                            if mf.get("type") == "error" and mf.get("reason") == "not in combat":
+                                await drain(wc, 0.1)
                                 return
                         except TimeoutError:
                             pass
                     await drain(wc, 0.2)
 
-                for x, y in path:
-                    seq += 1
-                    await asyncio.sleep(0.15)
-                    await wc.send(json.dumps({"type": "move", "x": x, "y": y, "seq": seq}))
-                    mok = await recv_until(wc, "move_ok", "error", "combat_start")
-                    if mok.get("type") == "combat_start":
-                        await flee_out()
+                async def step_to(tx, ty):
+                    nonlocal seq
+                    for attempt in range(6):
                         seq += 1
                         await asyncio.sleep(0.15)
                         await wc.send(
-                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                            json.dumps({"type": "move", "x": tx, "y": ty, "seq": seq})
                         )
-                        mok = await recv_until(wc, "move_ok", "error", "combat_start")
-                    # ERROR "in combat" can arrive before move_ok when still fighting
-                    if mok.get("type") == "error" and mok.get("reason") == "in combat":
-                        await flee_out()
-                        seq += 1
-                        await asyncio.sleep(0.15)
-                        await wc.send(
-                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                        mok = await recv_until(
+                            wc, "move_ok", "error", "combat_start", timeout=3.0
                         )
-                        mok = await recv_until(wc, "move_ok", "error", "combat_start")
-                    if mok.get("type") == "move_ok" and mok.get("ok") is False:
-                        if mok.get("reason") == "in combat":
+                        # Ignore stale flee errors left in the socket buffer
+                        if mok.get("type") == "error" and mok.get("reason") == "not in combat":
+                            await drain(wc, 0.1)
+                            continue
+                        if mok.get("type") == "combat_start":
                             await flee_out()
-                            seq += 1
-                            await asyncio.sleep(0.15)
-                            await wc.send(
-                                json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
-                            )
-                            mok = await recv_until(wc, "move_ok", "error", "combat_start")
+                            continue
+                        if mok.get("type") == "error" and mok.get("reason") == "in combat":
+                            await flee_out()
+                            continue
+                        if mok.get("type") == "move_ok" and mok.get("ok") is False:
+                            if mok.get("reason") == "in combat":
+                                await flee_out()
+                                continue
+                            if mok.get("reason") == "rate_limit":
+                                await asyncio.sleep(0.12)
+                                continue
+                        return mok
+                    return mok
+
+                for x, y in path:
+                    mok = await step_to(x, y)
                     assert mok.get("type") == "move_ok", mok
                     assert mok.get("ok") is True, mok
                     assert mok.get("x") == x and mok.get("y") == y, mok

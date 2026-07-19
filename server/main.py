@@ -63,6 +63,7 @@ async def health():
         "service": "dq1-mmo",
         "version": VERSION,
         "online": len(manager.online_ids()),
+        "zones": manager.zone_counts(),
         "combats": len(combat_engine.active),
     }
 
@@ -128,6 +129,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "mute",
                 "unmute",
                 "ignore_list",
+                "reply",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
@@ -175,6 +177,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     y=connect_meta["y"],
                     level=connect_meta["level"],
                     in_combat=bool(connect_meta.get("in_combat")),
+                    idle=False,
                 )
                 for p in peers:
                     await manager.send(p["id"], join_payload)

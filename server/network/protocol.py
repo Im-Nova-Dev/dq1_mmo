@@ -22,6 +22,7 @@ class ClientMessageType(StrEnum):
     SAY = "say"  # nearby (AOI) chat
     WHISPER = "whisper"  # private message (name or to_id/player_id)
     TELL = "tell"  # alias for whisper
+    REPLY = "reply"  # whisper back to last peer (server-tracked)
     EMOTE = "emote"  # social emote to nearby players
     WHO = "who"  # lightweight online/nearby query
     LOOK = "look"  # examine nearby / online player (public card)

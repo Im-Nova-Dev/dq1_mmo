@@ -10,10 +10,15 @@
 | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG names & licenses |
 | [../plan.md](../plan.md) | Historical only | Original roadmap — **not** live source of truth |
 
-**Last docs refresh:** **v0.5.28** (2026-07-19) · suite green **137** tests  
+**Last docs refresh:** **v0.5.34** (2026-07-19) · suite green **156** tests  
 
-Human-facing: status sheet · smoother movement · `/who` zones · `/ignores` · open art.  
-Agent-facing protocol stays **only** in `AGENTS.md`.
+| Human docs cover | Agent docs cover |
+|:-----------------|:-----------------|
+| Install, controls, gameplay, hosting | WebSocket protocol, reliability rules |
+| `/r` reconnect reply · find zone types · sell prices | Soft-grace whisper peer · idle on move · AOI self-heal |
+| Zone counts on roster / health (ops) | Test matrix · hot paths · presence loop |
+
+Protocol tables stay **only** in `AGENTS.md`. Never paste them into README / HUMAN.
 
 ---
 

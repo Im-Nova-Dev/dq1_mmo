@@ -70,6 +70,10 @@ async def expire_combats() -> int:
     return n
 
 
+# Full AOI rebuild cadence (~30s at FLUSH_INTERVAL=3)
+AOI_RECONCILE_EVERY_TICKS = 10
+
+
 async def _loop() -> None:
     ticks = 0
     while True:
@@ -92,6 +96,13 @@ async def _loop() -> None:
                     log.debug("purged %s soft-grace bags", purged)
             except Exception:
                 pass
+            # Cheap AOI cache hygiene every tick
+            try:
+                pruned = manager.prune_stale_visible()
+                if pruned:
+                    log.debug("pruned %s stale AOI links", pruned)
+            except Exception:
+                pass
             if ticks % max(1, int(HEARTBEAT_CHECK_INTERVAL // FLUSH_INTERVAL)) == 0:
                 kicked = await kick_idle()
                 if kicked:
@@ -102,6 +113,14 @@ async def _loop() -> None:
                         await manager.broadcast_online_force()
                 except Exception:
                     log.debug("periodic online pulse failed", exc_info=True)
+            # Deeper AOI rebuild (~30s) — re-link peers after desync storms
+            if ticks % AOI_RECONCILE_EVERY_TICKS == 0 and manager.online_ids():
+                try:
+                    n = await manager.reconcile_all_aoi()
+                    if n:
+                        log.debug("reconciled AOI for %s players", n)
+                except Exception:
+                    log.debug("AOI reconcile failed", exc_info=True)
         except asyncio.CancelledError:
             try:
                 await flush_dirty_positions()

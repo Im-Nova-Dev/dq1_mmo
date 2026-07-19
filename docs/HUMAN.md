@@ -9,7 +9,7 @@ For **people**: players, operators, and human contributors.
 | Swap sprites | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **agents only** |
 
-**Version:** 0.5.28 · docs refreshed 2026-07-19 · **humans here** / agents → [AGENTS.md](../AGENTS.md)
+**Version:** 0.5.34 · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -22,8 +22,8 @@ A multiplayer **Dragon Quest I–style** game:
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
 - Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups nearby)
-- Emotes, **look**, **`/find`**, **`/who`** (zone counts), **`/ignore`** / **`/ignores`**, online roster (idle/AFK), status sheet (**F** / `/status`)
-- Shop, gear (sell equipped OK), swappable PNG art
+- Emotes, **look**, **`/find`** (zone type), **`/who`**, **`/ignore`** / **`/ignores`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
+- Shop, gear (sell-back prices shown), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
 
 **Not in the MVP:** parties, PvP, trade, quests, multi-map worlds.
@@ -102,7 +102,9 @@ In inventory: **Enter** uses consumables or equips gear (don’t equip herbs —
 **Tab** opens the shop list in town.  
 **Herbs** at full HP on the field are not consumed.  
 You can **sell equipped** gear (the slot clears automatically).  
-Shop listings show a **sell price** (half of buy).
+Shop listings show **buy** and **sell-back** prices (sell is half of buy).  
+Your bag also shows each item’s **sell** value so you know what **S** will earn.  
+After selling, you see a toast with gold gained.
 
 ---
 
@@ -117,13 +119,14 @@ Shop listings show a **sell price** (half of buy).
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
 | **/status** or **/me** | Same status sheet via chat |
-| **/find Name** | Search who’s online by name prefix (no positions) |
+| **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
+| **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/help** or **?** | Server list of commands / keys |
 | **/ignore Name** | Mute chat/emotes from that hero |
 | **/unignore Name** | Stop ignoring |
 | **/ignores** | List who you are ignoring |
 | **/who** | Online / nearby + zone counts (same as **O**) |
-| **/r message** | Reply to the last whisper you got |
+| **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* |
 | **L** | Look at a nearby (or roster) adventurer |
@@ -131,7 +134,9 @@ Shop listings show a **sell price** (half of buy).
 
 **HUD:** nearby · online · **repel N** · **light N** (Radiant) when active.  
 **F** status sheet: level, EXP (+ to next), gold, ATK/DEF bonuses, gear, spells.  
-**Online roster** shows names/levels (⚔ if in combat, idle if AFK ~45s) — **not** map positions.
+**Online roster** (O / player list) shows names/levels, zone type, ⚔ in combat, idle/AFK — **not** map positions for online list.  
+Nearby list still shows coordinates for people you can see.  
+Roster updates also keep **town / field / dungeon** counts so you can see where people are gathering.
 
 Chat tags in the log:
 
@@ -144,7 +149,8 @@ Chat tags in the log:
 | `[*]` | System (e.g. nearby level-up) |
 
 Only **online** characters can be whispered (by name: `/w Name message`).  
-**`/find`** never reveals map positions — only names, levels, and combat flag.
+**`/find`** never reveals map positions — only names, levels, combat flag, and **zone type** (town/field/dungeon).  
+Filter with **`zone:town`**, **`zone:field`**, or **`zone:dungeon`** (also `in:field`).
 
 ---
 
@@ -167,7 +173,7 @@ cd server && source .venv/bin/activate && ./run.sh
 
 | Check | |
 |:------|:--|
-| Health | `GET /health` |
+| Health | `GET /health` — `status`, `online`, **`zones`** (town/field/dungeon), `combats` |
 | API docs | `http://127.0.0.1:8000/docs` |
 
 **Production checklist**
@@ -193,7 +199,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 137 passed
+# expect: 156 passed
 ```
 
 ---

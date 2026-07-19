@@ -35,7 +35,18 @@ function Inventory:enter()
       self.character = data.character
       Session.character = data.character
     end
-    self.status = "Gold: " .. tostring((self.character and self.character.gold) or "0")
+    local gold = tostring((self.character and self.character.gold) or "0")
+    if data.sold and data.sold.gold_gained then
+      local gained = tonumber(data.sold.gold_gained) or 0
+      local name = data.sold.item_name or data.sold.item_id or "item"
+      self.status = string.format("Sold %s +%d G · total %s G", tostring(name), gained, gold)
+      UI.toast(self.status, "ok")
+    elseif data.message then
+      self.status = tostring(data.message)
+      UI.toast(self.status, "ok")
+    else
+      self.status = "Gold: " .. gold
+    end
     if self.selected > math.max(1, #self.items) then
       self.selected = 1
     end
@@ -44,7 +55,7 @@ function Inventory:enter()
     self.shop = data.items or {}
     self.mode = "shop"
     self.selected = 1
-    self.status = "Town shop — Enter to buy"
+    self.status = "Town shop — Enter buy · prices show sell-back"
   end)
   Network.on("error", function(data)
     self.status = tostring(data.reason or "error")
@@ -246,12 +257,33 @@ function Inventory:draw()
     local name, extra, sub
     if self.mode == "shop" then
       name = item.name or item.id
-      extra = tostring(item.price or 0) .. " G"
+      local buy = tonumber(item.price) or 0
+      local sell = tonumber(item.sell_price)
+      if sell == nil and buy > 0 then
+        sell = math.max(1, math.floor(buy / 2))
+      end
+      if sell and sell > 0 then
+        extra = string.format("%d G · sell %d", buy, sell)
+      else
+        extra = tostring(buy) .. " G"
+      end
       sub = item.slot or item.kind or ""
     else
       local def = item["def"] or item.def or {}
       name = def.name or item.item_id or "?"
-      extra = "×" .. tostring(item.quantity or 1)
+      local qty = tostring(item.quantity or 1)
+      local sell = tonumber(item.sell_price) or tonumber(def.sell_price)
+      if sell == nil then
+        local p = tonumber(def.price) or 0
+        if p > 0 then
+          sell = math.max(1, math.floor(p / 2))
+        end
+      end
+      if sell and sell > 0 then
+        extra = "×" .. qty .. " · sell " .. tostring(sell) .. " G"
+      else
+        extra = "×" .. qty
+      end
       sub = def.slot or ""
       if item.is_equipped or item.equipped then
         sub = (sub ~= "" and sub .. " · " or "") .. "equipped"

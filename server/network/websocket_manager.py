@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import time
 from typing import Any
 
@@ -42,14 +43,31 @@ def _is_idle(meta: dict[str, Any], now: float | None = None) -> bool:
 
 
 def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
-    """Public roster entry (no position — avoid map radar abuse)."""
-    return {
+    """Public roster entry (no position — avoid map radar abuse).
+
+    Zone name is OK (town/field/dungeon) without x/y — helps social find/who.
+    """
+    from game.world_manager import zone_at
+
+    zone = None
+    try:
+        x, y = float(meta["x"]), float(meta["y"])
+        if math.isfinite(x) and math.isfinite(y):
+            z = zone_at(int(x), int(y))
+            if z in ("town", "field", "dungeon"):
+                zone = z
+    except Exception:
+        zone = None
+    card = {
         "id": meta["id"],
         "name": meta["name"],
         "level": meta["level"],
         "in_combat": bool(meta.get("in_combat")),
         "idle": _is_idle(meta),
     }
+    if zone:
+        card["zone"] = zone
+    return card
 
 
 # Soft reconnect grace for in-memory multiplayer state (repel, move seq).
@@ -87,17 +105,21 @@ class ConnectionManager:
         return bag
 
     def _stash_soft_grace(self, character_id: int, meta: dict[str, Any]) -> None:
-        # Clients reset move seq on auth; restore buffs + ignore list.
+        # Clients reset move seq on auth; restore buffs + ignore + last whisper peer.
         repel = max(0, int(meta.get("repel_steps") or 0))
         radiant = max(0, int(meta.get("radiant_steps") or 0))
         ignore = set(meta.get("ignore") or set())
-        if repel <= 0 and radiant <= 0 and not ignore:
+        last_from = meta.get("last_whisper_from_id")
+        last_name = meta.get("last_whisper_from_name")
+        if repel <= 0 and radiant <= 0 and not ignore and not last_from:
             self._soft_grace.pop(character_id, None)
             return
         self._soft_grace[character_id] = {
             "repel_steps": repel,
             "radiant_steps": radiant,
             "ignore": ignore,
+            "last_whisper_from_id": last_from,
+            "last_whisper_from_name": last_name,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
         }
 
@@ -122,11 +144,15 @@ class ConnectionManager:
                 grace_repel = max(0, int(old_meta.get("repel_steps") or 0))
                 grace_radiant = max(0, int(old_meta.get("radiant_steps") or 0))
                 grace_ignore = set(old_meta.get("ignore") or set())
+                grace_whisper_id = old_meta.get("last_whisper_from_id")
+                grace_whisper_name = old_meta.get("last_whisper_from_name")
             else:
                 bag = self._take_soft_grace(character_id)
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
                 grace_radiant = max(0, int(bag.get("radiant_steps") or 0))
                 grace_ignore = set(bag.get("ignore") or set())
+                grace_whisper_id = bag.get("last_whisper_from_id")
+                grace_whisper_name = bag.get("last_whisper_from_name")
 
             if old is not None and old is not websocket:
                 try:
@@ -165,6 +191,8 @@ class ConnectionManager:
                 "session_id": session_id,
                 "visible": set(),  # peer ids currently in AOI
                 "ignore": grace_ignore,  # cid set — do not receive chat/emotes from these
+                "last_whisper_from_id": grace_whisper_id,
+                "last_whisper_from_name": grace_whisper_name,
             }
             # Live again — drop any leftover grace bag
             self._soft_grace.pop(character_id, None)
@@ -257,6 +285,15 @@ class ConnectionManager:
     # Coalesce rapid join/leave pulses (reconnect storms), but flush soon.
     ONLINE_PULSE_MIN_INTERVAL = 0.15
 
+    def _online_payload(self) -> dict[str, Any]:
+        """Shared body for online pulses (count + roster + zone breakdown)."""
+        return {
+            "type": "online",
+            "online": len(self._connections),
+            "roster": self.online_roster(),
+            "zones": self.zone_counts(),
+        }
+
     async def broadcast_online(self) -> None:
         """Pulse global online count to every connected client (debounced)."""
         now = time.monotonic()
@@ -276,9 +313,7 @@ class ConnectionManager:
             return
         self._last_online_pulse = now
         self._online_pulse_pending = False
-        await self.broadcast(
-            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
-        )
+        await self.broadcast(self._online_payload())
 
     async def _delayed_online_flush(self) -> None:
         try:
@@ -293,9 +328,7 @@ class ConnectionManager:
             return
         self._online_pulse_pending = False
         self._last_online_pulse = time.monotonic()
-        await self.broadcast(
-            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
-        )
+        await self.broadcast(self._online_payload())
 
     def purge_expired_soft_grace(self) -> int:
         """Drop expired reconnect soft-state bags. Returns number removed."""
@@ -338,6 +371,8 @@ class ConnectionManager:
         if elapsed < MOVE_MIN_INTERVAL:
             return False, MOVE_MIN_INTERVAL - elapsed
         meta["last_move_at"] = now
+        # Moving is activity — keep idle/AFK badges honest under pure walk spam
+        meta["last_seen"] = now
         return True, 0.0
 
     def set_level(self, character_id: int, level: int) -> None:
@@ -480,6 +515,27 @@ class ConnectionManager:
                 out.append({"id": int(tid), "name": "?", "level": 0, "in_combat": False, "idle": False})
         return out
 
+    def note_whisper_from(self, listener_id: int, speaker_id: int, speaker_name: str | None = None) -> None:
+        """Remember last whisper peer for server-side /r reply after reconnect."""
+        meta = self._meta.get(listener_id)
+        if meta is None:
+            return
+        meta["last_whisper_from_id"] = int(speaker_id)
+        if speaker_name:
+            meta["last_whisper_from_name"] = str(speaker_name)[:24]
+
+    def last_whisper_from(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_whisper_from_id")
+        name = meta.get("last_whisper_from_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
     def allow_chat(self, character_id: int) -> tuple[bool, float]:
         """Rate-limit chat. Returns (allowed, retry_after_seconds)."""
         meta = self._meta.get(character_id)
@@ -490,6 +546,8 @@ class ConnectionManager:
         if elapsed < CHAT_MIN_INTERVAL:
             return False, CHAT_MIN_INTERVAL - elapsed
         meta["last_chat_at"] = now
+        # Chatting is activity (same as move) for idle/AFK badges
+        meta["last_seen"] = now
         return True, 0.0
 
     async def publish_status(self, character_id: int, *, pulse_online: bool = False) -> None:
@@ -510,6 +568,7 @@ class ConnectionManager:
             "x": me["x"],
             "y": me["y"],
             "in_combat": bool(me.get("in_combat")),
+            "idle": _is_idle(me),
         }
         targets = set(self.ids_nearby(character_id)) | set(me.get("visible") or set())
         for oid in targets:
@@ -519,10 +578,29 @@ class ConnectionManager:
         if pulse_online:
             await self.broadcast_online()
 
+    def _finite_xy(self, meta: dict[str, Any]) -> tuple[float, float] | None:
+        """Return finite (x,y) or None; repair meta to spawn if corrupted."""
+        from game.world_manager import SPAWN_X, SPAWN_Y
+
+        try:
+            x, y = float(meta["x"]), float(meta["y"])
+            if math.isfinite(x) and math.isfinite(y):
+                return x, y
+        except (TypeError, ValueError, KeyError):
+            pass
+        meta["x"] = float(SPAWN_X)
+        meta["y"] = float(SPAWN_Y)
+        meta["dirty"] = True
+        return float(SPAWN_X), float(SPAWN_Y)
+
     def ids_nearby(self, character_id: int) -> list[int]:
         me = self._meta.get(character_id)
         if me is None:
             return []
+        me_xy = self._finite_xy(me)
+        if me_xy is None:
+            return []
+        mx, my = me_xy
         out: list[int] = []
         for cid, meta in self._meta.items():
             if cid == character_id:
@@ -532,7 +610,11 @@ class ConnectionManager:
                 continue
             if meta["map_id"] != me["map_id"]:
                 continue
-            if is_nearby(me["x"], me["y"], meta["x"], meta["y"]):
+            other_xy = self._finite_xy(meta)
+            if other_xy is None:
+                continue
+            ox, oy = other_xy
+            if is_nearby(mx, my, ox, oy):
                 out.append(cid)
         return out
 
@@ -545,8 +627,11 @@ class ConnectionManager:
             meta = self._meta.get(cid)
             if not meta:
                 continue
+            xy = self._finite_xy(meta)
+            if xy is None:
+                continue
             try:
-                z = zone_at(int(meta["x"]), int(meta["y"]))
+                z = zone_at(int(xy[0]), int(xy[1]))
             except Exception:
                 continue
             if z in counts:
@@ -563,12 +648,22 @@ class ConnectionManager:
 
     def set_position(self, character_id: int, x: float, y: float, *, seq: int | None = None) -> None:
         meta = self._meta.get(character_id)
-        if meta is not None:
-            meta["x"] = float(x)
-            meta["y"] = float(y)
-            meta["dirty"] = True
-            if seq is not None:
+        if meta is None:
+            return
+        try:
+            fx, fy = float(x), float(y)
+            if not math.isfinite(fx) or not math.isfinite(fy):
+                return
+        except (TypeError, ValueError):
+            return
+        meta["x"] = fx
+        meta["y"] = fy
+        meta["dirty"] = True
+        if seq is not None:
+            try:
                 meta["last_move_seq"] = int(seq)
+            except (TypeError, ValueError, OverflowError):
+                pass
 
     async def publish_move(
         self,
@@ -599,12 +694,22 @@ class ConnectionManager:
             if me is None:
                 return []
 
+            try:
+                nx, ny = float(x), float(y)
+                if not math.isfinite(nx) or not math.isfinite(ny):
+                    return []
+            except (TypeError, ValueError):
+                return []
+
             old_visible: set[int] = set(me.get("visible") or set())
-            me["x"] = float(x)
-            me["y"] = float(y)
+            me["x"] = nx
+            me["y"] = ny
             me["dirty"] = True
             if seq is not None:
-                me["last_move_seq"] = int(seq)
+                try:
+                    me["last_move_seq"] = int(seq)
+                except (TypeError, ValueError, OverflowError):
+                    pass
 
             new_visible = set(self.ids_nearby(character_id))
             entered = new_visible - old_visible
@@ -629,6 +734,7 @@ class ConnectionManager:
                         "y": other_pub["y"],
                         "level": other_pub["level"],
                         "in_combat": other_pub["in_combat"],
+                        "idle": bool(other_pub.get("idle")),
                     }
                 )
 
@@ -661,6 +767,7 @@ class ConnectionManager:
                     "y": me_pub["y"],
                     "level": me_pub["level"],
                     "in_combat": me_pub["in_combat"],
+                    "idle": bool(me_pub.get("idle")),
                 },
             )
 
@@ -684,14 +791,24 @@ class ConnectionManager:
             "name": me_pub["name"],
             "level": me_pub["level"],
             "in_combat": me_pub["in_combat"],
+            "idle": bool(me_pub.get("idle")),
         }
         for oid in stay_ids:
             await self.send(oid, move_msg)
 
         return to_self
 
-    def find_by_prefix(self, prefix: str, *, limit: int = 20) -> list[dict[str, Any]]:
-        """Case-insensitive name prefix search over online roster (no coordinates)."""
+    def find_by_prefix(
+        self,
+        prefix: str,
+        *,
+        limit: int = 20,
+        zone: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Case-insensitive name prefix search over online roster (no coordinates).
+
+        Optional zone filter: town | field | dungeon (never returns x/y).
+        """
         if not prefix or not isinstance(prefix, str):
             return []
         key = prefix.strip().lower()
@@ -706,13 +823,22 @@ class ConnectionManager:
             lim = 1
         if lim > 50:
             lim = 50
+        zone_key = None
+        if isinstance(zone, str) and zone.strip():
+            z = zone.strip().lower()
+            if z in ("town", "field", "dungeon"):
+                zone_key = z
         hits: list[dict[str, Any]] = []
         for cid, meta in self._meta.items():
             if cid not in self._connections:
                 continue
             name = str(meta.get("name") or "")
-            if name.lower().startswith(key):
-                hits.append(_online_card(meta))
+            if not name.lower().startswith(key):
+                continue
+            card = _online_card(meta)
+            if zone_key and card.get("zone") != zone_key:
+                continue
+            hits.append(card)
         hits.sort(key=lambda p: str(p.get("name") or "").lower())
         return hits[:lim]
 
@@ -749,9 +875,63 @@ class ConnectionManager:
         """Unconditional online pulse (periodic refresh; bypasses debounce)."""
         self._online_pulse_pending = False
         self._last_online_pulse = time.monotonic()
-        await self.broadcast(
-            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
-        )
+        await self.broadcast(self._online_payload())
+
+    def prune_stale_visible(self) -> int:
+        """Drop offline / out-of-range peer ids from every visible set.
+
+        Silent repair for AOI cache drift (no network). Returns entries removed.
+        """
+        removed = 0
+        for cid, meta in list(self._meta.items()):
+            if cid not in self._connections:
+                continue
+            vis = set(meta.get("visible") or set())
+            if not vis:
+                continue
+            clean: set[int] = set()
+            try:
+                mx = float(meta["x"])
+                my = float(meta["y"])
+                mmap = meta.get("map_id")
+            except Exception:
+                meta["visible"] = set()
+                removed += len(vis)
+                continue
+            for oid in vis:
+                om = self._meta.get(oid)
+                if om is None or oid not in self._connections:
+                    removed += 1
+                    continue
+                if om.get("map_id") != mmap:
+                    removed += 1
+                    continue
+                try:
+                    if not is_nearby(mx, my, float(om["x"]), float(om["y"])):
+                        removed += 1
+                        continue
+                except Exception:
+                    removed += 1
+                    continue
+                clean.add(oid)
+            if clean != vis:
+                meta["visible"] = clean
+        return removed
+
+    async def reconcile_all_aoi(self) -> int:
+        """Rebuild AOI for every online player (joins/leaves as needed).
+
+        Used periodically so desynced clients re-link without a manual sync.
+        Returns number of players reconciled.
+        """
+        n = 0
+        for cid in list(self._connections.keys()):
+            try:
+                await self.rebuild_aoi(cid)
+                n += 1
+            except Exception:
+                continue
+        return n
 
     def mark_clean(self, character_id: int) -> None:
         meta = self._meta.get(character_id)
