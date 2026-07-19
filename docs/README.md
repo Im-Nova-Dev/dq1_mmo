@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.86** (2026-07-19) · suite **403** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · local uncommitted since `2b2cc85` (v0.5.83 on `main`)
+**Last docs refresh:** **v0.5.89** (2026-07-19) · suite **413** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `930abd7` (v0.5.86); local ahead through starter clothes / combat emote gate
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -80,6 +80,7 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - `/cast heal` · `/repel` · `/return` field magic · `/discard` from chat
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
+- **`/wave Name`** · directed emotes (target sees it even if far)
 - **`/near` · `/zone`** show nearby / in-zone AFK counts
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, walk, or `/stuck`
@@ -90,6 +91,9 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - Equip / unequip show clear toasts
 - **Change password** for email accounts (`POST /auth/password`)
 - Health check includes online, zones, combats, **AFK count**
+- New heroes start with **clothes** equipped + **3 herbs**
+- Emotes blocked during combat (emote list still works)
+- Shop / equip / cast / stuck stay reliable when many peeks fire at once
 - CC0 pixel art (Kenney + Tiny Creatures) + SVG companions
 
 ---

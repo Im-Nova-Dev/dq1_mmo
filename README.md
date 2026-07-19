@@ -7,13 +7,13 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.86</b> · <b>403</b> tests green · humans ≠ agents</sub>
+  <sub><b>v0.5.89</b> · <b>413</b> tests green · humans ≠ agents</sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.86-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.89-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-403_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-413_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -50,13 +50,13 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 fights · inn · field magic · friendly shop names · chat · whisper · AFK tips · change password.
+  Server-side 1v1 fights · inn · field magic · friendly shop names · chat · whisper · <b>/wave Name</b> · AFK tips.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/chat-whisper_·_/wave_Name-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
@@ -64,7 +64,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-403_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-413_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -115,7 +115,7 @@ protocol · tests · reliability
 <td align="center" width="25%"><b>Play</b><br/><sub>shared overworld</sub></td>
 <td align="center" width="25%"><b>Fight</b><br/><sub>server 1v1</sub></td>
 <td align="center" width="25%"><b>Shop</b><br/><sub>friendly names</sub></td>
-<td align="center" width="25%"><b>Social</b><br/><sub>chat · AFK · whisper</sub></td>
+<td align="center" width="25%"><b>Social</b><br/><sub>chat · wave · AFK</sub></td>
 </tr>
 </table>
 
@@ -135,7 +135,7 @@ protocol · tests · reliability
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.86** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.89** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -151,8 +151,8 @@ protocol · tests · reliability
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.86-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/403_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.89-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/413_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -160,16 +160,15 @@ protocol · tests · reliability
   <img alt="ship" src="https://img.shields.io/badge/focus-ops_·_social_·_shop-7c3aed?style=for-the-badge" />
 </p>
 
-| | **v0.5.86** — ops + account polish |
+| | **v0.5.89** — start kit + combat focus |
 |:--|:--|
-| 🩺 | **Health check shows how many heroes are AFK** |
-| 🔑 | **Change password** for email accounts (API) |
-| 🏠 | **`/stuck` clears AFK** even when already in town |
-| 📊 | **`/near` · `/zone` · `/who`** show AFK census tips |
-| ✅ | **403** automated tests |
+| 👕 | **New heroes wear clothes** and carry **3 herbs** |
+| ⚔️ | **No emotes mid-combat** (you can still list them) |
+| 🛒 | Shop, equip, cast, and stuck stay reliable under busy multiplayer |
+| ✅ | **413** automated tests |
 
 > [!TIP]
-> **Try in chat:** `/buy copper sword` · `/afk lunch` · `/who` · `/near` · `/cast heal` (when learned) · `/stuck` if lost.
+> **Try:** create a hero (clothes + herbs) · `/wave Hero` · `/buy copper sword` · `/afk lunch` · `/who` · `/stuck` if lost.
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -178,6 +177,9 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.88** | Directed emotes respect mute / ignore |
+| **0.5.87** | `/wave Name` directed emotes · join AFK census |
+| **0.5.86** | Health AFK count · change password · `/stuck` clears AFK |
 | **0.5.85** | Near / zone AFK census peeks |
 | **0.5.84** | Bad `/roll` no longer clears AFK |
 | **0.5.83** | Friendly item names · `/buy copper sword` · aliases |
@@ -239,7 +241,7 @@ protocol · tests · reliability
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · emotes · **`/roll`** |
+| 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · **`/wave Name`** · **`/roll`** |
 | 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/whereis`** · **`/profile`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** · **`/keys`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect · AFK |
@@ -247,7 +249,7 @@ protocol · tests · reliability
 | ✨ | **`/cast`** · **`/repel`** · **`/return`** field magic from chat |
 | ☕ | **`/afk lunch`** · **`/back`** · soft reconnect |
 | 🔑 | Email accounts can **change password** via API |
-| 🦸 | Up to **3 heroes** · create / delete |
+| 🦸 | Up to **3 heroes** · start with **clothes** + **3 herbs** |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
 </td>
@@ -256,13 +258,14 @@ protocol · tests · reliability
 
 | Also | |
 |:-----|:--|
+| **Start kit** | Gold · **3 herbs** · **clothes** equipped |
 | **Items** | Herb · wings · fairy water · weapons · armor · helmets · Full Plate · Silver Shield |
 | **Names** | Shop & gear accept **display names** or short unique nicknames (spaces OK) |
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **403** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **413** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -322,7 +325,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 403 passed
+# expect: 413 passed
 ```
 
 ---
@@ -343,7 +346,7 @@ python tests/run_tests.py
 | **/w Name msg** | Whisper (unique **prefix** OK) |
 | **/z msg** · **/yell msg** · **/shout msg** | Zone chat |
 | **/stuck** · **/unstuck** · **/home** | Free return to town (not in combat) |
-| **/emote** · **/emotes** · **/wave** | List emotes or perform one |
+| **/emote** · **/emotes** · **/wave** · **/wave Name** | List, perform, or direct an emote |
 | **/buy copper sword** · **/sell herb** · **/shop** | Town shop — **names or ids** (optional qty) |
 | **/use herb** · **/equip copper sword** | Use consumable · equip gear (slot auto) |
 | **/cast heal** · **/repel** · **/return** | Field magic (when learned) |
@@ -441,7 +444,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/last` · `/lastwhisper` | See who `/r` targets |
 | `/say` · `/s` · `/g` · `/z` · `/yell` · `/shout` | Nearby · global · zone chat |
 | `/stuck` · `/unstuck` · `/home` | Free return to town |
-| `/emote` · `/emotes` · `/wave` | List or perform emotes |
+| `/emote` · `/emotes` · `/wave` · `/wave Name` | List, perform, or direct an emote |
 | `/shop` · `/buy copper sword` · `/sell herb 2` | Town shop — **friendly names** (optional qty) |
 | `/use herbs` · `/equip copper sword` | Use / equip (names OK; slot auto) |
 | `/cast heal` · `/repel` · `/return` | Field magic when learned |
@@ -553,9 +556,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-403_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-413_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.86-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.89-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -631,8 +634,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.86-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/403_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.89-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/413_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

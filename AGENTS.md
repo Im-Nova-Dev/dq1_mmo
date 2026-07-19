@@ -17,20 +17,20 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
+| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · directed emotes · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.86` (`server/config.py` → `VERSION`) · **403** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.89` (`server/config.py` → `VERSION`) · **413** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.86** / **403** until the suite or `VERSION` changes.  
-Last **pushed** ship: `2b2cc85` (v0.5.83). Local tree includes **0.5.84–0.5.86** (uncommitted until push).  
+Keep badges at **0.5.89** / **413** until the suite or `VERSION` changes.  
+Last **pushed** ship: `930abd7` (v0.5.86). Local tree includes **0.5.87–0.5.89** uncommitted.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass: badges **0.5.86 / 403** · human tree plain language · protocol **only** in this file.
+Docs pass: badges **0.5.89 / 413** · human tree plain language · protocol **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -348,6 +348,15 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 155. `sync` world_state: `afk_count`, `nearby_afk`, `you.afk_message` when AFK.
 156. **Password change:** `POST /auth/password` `{current_password,new_password}` (local accounts only; 401 if wrong current).
 157. Tests: `test_features_v0586`.
+158. **Directed emotes:** optional `to`/`name`/`to_id` on `emote`; validate before `allow_chat`; self/offline/ambiguous errors; `message` + `to`/`to_id`; far targets get a direct `send` if outside AOI.
+159. `auth_ok` includes `afk_count`; welcome may note AFK online; `who.nearby_afk`; `motd.afk_count`.
+160. Tests: `test_mp_reliability_v0587` + `test_features_v0587`.
+161. Directed emote: target ignore either way → `player unavailable` / `you ignore that player` before rate; far `send` never bypasses ignore.
+162. Tests: `test_adversarial_v0588`.
+163. Rate-exempt inventory/shop/field/stuck/emote types so domain errors never look like `rate_limit` under peek spam.
+164. Emote perform blocked **in combat** (`in combat`); `emotes` catalog still allowed.
+165. New heroes start with **clothes** equipped (`equipment_armor`) + 3 herbs.
+166. Tests: `test_features_v0589`.
 
 ## Tests (mandatory for your changes)
 

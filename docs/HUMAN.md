@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.86-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-403-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.89-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-413-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.86 · **403** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.89 · **413** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops:** friendly shop names · AFK with a reason · near/zone AFK tips · health shows AFK count · change password (email accounts) · `/stuck` clears AFK.
+**Recent for players/ops:** new heroes start in **clothes** with **3 herbs** · no emotes mid-fight · **`/wave Name`** · friendly shop names · AFK reasons · health AFK count · change password · `/stuck` clears AFK.
 
 ---
 
@@ -30,12 +30,12 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 
 | Pillar | What you get |
 |:-------|:-------------|
-| **Hero** | Account · up to **3** heroes · start with gold + **3 herbs** |
+| **Hero** | Account · up to **3** heroes · start with gold + **3 herbs** + **clothes** |
 | **World** | **Town** (safe) · **field** · **dungeon** · shared grid |
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · emotes · **`/roll`** · look · find · who |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/wave Name`** · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** |
 | **Meta** | **`/afk lunch`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
@@ -46,7 +46,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 ## First session
 
 1. Start the server · run `love client` (see [README](../README.md))
-2. Register · create a hero · **Enter World**
+2. Register · create a hero (clothes + **3 herbs** + gold) · **Enter World**
 3. You spawn in **town** (safe — no random fights)
 4. A **welcome** toast shows how many heroes are online
 
@@ -146,7 +146,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **channel `shout`** | Same as zone chat (area shout, not world-wide) |
 | **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line) |
-| **/emote** · **/emotes** · **/wave** · **/bow** … | List emotes or perform one |
+| **/emote** · **/emotes** · **/wave** · **/wave Name** | List emotes, perform one, or direct an emote at a hero |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
 | **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
@@ -293,7 +293,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 403 passed
+# expect: 413 passed
 ```
 
 ---
@@ -307,7 +307,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.86** · **403** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.89** · **413** tests).
 
 | Do | Don’t |
 |:---|:------|

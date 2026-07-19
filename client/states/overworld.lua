@@ -675,25 +675,31 @@ local function bind_handlers(self)
   Network.on("emote", function(data)
     local who = data.name or "?"
     local em = data.emote or "wave"
-    local line = who .. " " .. em .. "s"
-    if em == "wave" then
-      line = who .. " waves"
-    elseif em == "bow" then
-      line = who .. " bows"
-    elseif em == "cheer" then
-      line = who .. " cheers"
-    elseif em == "dance" then
-      line = who .. " dances"
-    elseif em == "cry" then
-      line = who .. " cries"
-    elseif em == "laugh" then
-      line = who .. " laughs"
-    elseif em == "point" then
-      line = who .. " points"
-    elseif em == "sit" then
-      line = who .. " sits"
-    elseif em == "think" then
-      line = who .. " thinks"
+    local line = data.message
+    if not line or line == "" then
+      line = who .. " " .. em .. "s"
+      if em == "wave" then
+        line = who .. " waves"
+      elseif em == "bow" then
+        line = who .. " bows"
+      elseif em == "cheer" then
+        line = who .. " cheers"
+      elseif em == "dance" then
+        line = who .. " dances"
+      elseif em == "cry" then
+        line = who .. " cries"
+      elseif em == "laugh" then
+        line = who .. " laughs"
+      elseif em == "point" then
+        line = who .. " points"
+      elseif em == "sit" then
+        line = who .. " sits"
+      elseif em == "think" then
+        line = who .. " thinks"
+      end
+      if data.to and data.to ~= "" then
+        line = line .. " at " .. tostring(data.to)
+      end
     end
     self.chat_log[#self.chat_log + 1] = {
       name = who,
@@ -701,6 +707,7 @@ local function bind_handlers(self)
       player_id = data.player_id,
       kind = "emote",
       channel = "nearby",
+      to = data.to,
     }
     while #self.chat_log > 40 do
       table.remove(self.chat_log, 1)
@@ -1227,6 +1234,13 @@ function Overworld:keypressed(key)
         local say_msg = text:match("^[/%!]say%s+(.+)$") or text:match("^[/%!]s%s+(.+)$")
         local global_msg = text:match("^[/%!]g%s+(.+)$") or text:match("^[/%!]global%s+(.+)$")
         local emote_cmd = text:match("^[/%!]emote%s+(%S+)$") or text:match("^[/%!]e%s+(%S+)$")
+        local emote_at, emote_tgt = text:match("^[/%!]emote%s+(%S+)%s+(.+)$")
+        if not emote_at then
+          emote_at, emote_tgt = text:match("^[/%!]e%s+(%S+)%s+(.+)$")
+        end
+        local quick_emote_at, quick_emote_tgt = text:match(
+          "^[/%!](wave|bow|cheer|dance|laugh|point|think|cry|sit)%s+(.+)$"
+        )
         local wants_emote_list = text:match("^[/%!]emote%s*$")
           or text:match("^[/%!]emotes%s*$")
           or text:match("^[/%!]e%s*$")
@@ -1283,6 +1297,14 @@ function Overworld:keypressed(key)
           Network.say(say_msg)
         elseif global_msg and global_msg ~= "" then
           Network.chat(global_msg, "global")
+        elseif emote_at and emote_tgt and emote_tgt ~= "" then
+          local tgt = (emote_tgt:match("^%s*(.-)%s*$") or emote_tgt)
+          Network.send({ type = "emote", emote = emote_at:lower(), to = tgt })
+          UI.toast("Emote: " .. emote_at:lower() .. " → " .. tgt, "info")
+        elseif quick_emote_at and quick_emote_tgt and quick_emote_tgt ~= "" then
+          local tgt = (quick_emote_tgt:match("^%s*(.-)%s*$") or quick_emote_tgt)
+          Network.send({ type = "emote", emote = quick_emote_at:lower(), to = tgt })
+          UI.toast("Emote: " .. quick_emote_at:lower() .. " → " .. tgt, "info")
         elseif emote_cmd and emote_cmd ~= "" then
           if emote_cmd:lower() == "list" or emote_cmd:lower() == "help" then
             Network.send({ type = "emotes" })

@@ -227,9 +227,40 @@ async def websocket_endpoint(websocket: WebSocket):
                 "leave_world",
                 "mapinfo",
                 "emotes",
+                "emote",  # has own chat-rate limit
                 "shop",
                 "store",
                 "vendor",
+                # Inventory / shop / field / home — domain errors must not look like spam rate_limit
+                "equip",
+                "wear",
+                "wield",
+                "unequip",
+                "takeoff",
+                "remove",
+                "buy",
+                "purchase",
+                "sell",
+                "vendor_sell",
+                "use",
+                "use_item",
+                "consume",
+                "rest",
+                "inn",
+                "sleep",
+                "cast",
+                "cast_spell",
+                "use_spell",
+                "heal",
+                "healmore",
+                "repel",
+                "return",
+                "outside",
+                "radiant",
+                "stuck",
+                "unstuck",
+                "home",
+                "recall_home",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
@@ -338,13 +369,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Stamp session id + multiplayer welcome on auth_ok (not a chat
                 # line — avoids polluting the chat stream for clients/tests).
                 online_n = len(manager.online_ids())
+                afk_n = manager.afk_count()
                 hero = str(connect_meta.get("name") or "Hero")
                 zone_bit = f" in the {join_zone}" if join_zone else ""
                 heroes = "hero" if online_n == 1 else "heroes"
                 nearby_n = len(peers)
                 near_bit = f", {nearby_n} nearby" if nearby_n else ""
+                afk_bit = f", {afk_n} AFK" if afk_n else ""
                 welcome = (
-                    f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}{near_bit}."
+                    f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}{near_bit}{afk_bit}."
                 )
                 if restored_any:
                     bits = []
@@ -360,6 +393,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     if o.get("type") == ServerMessageType.AUTH_OK:
                         o["session_id"] = sid
                         o["online"] = online_n
+                        o["afk_count"] = afk_n
                         o["nearby_count"] = nearby_n
                         o["zones"] = manager.zone_counts()
                         o["welcome"] = welcome

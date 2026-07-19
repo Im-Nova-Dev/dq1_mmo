@@ -366,6 +366,7 @@ async def handle_message(
                 roster=manager.online_roster(),
                 zones=manager.zone_counts(),
                 afk_count=manager.afk_count(),
+                nearby_afk=manager.nearby_afk_count(character_id),
                 you={
                     "id": character_id,
                     "name": (meta or {}).get("name"),
@@ -964,7 +965,7 @@ async def handle_message(
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /emote · /emote list — nearby emotes"},
+                    {"cmd": "emote", "hint": "E · /wave · /wave Name — nearby or directed emote"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
                     {"cmd": "use", "hint": "/use herb — use consumable from bag"},
@@ -1016,6 +1017,7 @@ async def handle_message(
                 text=str(MOTD)[:500],
                 version=_VER,
                 online=len(manager.online_ids()),
+                afk_count=manager.afk_count(),
                 zones=manager.zone_counts(),
                 uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
             )
@@ -2688,6 +2690,43 @@ async def handle_message(
         if emote not in allowed:
             outbound.append(msg(ServerMessageType.ERROR, reason="unknown emote"))
             return character_id, user_id, outbound, None
+        # Combat is server-turn focused — no social emotes mid-fight
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        # Optional directed target — validate BEFORE rate limit (no AFK burn on fail)
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        target_id = manager.find_id_by_player_id(
+            data.get("to_id") or data.get("player_id") or data.get("id")
+        )
+        tname: str | None = None
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            tid, nerr = manager.resolve_live_name(target_name)
+            if nerr == "name ambiguous":
+                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                return character_id, user_id, outbound, None
+            if tid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
+            target_id = tid
+        if target_id is not None:
+            if target_id == character_id:
+                outbound.append(msg(ServerMessageType.ERROR, reason="cannot emote yourself"))
+                return character_id, user_id, outbound, None
+            if target_id not in manager.online_ids():
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
+            # Same privacy model as whisper (before rate burn)
+            if manager.is_ignored_by(target_id, character_id):
+                outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
+                return character_id, user_id, outbound, None
+            if manager.is_ignored_by(character_id, target_id):
+                outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+                return character_id, user_id, outbound, None
+            tmeta = manager.get_meta(target_id)
+            tname = (tmeta or {}).get("name") or (
+                target_name.strip() if isinstance(target_name, str) else "Hero"
+            )
         meta = manager.get_meta(character_id)
         from network.websocket_manager import _is_idle as _idle_chk
 
@@ -2710,6 +2749,22 @@ async def handle_message(
                 emote_zone = zone_at(int(meta["x"]), int(meta["y"]))
             except Exception:
                 emote_zone = None
+        # Pretty multiplayer line for clients that ignore structured fields
+        if tname:
+            verb = {
+                "wave": "waves at",
+                "bow": "bows to",
+                "cheer": "cheers for",
+                "dance": "dances with",
+                "cry": "cries with",
+                "laugh": "laughs with",
+                "point": "points at",
+                "sit": "sits with",
+                "think": "thinks of",
+            }.get(emote, f"{emote}s at")
+            emote_line = f"{name} {verb} {tname}"
+        else:
+            emote_line = None
         emote_msg = msg(
             ServerMessageType.EMOTE,
             player_id=character_id,
@@ -2718,6 +2773,10 @@ async def handle_message(
             x=(meta or {}).get("x"),
             y=(meta or {}).get("y"),
         )
+        if emote_line:
+            emote_msg["message"] = emote_line
+            emote_msg["to"] = tname
+            emote_msg["to_id"] = target_id
         if emote_zone in ("town", "field", "dungeon"):
             emote_msg["zone"] = emote_zone
         sid_e = manager.session_id(character_id)
@@ -2727,6 +2786,10 @@ async def handle_message(
         await manager.broadcast_nearby(
             character_id, emote_msg, include_self=False, respect_ignore=True
         )
+        # Directed: ensure target sees it even if outside AOI (never bypass ignore)
+        if target_id is not None and target_id not in set(manager.ids_nearby(character_id)):
+            if not manager.is_ignored_by(target_id, character_id):
+                await manager.send(target_id, emote_msg)
         outbound.append(emote_msg)
         if was_idle:
             await manager.publish_status(character_id)

@@ -284,6 +284,11 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
                 "INSERT INTO item_instances (character_id, item_id, quantity, is_equipped) VALUES (?, 'herb', 3, 0)",
                 (char_id,),
             )
+            # Free clothes (worn) — soft early defense without shop trip
+            await db.execute(
+                "UPDATE characters SET equipment_armor = 'clothes' WHERE id = ?",
+                (char_id,),
+            )
             await db.commit()
             async with db.execute("SELECT * FROM characters WHERE id = ?", (char_id,)) as c:
                 crow = await c.fetchone()
