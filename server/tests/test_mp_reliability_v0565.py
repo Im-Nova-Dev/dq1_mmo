@@ -210,16 +210,33 @@ def test_whisper_target_afk_flag_and_lastwhisper(tmp_path, monkeypatch):
                 # Empty lastwhisper for C is covered by no peer — B replies
                 await asyncio.sleep(0.85)
                 await drain(wb)
+                await drain(wa)
                 await wb.send(json.dumps({"type": "back"}))
                 await recv_until(wb, "afk", "error")
+                # Nearby "is back" system chat may land on A — drain it
+                await drain(wa, 0.25)
                 await asyncio.sleep(0.85)
                 await wb.send(
                     json.dumps({"type": "reply", "text": "back now"})
                 )
                 r = await recv_until(wb, "chat", "error")
                 assert r.get("type") == "chat" and r.get("text") == "back now", r
-                ra = await recv_until(wa, "chat", "error")
-                assert ra.get("text") == "back now", ra
+                # Skip system notices if any remain
+                ra = None
+                end = time.monotonic() + 3.0
+                while time.monotonic() < end:
+                    try:
+                        raw = await asyncio.wait_for(wa.recv(), 0.5)
+                        m = json.loads(raw)
+                        if m.get("type") == "chat" and m.get("channel") != "system":
+                            ra = m
+                            break
+                        if m.get("type") == "error":
+                            ra = m
+                            break
+                    except (asyncio.TimeoutError, TimeoutError):
+                        break
+                assert ra is not None and ra.get("text") == "back now", ra
 
         asyncio.run(flow())
     finally:

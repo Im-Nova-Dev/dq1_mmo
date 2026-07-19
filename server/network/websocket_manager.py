@@ -707,6 +707,22 @@ class ConnectionManager:
             meta["last_seen"] = now
         return True
 
+    def mark_active(self, character_id: int) -> bool:
+        """Clear AFK/idle stamps after real multiplayer activity (shop, use, equip).
+
+        Returns True if meta existed (online). Does not publish status — caller should
+        publish when peers need an AFK badge refresh.
+        """
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False
+        now = time.monotonic()
+        meta["last_seen"] = now
+        was_afk = bool(meta.get("afk"))
+        meta["afk"] = False
+        meta["afk_since"] = None
+        return was_afk
+
     def refund_chat(self, character_id: int) -> None:
         """Undo the last allow_chat stamp (failed whisper delivery, etc.).
 

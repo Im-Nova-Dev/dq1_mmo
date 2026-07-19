@@ -425,16 +425,26 @@ async def handle_message(
                     played_sec = max(0, int(_time.monotonic() - started))
             except (TypeError, ValueError):
                 played_sec = 0
+        you_afk = bool((meta or {}).get("afk"))
         you = {
             "id": character_id,
             "name": (meta or {}).get("name"),
             "nearby_count": nearby_n,
-            "afk": bool((meta or {}).get("afk")),
+            "afk": you_afk,
             "idle": _idle_chk(meta) if meta else False,
             "zone": you_zone,
             "in_combat": bool((meta or {}).get("in_combat")),
             "played": played_sec,
         }
+        if you_afk and meta is not None:
+            try:
+                import time as _time
+
+                since = float(meta.get("afk_since") or 0.0)
+                if since > 0:
+                    you["afk_for"] = max(0, int(_time.monotonic() - since))
+            except (TypeError, ValueError):
+                pass
         if sid is not None:
             you["session_id"] = sid
         body = {
@@ -882,6 +892,10 @@ async def handle_message(
                     {"cmd": "emote", "hint": "E · /emote · /emote list — nearby emotes"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
+                    {"cmd": "use", "hint": "/use herb — use consumable from bag"},
+                    {"cmd": "buy", "hint": "/buy herb [qty] — town shop"},
+                    {"cmd": "sell", "hint": "/sell herb [qty] — town shop"},
+                    {"cmd": "equip", "hint": "/equip club — equip gear (slot auto)"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
                     {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
                     {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
@@ -893,7 +907,8 @@ async def handle_message(
                     {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
                     {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
                     {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
-                    {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
+                    {"cmd": "cast", "hint": "/cast heal · /repel · /return · H/M keys"},
+                    {"cmd": "discard", "hint": "/discard herb [qty] · D in bag"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores · /blocklist"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
@@ -953,6 +968,8 @@ async def handle_message(
             "false",
         ):
             want_afk = False
+        meta_pre = manager.get_meta(character_id)
+        was_afk = bool((meta_pre or {}).get("afk"))
         if not manager.set_afk(character_id, want_afk):
             outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
             return character_id, user_id, outbound, None
@@ -961,6 +978,27 @@ async def handle_message(
         await manager.publish_status(character_id, pulse_online=True)
         meta = manager.get_meta(character_id)
         from network.websocket_manager import _is_idle as _idle_chk
+
+        # Nearby system notice when AFK state flips (multiplayer roster hygiene)
+        if want_afk != was_afk and meta is not None:
+            pname = (meta.get("name") or "Hero")
+            notice_text = (
+                f"{pname} is now AFK." if want_afk else f"{pname} is back."
+            )
+            notice = msg(
+                ServerMessageType.CHAT,
+                player_id=character_id,
+                name="System",
+                text=notice_text,
+                channel="system",
+                system=True,
+            )
+            sid_a = manager.session_id(character_id)
+            if sid_a is not None:
+                notice["session_id"] = sid_a
+            await manager.broadcast_nearby(
+                character_id, notice, include_self=False, respect_ignore=False
+            )
 
         outbound.append(
             msg(
@@ -1563,6 +1601,8 @@ async def handle_message(
         ClientMessageType.SHOP,
         ClientMessageType.INVENTORY,
         "use_spell",
+        "cast",
+        "cast_spell",
         "use_item",
         "rest",
         "inn",
@@ -1580,10 +1620,44 @@ async def handle_message(
             return character_id, user_id, outbound, None
 
     # --- Field magic (overworld) ---
-    if msg_type in (ClientMessageType.USE_SPELL, "use_spell") and not combat_engine.is_in_combat(
-        character_id
-    ):
-        spell_id = str(data.get("spell") or data.get("id") or "")
+    # Shortcuts: {type:cast,spell:heal} or {type:heal}/{type:repel}/… when not in combat
+    _FIELD_SHORTCUTS = {
+        "heal",
+        "healmore",
+        "return",
+        "repel",
+        "outside",
+        "radiant",
+    }
+    if (
+        msg_type in (ClientMessageType.USE_SPELL, "use_spell", "cast", "cast_spell")
+        or (msg_type in _FIELD_SHORTCUTS and not combat_engine.is_in_combat(character_id))
+    ) and not combat_engine.is_in_combat(character_id):
+        if msg_type in _FIELD_SHORTCUTS:
+            spell_id = str(msg_type)
+        else:
+            spell_id = str(
+                data.get("spell")
+                or data.get("id")
+                or data.get("name")
+                or ""
+            ).strip().lower().replace(" ", "")
+        # normalize aliases
+        _spell_alias = {
+            "healmore": "healmore",
+            "heal_more": "healmore",
+            "return": "return",
+            "warp": "return",
+            "town": "return",
+            "repel": "repel",
+            "holy_protection": "repel",
+            "outside": "outside",
+            "exit": "outside",
+            "radiant": "radiant",
+            "light": "radiant",
+            "heal": "heal",
+        }
+        spell_id = _spell_alias.get(spell_id, spell_id)
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
@@ -1699,6 +1773,10 @@ async def handle_message(
                     reason="spell",
                 )
             )
+        # Casting is multiplayer activity — clear AFK for peers
+        was_afk_cast = manager.mark_active(character_id)
+        if was_afk_cast:
+            await manager.publish_status(character_id, pulse_online=True)
         char["known_spells"] = battle_spells_at(int(char["level"]))
         char["field_spells"] = field_spells_at(int(char["level"]))
         char["bonuses"] = equipment_bonuses(char)
@@ -1712,6 +1790,8 @@ async def handle_message(
         ClientMessageType.ATTACK,
         ClientMessageType.FLEE,
         ClientMessageType.USE_SPELL,
+        "cast",
+        "cast_spell",
         "combat_action",
     ):
         battle = combat_engine.get(character_id)
@@ -2522,7 +2602,10 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Use consumable (herb / wings / fairy water) ---
-    if msg_type in (ClientMessageType.USE_ITEM, "use_item"):
+    if msg_type in (ClientMessageType.USE_ITEM, "use_item", "use", "consume"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
         if not item_id:
             outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
@@ -2549,6 +2632,11 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             outbound.append(await _inventory_msg(character_id))
             return character_id, user_id, outbound, None
+
+        # Successful use is multiplayer activity — clear AFK for peers
+        was_afk_use = manager.mark_active(character_id)
+        if was_afk_use:
+            await manager.publish_status(character_id, pulse_online=True)
 
         # Refresh character after use
         char = await get_character(character_id) or char
@@ -2712,7 +2800,10 @@ async def handle_message(
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
-    if msg_type == ClientMessageType.SHOP:
+    if msg_type in (ClientMessageType.SHOP, "shop", "store", "vendor"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2721,15 +2812,26 @@ async def handle_message(
         if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
+        manager.touch(character_id)
         outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
         return character_id, user_id, outbound, None
 
-    if msg_type in (ClientMessageType.EQUIP, "equip"):
+    if msg_type in (ClientMessageType.EQUIP, "equip", "wear", "wield"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
         slot = data.get("slot")
         item_id = data.get("item") or data.get("item_id")
+        # Auto-slot from equipment def when client only sends item (slash /equip club)
+        if (not slot or not str(slot).strip()) and item_id:
+            from game.item_manager import get_equipment_def
+
+            defn = get_equipment_def(str(item_id).strip())
+            if defn and defn.get("slot"):
+                slot = defn.get("slot")
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
@@ -2739,6 +2841,9 @@ async def handle_message(
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
+        was_afk = manager.mark_active(character_id)
+        if was_afk:
+            await manager.publish_status(character_id, pulse_online=True)
         inv = await _inventory_msg(character_id)
         inv["equipped"] = {"slot": str(slot or ""), "item_id": str(item_id or "")}
         inv["message"] = f"Equipped {item_id}."
@@ -2821,7 +2926,10 @@ async def handle_message(
         outbound.append(inv)
         return character_id, user_id, outbound, None
 
-    if msg_type == ClientMessageType.BUY:
+    if msg_type in (ClientMessageType.BUY, "buy", "purchase"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2869,6 +2977,9 @@ async def handle_message(
                     pass
             outbound.append(err)
             return character_id, user_id, outbound, None
+        was_afk = manager.mark_active(character_id)
+        if was_afk:
+            await manager.publish_status(character_id, pulse_online=True)
         inv = await _inventory_msg(character_id)
         if bought:
             inv["bought"] = bought
@@ -2882,7 +2993,10 @@ async def handle_message(
         outbound.append(inv)
         return character_id, user_id, outbound, None
 
-    if msg_type == ClientMessageType.SELL:
+    if msg_type in (ClientMessageType.SELL, "sell", "vendor_sell"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2916,6 +3030,9 @@ async def handle_message(
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
+        was_afk = manager.mark_active(character_id)
+        if was_afk:
+            await manager.publish_status(character_id, pulse_online=True)
         inv = await _inventory_msg(character_id)
         # Surface sell result so clients can toast gold earned
         if sold:

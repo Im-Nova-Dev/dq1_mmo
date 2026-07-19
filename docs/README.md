@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.77** (2026-07-19) · suite **359** tests · `VERSION` in `server/config.py` · **humans ≠ agents**
+**Last docs refresh:** **v0.5.81** (2026-07-19) · suite **377** tests · `VERSION` in `server/config.py` · **humans ≠ agents**
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -74,7 +74,10 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - `/played` · `/session` — this connection’s age (+ zone / online)
 - `/profile` · `/whereis` · `/mapinfo` · `/server` · `/info` · `/s` · `/g`
 - `/stuck` · `/unstuck` · `/home` — free town return (nearby system notice) · `/yell` · `/shout` · `/emote` list
-- AFK duration visible on look / online lists
+- AFK duration visible on look / online lists · nearby AFK/back system lines
+- Buy/sell/equip/use clear AFK for peers · `/counts` may show `afk_for`
+- `/buy` · `/sell` · `/shop` · `/use` · `/equip` slash shop · `/ping` latency
+- `/cast heal` · `/repel` · `/return` field magic · `/discard` from chat
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, or walk
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up

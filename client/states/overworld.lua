@@ -437,6 +437,44 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "Emotes updated"), "info")
   end)
 
+  Network.on("shop_list", function(data)
+    local items = data.items or {}
+    local n = #items
+    if n == 0 then
+      UI.toast("Shop is empty", "info")
+    else
+      local names = {}
+      for i = 1, math.min(6, n) do
+        local it = items[i]
+        local nm = (it and (it.name or it.id)) or "?"
+        local pr = it and it.price
+        names[#names + 1] = pr and (tostring(nm) .. " " .. tostring(pr) .. "G") or tostring(nm)
+      end
+      local more = n > 6 and (" +" .. tostring(n - 6)) or ""
+      UI.toast("Shop: " .. table.concat(names, ", ") .. more .. " · open I / Tab", "info")
+    end
+  end)
+
+  Network.on("pong", function(data)
+    -- Only toast when player asked via /ping (heartbeat pongs stay silent)
+    if not self._want_ping_toast then
+      return
+    end
+    self._want_ping_toast = false
+    if data.t then
+      local sent = tonumber(data.t)
+      if sent then
+        local now = love.timer.getTime()
+        local ms = math.floor((now - sent) * 1000 + 0.5)
+        if ms >= 0 and ms < 60000 then
+          UI.toast(string.format("Ping %d ms · %s online", ms, tostring(data.online or "?")), "info")
+          return
+        end
+      end
+    end
+    UI.toast(string.format("Pong · %s online", tostring(data.online or "?")), "info")
+  end)
+
   Network.on("lastwhisper", function(data)
     UI.toast(tostring(data.message or "No one to reply to yet."), "info")
   end)
@@ -1176,6 +1214,31 @@ function Overworld:keypressed(key)
         local wants_stuck = text:match("^[/%!]stuck%s*$")
           or text:match("^[/%!]unstuck%s*$")
           or text:match("^[/%!]home%s*$")
+        local wants_shop = text:match("^[/%!]shop%s*$")
+          or text:match("^[/%!]store%s*$")
+          or text:match("^[/%!]vendor%s*$")
+        local wants_ping = text:match("^[/%!]ping%s*$")
+          or text:match("^[/%!]latency%s*$")
+        local use_item = text:match("^[/%!]use%s+(%S+)$")
+          or text:match("^[/%!]consume%s+(%S+)$")
+        local buy_item, buy_qty = text:match("^[/%!]buy%s+(%S+)%s+(%d+)%s*$")
+        local buy_item_only = text:match("^[/%!]buy%s+(%S+)%s*$")
+        local sell_item, sell_qty = text:match("^[/%!]sell%s+(%S+)%s+(%d+)%s*$")
+        local sell_item_only = text:match("^[/%!]sell%s+(%S+)%s*$")
+        local equip_slot, equip_item2 = text:match("^[/%!]equip%s+(%S+)%s+(%S+)$")
+        local equip_item = text:match("^[/%!]equip%s+(%S+)$")
+          or text:match("^[/%!]wear%s+(%S+)$")
+          or text:match("^[/%!]wield%s+(%S+)$")
+        local quick_emote = text:match("^[/%!](wave|bow|cheer|dance|laugh|point|think|cry|sit)%s*$")
+        local wants_look_self = text:match("^[/%!]look%s*$")
+          or text:match("^[/%!]examine%s*$")
+          or text:match("^[/%!]profile%s*$")
+        local cast_spell = text:match("^[/%!]cast%s+(%S+)$")
+          or text:match("^[/%!]spell%s+(%S+)$")
+        local cast_shortcut = text:match("^[/%!](heal|healmore|return|repel|outside|radiant)%s*$")
+        local discard_item, discard_qty = text:match("^[/%!]discard%s+(%S+)%s+(%d+)%s*$")
+        local discard_only = text:match("^[/%!]discard%s+(%S+)%s*$")
+          or text:match("^[/%!]drop%s+(%S+)%s*$")
         local wants_roll = text:match("^[/%!]roll%s*$")
           or text:match("^[/%!]dice%s*$")
           or text:match("^[/%!]d100%s*$")
@@ -1209,6 +1272,50 @@ function Overworld:keypressed(key)
           Network.send({ type = "emotes" })
         elseif wants_stuck then
           Network.send({ type = "stuck" })
+        elseif wants_shop then
+          Network.send({ type = "shop" })
+        elseif wants_ping then
+          self._want_ping_toast = true
+          Network.ping(false)
+        elseif use_item and use_item ~= "" then
+          Network.send({ type = "use_item", item = use_item:lower() })
+        elseif buy_item and buy_item ~= "" then
+          Network.send({
+            type = "buy",
+            item = buy_item:lower(),
+            quantity = tonumber(buy_qty) or 1,
+          })
+        elseif buy_item_only and buy_item_only ~= "" then
+          Network.send({ type = "buy", item = buy_item_only:lower(), quantity = 1 })
+        elseif sell_item and sell_item ~= "" then
+          Network.send({
+            type = "sell",
+            item = sell_item:lower(),
+            quantity = tonumber(sell_qty) or 1,
+          })
+        elseif sell_item_only and sell_item_only ~= "" then
+          Network.send({ type = "sell", item = sell_item_only:lower(), quantity = 1 })
+        elseif equip_slot and equip_item2 then
+          Network.send({ type = "equip", slot = equip_slot:lower(), item = equip_item2:lower() })
+        elseif equip_item and equip_item ~= "" then
+          Network.send({ type = "equip", item = equip_item:lower() })
+        elseif quick_emote and quick_emote ~= "" then
+          Network.emote(quick_emote:lower())
+          UI.toast("Emote: " .. quick_emote:lower(), "info")
+        elseif wants_look_self then
+          Network.look()
+        elseif cast_spell and cast_spell ~= "" then
+          Network.send({ type = "cast", spell = cast_spell:lower() })
+        elseif cast_shortcut and cast_shortcut ~= "" then
+          Network.send({ type = cast_shortcut:lower() })
+        elseif discard_item and discard_item ~= "" then
+          Network.send({
+            type = "discard",
+            item = discard_item:lower(),
+            quantity = tonumber(discard_qty) or 1,
+          })
+        elseif discard_only and discard_only ~= "" then
+          Network.send({ type = "discard", item = discard_only:lower(), quantity = 1 })
         elseif wants_roll or roll_sides then
           local payload = { type = "roll" }
           if roll_sides then

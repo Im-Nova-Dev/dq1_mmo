@@ -7,13 +7,13 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.77</b> · <b>359</b> tests · humans ≠ agents</sub>
+  <sub><b>v0.5.81</b> · <b>377</b> tests · humans ≠ agents</sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.77-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.81-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-359_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-377_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -49,7 +49,7 @@
 
 <p align="center">
 Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on a shared grid.<br/>
-Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</b> · shop for gear · chat and whisper.
+Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</b> · <b>/shop</b> · chat and whisper.
 </p>
 
 <p align="center">
@@ -58,15 +58,16 @@ Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</
   <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/hp_/xp_/buffs_/played-f97316?style=flat-square" />
-  <img alt="qol" src="https://img.shields.io/badge/QoL-/stuck_/yell_/emote_list-a855f7?style=flat-square" />
+  <img alt="qol" src="https://img.shields.io/badge/QoL-/stuck_/yell_/ping-a855f7?style=flat-square" />
+  <img alt="shop" src="https://img.shields.io/badge/shop-/buy_/sell_/use_/equip-eab308?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-359_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-377_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.  
-> **Docs stay split:** humans → this page + [HUMAN](docs/HUMAN.md) · coding agents → **[AGENTS.md](AGENTS.md) only** (never a player guide).
+> **Two audiences:** humans → this page + [HUMAN](docs/HUMAN.md) · coding agents → **[AGENTS.md](AGENTS.md) only** (protocol · never a player guide).
 
 <table>
 <tr>
@@ -104,7 +105,7 @@ protocol · tests · reliability
 ```text
   Register  →  Create hero  →  Town (safe)  →  Field / Dungeon
       ↑              │                │              │
-      └──── logout ◄── shop · inn · chat · /stuck home · AFK
+      └─ logout ◄── /shop · /buy · inn · chat · /stuck · AFK
 ```
 
 <p align="center">
@@ -123,7 +124,7 @@ protocol · tests · reliability
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.77** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.81** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -139,15 +140,15 @@ protocol · tests · reliability
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.77-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/359_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.81-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/377_tests_green-059669?style=for-the-badge" />
 </p>
 
-| | **v0.5.77** |
+| | **v0.5.81** |
 |:--|:--|
-| 🧪 | Hard adversarial pass — stuck, AFK duration, ignore whispers, ambiguous names |
-| 🔒 | No product bugs; probe false positives locked as permanent regression tests |
-| ✅ | **359** automated tests |
+| ✨ | **`/cast heal`** · **`/repel`** · **`/return`** · **`/radiant`** · **`/outside`** field magic |
+| 🗑️ | **`/discard herb`** from chat · cast clears AFK for nearby peers |
+| ✅ | **377** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -156,6 +157,10 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.80** | Adversarial lock-in · AFK/shop multiplayer edges |
+| **0.5.79** | AFK/back system lines · shop clears AFK · counts.afk_for |
+| **0.5.78** | `/buy` · `/sell` · `/use` · `/equip` · `/ping` · `/wave` |
+| **0.5.77** | Adversarial lock-in · stuck/AFK/ignore edges |
 | **0.5.76** | stuck rate fix · nearby return notice · `afk_for` on look/who |
 | **0.5.75** | `/stuck` · `/yell` · `/emote` list |
 | **0.5.74** | Adversarial lock-in · combat gates · AFK whisper · qty/move edges |
@@ -212,6 +217,7 @@ protocol · tests · reliability
 | 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/whereis`** · **`/profile`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** · **`/keys`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect · AFK |
+| 🛒 | **`/buy`** · **`/sell`** · **`/use`** · **`/equip`** · **`/shop`** from chat |
 | 🦸 | Up to **3 heroes** · create / delete |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -225,7 +231,7 @@ protocol · tests · reliability
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **359** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **377** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -267,14 +273,14 @@ love client
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
 3. **Enter World** — spawn in **town** · welcome toast with online count
-4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/stuck`** if lost · **`/w Name`**
+4. **R** inn · **`/shop`** · **`/buy herb`** · **I** bag · **`/who`** · **`/stuck`** if lost
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 359 passed
+# expect: 377 passed
 ```
 
 ---
@@ -295,7 +301,12 @@ python tests/run_tests.py
 | **/w Name msg** | Whisper (unique **prefix** OK) |
 | **/z msg** · **/yell msg** · **/shout msg** | Zone chat |
 | **/stuck** · **/unstuck** · **/home** | Free return to town (not in combat) |
-| **/emote** · **/emotes** | List emotes · **/emote wave** to perform |
+| **/emote** · **/emotes** · **/wave** | List emotes or perform one |
+| **/buy item** · **/sell item** · **/shop** | Town shop (optional qty) |
+| **/use herb** · **/equip club** | Use consumable · equip gear |
+| **/cast heal** · **/repel** · **/return** | Field magic (when learned) |
+| **/discard herb** | Destroy bag items (optional qty) |
+| **/ping** | Latency check |
 | **/r message** | Reply last whisper |
 | **/last** | Who `/r` will target |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice |
@@ -388,7 +399,12 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/last` · `/lastwhisper` | See who `/r` targets |
 | `/say` · `/s` · `/g` · `/z` · `/yell` · `/shout` | Nearby · global · zone chat |
 | `/stuck` · `/unstuck` · `/home` | Free return to town |
-| `/emote` · `/emotes` · `/emote wave` | List or perform emotes |
+| `/emote` · `/emotes` · `/wave` | List or perform emotes |
+| `/shop` · `/buy item` · `/sell item` | Town shop (optional qty) |
+| `/use herb` · `/equip club` | Use consumable · equip gear (slot auto) |
+| `/cast heal` · `/repel` · `/return` | Field magic when learned |
+| `/discard herb` | Destroy bag items |
+| `/ping` | Latency check |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |
 | `/counts` · `/census` | Online + zone population |
 | `/find Name` · `/find zone:field` · `/find afk` | Search (zone / AFK filters, no coords) |
@@ -491,9 +507,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-359_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-377_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.77-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.81-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -502,7 +518,7 @@ dq1_mmo/
 </p>
 
 > [!IMPORTANT]
-> **Two audiences, two trees.**  
+> **Two audiences, two trees — do not mix.**  
 > Play / host / art → this README + [docs/HUMAN.md](docs/HUMAN.md) + [ATTRIBUTION](client/assets/ATTRIBUTION.md).  
 > Code agents → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).  
 > **Never** paste WebSocket catalogs or test matrices into player-facing pages.
@@ -569,8 +585,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.77-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/359_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.81-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/377_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
