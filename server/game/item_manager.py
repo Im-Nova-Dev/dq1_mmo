@@ -194,8 +194,24 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str]:
     if not defn:
         return False, "unknown item"
     price = int(defn.get("price", 0)) // 2
-    if not await remove_item(db, character["id"], item_id, 1):
+
+    # Equipped gear lives on the character row, not in bag stacks — allow sell
+    # by clearing the slot (players should not need a separate unequip first).
+    equipped_col = None
+    for col in SLOT_COLUMNS.values():
+        if character.get(col) == item_id:
+            equipped_col = col
+            break
+
+    if equipped_col is not None:
+        await db.execute(
+            f"UPDATE characters SET {equipped_col} = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (character["id"],),
+        )
+        character[equipped_col] = None
+    elif not await remove_item(db, character["id"], item_id, 1):
         return False, "not in inventory"
+
     try:
         gold = max(0, int(str(character.get("gold", "0") or "0"))) + price
     except (TypeError, ValueError):
@@ -247,11 +263,18 @@ async def use_consumable(
     result: dict = {"item_id": item_id, "name": defn.get("name", item_id), "effect": effect}
 
     if effect == "heal":
+        max_hp = int(character.get("max_hp", 15))
+        cur = int(character.get("current_hp", max_hp))
+        # Don't consume herbs at full HP on the field (combat may still waste a turn
+        # via battle item path — only block overworld waste here).
+        if not in_combat and cur >= max_hp:
+            # put item back — remove_item already consumed one
+            await add_item(db, character["id"], item_id, 1)
+            await db.commit()
+            return False, "already at full HP", {}
         lo = int(defn.get("heal_min", 20))
         hi = int(defn.get("heal_max", max(lo, 35)))
         amount = rng.int(lo, hi)
-        max_hp = int(character.get("max_hp", 15))
-        cur = int(character.get("current_hp", max_hp))
         new_hp = min(max_hp, cur + amount)
         healed = new_hp - cur
         await db.execute(
@@ -297,10 +320,19 @@ async def use_consumable(
 
 
 def character_public(character: dict, items: list[dict] | None = None) -> dict:
+    from game.progression import xp_to_next_level
+
     bonuses = equipment_bonuses(character)
     out = dict(character)
     out["bonuses"] = bonuses
     out["known_spells"] = out.get("known_spells")
+    try:
+        out["xp_progress"] = xp_to_next_level(
+            int(character.get("experience") or 0),
+            int(character.get("level") or 1),
+        )
+    except Exception:
+        out["xp_progress"] = None
     if items is not None:
         out["inventory"] = items
     return out

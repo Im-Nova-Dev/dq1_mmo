@@ -41,11 +41,51 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Soft reconnect grace for in-memory multiplayer state (repel, move seq).
+# Survives brief disconnects without a DB column; expires like combat grace.
+RECONNECT_SOFT_GRACE = 60.0
+
+
 class ConnectionManager:
     def __init__(self) -> None:
         self._connections: dict[int, WebSocket] = {}
         self._meta: dict[int, dict[str, Any]] = {}
-        self._lock = asyncio.Lock()
+        # cid -> {repel_steps, last_move_seq, expires}
+        self._soft_grace: dict[int, dict[str, Any]] = {}
+        # Per-loop locks: a module-level asyncio.Lock binds to the first loop and
+        # breaks when tests / restarts use a new event loop.
+        self._locks: dict[int, asyncio.Lock] = {}
+
+    def _lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        key = id(loop)
+        lock = self._locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[key] = lock
+        return lock
+
+    def _take_soft_grace(self, character_id: int) -> dict[str, Any]:
+        """Pop soft-state grace if still valid (repel/radiant — move seq resets client-side)."""
+        bag = self._soft_grace.pop(character_id, None)
+        if not bag:
+            return {}
+        if time.monotonic() > float(bag.get("expires") or 0.0):
+            return {}
+        return bag
+
+    def _stash_soft_grace(self, character_id: int, meta: dict[str, Any]) -> None:
+        # Clients reset move seq on auth; restore buffs only.
+        repel = max(0, int(meta.get("repel_steps") or 0))
+        radiant = max(0, int(meta.get("radiant_steps") or 0))
+        if repel <= 0 and radiant <= 0:
+            self._soft_grace.pop(character_id, None)
+            return
+        self._soft_grace[character_id] = {
+            "repel_steps": repel,
+            "radiant_steps": radiant,
+            "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
+        }
 
     async def connect(
         self,
@@ -60,15 +100,24 @@ class ConnectionManager:
         in_combat: bool = False,
     ) -> list[dict[str, Any]]:
         """Register connection. Returns list of peer public metas now visible."""
-        async with self._lock:
+        async with self._lock():
             old = self._connections.get(character_id)
+            old_meta = self._meta.get(character_id)
+            # Prefer live meta (socket replace), else short disconnect grace.
+            if old_meta:
+                grace_repel = max(0, int(old_meta.get("repel_steps") or 0))
+                grace_radiant = max(0, int(old_meta.get("radiant_steps") or 0))
+            else:
+                bag = self._take_soft_grace(character_id)
+                grace_repel = max(0, int(bag.get("repel_steps") or 0))
+                grace_radiant = max(0, int(bag.get("radiant_steps") or 0))
+
             if old is not None and old is not websocket:
                 try:
                     await old.close(code=4000, reason="Replaced by new connection")
                 except Exception:
                     pass
                 # drop old visibility links
-                old_meta = self._meta.get(character_id)
                 if old_meta:
                     for oid in list(old_meta.get("visible") or set()):
                         om = self._meta.get(oid)
@@ -87,14 +136,18 @@ class ConnectionManager:
                 "in_combat": bool(in_combat),
                 "last_seen": now,
                 "last_move_at": 0.0,
+                # Always reset move seq on (re)connect — clients start at 0 on auth.
                 "last_move_seq": 0,
                 "last_chat_at": 0.0,
                 "msg_window_start": now,
                 "msg_count": 0,
                 "dirty": False,
-                "repel_steps": 0,  # fairy water encounter suppress
+                "repel_steps": grace_repel,
+                "radiant_steps": grace_radiant,
                 "visible": set(),  # peer ids currently in AOI
             }
+            # Live again — drop any leftover grace bag
+            self._soft_grace.pop(character_id, None)
 
         # Build AOI outside lock for sends (re-enter carefully)
         peers = self.ids_nearby(character_id)
@@ -118,13 +171,14 @@ class ConnectionManager:
     ) -> dict[str, Any] | None:
         notify_ids: list[int] = []
         left_meta: dict[str, Any] | None = None
-        async with self._lock:
+        async with self._lock():
             current = self._connections.get(character_id)
             if websocket is not None and current is not None and current is not websocket:
                 return None
             self._connections.pop(character_id, None)
             left_meta = self._meta.pop(character_id, None)
             if left_meta:
+                self._stash_soft_grace(character_id, left_meta)
                 notify_ids = list(left_meta.get("visible") or set())
                 for oid in notify_ids:
                     om = self._meta.get(oid)
@@ -164,11 +218,60 @@ class ConnectionManager:
         out.sort(key=lambda p: str(p.get("name") or "").lower())
         return out
 
+    # Coalesce rapid join/leave pulses (reconnect storms), but flush soon.
+    ONLINE_PULSE_MIN_INTERVAL = 0.15
+
     async def broadcast_online(self) -> None:
-        """Pulse global online count to every connected client."""
+        """Pulse global online count to every connected client (debounced)."""
+        now = time.monotonic()
+        last = float(getattr(self, "_last_online_pulse", 0.0) or 0.0)
+        if now - last < self.ONLINE_PULSE_MIN_INTERVAL:
+            self._online_pulse_pending = True
+            if not getattr(self, "_online_flush_scheduled", False):
+                self._online_flush_scheduled = True
+                try:
+                    asyncio.get_running_loop().create_task(
+                        self._delayed_online_flush(), name="dq1-online-pulse"
+                    )
+                except RuntimeError:
+                    # No running loop — flush immediately
+                    self._online_flush_scheduled = False
+                    await self.flush_online_pulse()
+            return
+        self._last_online_pulse = now
+        self._online_pulse_pending = False
         await self.broadcast(
             {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
         )
+
+    async def _delayed_online_flush(self) -> None:
+        try:
+            await asyncio.sleep(self.ONLINE_PULSE_MIN_INTERVAL)
+            await self.flush_online_pulse()
+        finally:
+            self._online_flush_scheduled = False
+
+    async def flush_online_pulse(self) -> None:
+        """Send a pending debounced online pulse if any."""
+        if not getattr(self, "_online_pulse_pending", False):
+            return
+        self._online_pulse_pending = False
+        self._last_online_pulse = time.monotonic()
+        await self.broadcast(
+            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
+        )
+
+    def purge_expired_soft_grace(self) -> int:
+        """Drop expired reconnect soft-state bags. Returns number removed."""
+        now = time.monotonic()
+        dead = [
+            cid
+            for cid, bag in self._soft_grace.items()
+            if now > float(bag.get("expires") or 0.0)
+        ]
+        for cid in dead:
+            self._soft_grace.pop(cid, None)
+        return len(dead)
 
     def get_meta(self, character_id: int) -> dict[str, Any] | None:
         return self._meta.get(character_id)
@@ -215,6 +318,13 @@ class ConnectionManager:
         meta = self._meta.get(character_id)
         if meta is not None:
             meta["repel_steps"] = max(0, int(steps))
+        # Keep grace bag in sync so a mid-session crash path still restores
+        if steps > 0 and character_id not in self._connections:
+            bag = dict(self._soft_grace.get(character_id) or {})
+            bag["repel_steps"] = max(0, int(steps))
+            bag["radiant_steps"] = int(bag.get("radiant_steps") or 0)
+            bag["expires"] = time.monotonic() + RECONNECT_SOFT_GRACE
+            self._soft_grace[character_id] = bag
 
     def repel_remaining(self, character_id: int) -> int:
         meta = self._meta.get(character_id)
@@ -233,6 +343,55 @@ class ConnectionManager:
         meta["repel_steps"] = left - 1
         return True
 
+    # RADIANT: soft light — reduced dungeon encounter chance for N steps
+    RADIANT_STEPS = 64
+
+    def set_radiant(self, character_id: int, steps: int) -> None:
+        meta = self._meta.get(character_id)
+        if meta is not None:
+            meta["radiant_steps"] = max(0, int(steps))
+        if steps > 0 and character_id not in self._connections:
+            bag = dict(self._soft_grace.get(character_id) or {})
+            bag["radiant_steps"] = max(0, int(steps))
+            bag["repel_steps"] = int(bag.get("repel_steps") or 0)
+            bag["expires"] = time.monotonic() + RECONNECT_SOFT_GRACE
+            self._soft_grace[character_id] = bag
+
+    def radiant_remaining(self, character_id: int) -> int:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return 0
+        return max(0, int(meta.get("radiant_steps") or 0))
+
+    def consume_radiant_step(self, character_id: int) -> bool:
+        """Tick one radiant step. Returns True if light was active for this step."""
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False
+        left = int(meta.get("radiant_steps") or 0)
+        if left <= 0:
+            return False
+        meta["radiant_steps"] = left - 1
+        return True
+
+    def last_move_seq(self, character_id: int) -> int:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return 0
+        return int(meta.get("last_move_seq") or 0)
+
+    def find_id_by_name(self, name: str) -> int | None:
+        """Case-insensitive exact match against online character names."""
+        if not name or not isinstance(name, str):
+            return None
+        key = name.strip().lower()
+        if not key:
+            return None
+        for cid, meta in self._meta.items():
+            if str(meta.get("name") or "").strip().lower() == key:
+                return cid
+        return None
+
     def allow_chat(self, character_id: int) -> tuple[bool, float]:
         """Rate-limit chat. Returns (allowed, retry_after_seconds)."""
         meta = self._meta.get(character_id)
@@ -245,8 +404,11 @@ class ConnectionManager:
         meta["last_chat_at"] = now
         return True, 0.0
 
-    async def publish_status(self, character_id: int) -> None:
-        """Broadcast current public status (level, combat) to AOI peers."""
+    async def publish_status(self, character_id: int, *, pulse_online: bool = False) -> None:
+        """Broadcast current public status (level, combat) to AOI peers.
+
+        When pulse_online is True (combat enter/leave), also refresh global roster cards.
+        """
         me = self._meta.get(character_id)
         if me is None:
             return
@@ -261,6 +423,8 @@ class ConnectionManager:
         }
         for oid in list(me.get("visible") or set()):
             await self.send(oid, payload)
+        if pulse_online:
+            await self.broadcast_online()
 
     def ids_nearby(self, character_id: int) -> list[int]:
         me = self._meta.get(character_id)
@@ -483,3 +647,14 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+
+def reset_manager() -> None:
+    """Clear in-place multiplayer state (lifespan start/stop). Keep same object refs."""
+    manager._connections.clear()
+    manager._meta.clear()
+    manager._soft_grace.clear()
+    manager._locks.clear()
+    manager._last_online_pulse = 0.0
+    manager._online_pulse_pending = False
+    manager._online_flush_scheduled = False

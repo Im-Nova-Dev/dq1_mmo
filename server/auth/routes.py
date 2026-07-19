@@ -270,3 +270,26 @@ async def list_characters(user: dict = Depends(get_current_user)):
     ) as c:
         rows = await c.fetchall()
     return [_row_to_character(r) for r in rows]
+
+
+@router.delete("/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_character(character_id: int, user: dict = Depends(get_current_user)):
+    """Delete one of the caller's heroes (and their inventory)."""
+    async with db_write() as db:
+        async with db.execute(
+            "SELECT id FROM characters WHERE id = ? AND user_id = ?",
+            (character_id, user["id"]),
+        ) as c:
+            row = await c.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Character not found")
+        await db.execute(
+            "DELETE FROM item_instances WHERE character_id = ?",
+            (character_id,),
+        )
+        await db.execute(
+            "DELETE FROM characters WHERE id = ? AND user_id = ?",
+            (character_id, user["id"]),
+        )
+        await db.commit()
+    return None

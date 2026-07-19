@@ -540,11 +540,98 @@ function UI.player_list(x, y, w, h, local_p, others, title)
   UI.reset_color()
 end
 
+--- Character status sheet (DQ-style stats summary).
+function UI.stats_sheet(x, y, w, h, char, opts)
+  opts = opts or {}
+  local c = char or {}
+  UI.panel(x, y, w, h, {
+    title = opts.title or "Status",
+    subtitle = c.name or "Hero",
+    title_h = 32,
+    no_ornament = true,
+  })
+  local row = y + 44
+  local lx = x + 16
+  UI.set_font("small")
+
+  local function line(label, value, color)
+    UI.color("muted")
+    love.graphics.print(label, lx, row)
+    UI.color(color or "text")
+    love.graphics.print(tostring(value), lx + 100, row)
+    row = row + 20
+  end
+
+  line("Level", c.level or 1, "gold")
+  local xp = c.experience or c.xp or 0
+  local prog = c.xp_progress
+  if type(prog) == "table" and prog.xp_to_next then
+    if prog.max_level then
+      line("EXP", tostring(xp) .. " (MAX)", "gold")
+    else
+      line(
+        "EXP",
+        string.format("%s  (+%s to next)", tostring(xp), tostring(prog.xp_to_next))
+      )
+    end
+  else
+    line("EXP", xp)
+  end
+  line("Gold", tostring(c.gold or "0") .. " G", "gold")
+  row = row + 4
+  local hp = tonumber(c.current_hp) or 0
+  local mhp = math.max(1, tonumber(c.max_hp) or 1)
+  local mp = tonumber(c.current_mp) or 0
+  local mmp = math.max(0, tonumber(c.max_mp) or 0)
+  UI.bar(lx, row, w - 32, 14, hp / mhp, "hp", string.format("HP  %d / %d", hp, mhp))
+  row = row + 22
+  if mmp > 0 then
+    UI.bar(lx, row, w - 32, 12, mp / mmp, "mp", string.format("MP  %d / %d", mp, mmp))
+    row = row + 20
+  end
+  row = row + 4
+  line("Strength", c.strength or "-")
+  line("Agility", c.agility or "-")
+  local bon = c.bonuses or {}
+  if bon.attack_power or bon.defense_power then
+    line("ATK bonus", bon.attack_power or 0, "accent")
+    line("DEF bonus", bon.defense_power or 0, "accent")
+  end
+  row = row + 4
+  line("Weapon", c.equipment_weapon or "(none)")
+  line("Armor", c.equipment_armor or "(none)")
+  line("Shield", c.equipment_shield or "(none)")
+  line("Helmet", c.equipment_helmet or "(none)")
+  row = row + 6
+  UI.color("muted")
+  love.graphics.print("Field spells", lx, row)
+  row = row + 18
+  UI.color("text")
+  local fs = c.field_spells or {}
+  local ftxt = "(none)"
+  if type(fs) == "table" and #fs > 0 then
+    ftxt = table.concat(fs, ", ")
+  end
+  love.graphics.printf(ftxt, lx, row, w - 32, "left")
+  row = row + 28
+  UI.color("muted")
+  love.graphics.print("Battle spells", lx, row)
+  row = row + 18
+  UI.color("text")
+  local bs = c.known_spells or {}
+  local btxt = "(none)"
+  if type(bs) == "table" and #bs > 0 then
+    btxt = table.concat(bs, ", ")
+  end
+  love.graphics.printf(btxt, lx, row, w - 32, "left")
+  UI.reset_color()
+end
+
 function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
   local ch = channel or "global"
   UI.panel(x, y, w, h, {
-    title = ch == "nearby" and "Nearby chat" or "Global chat",
-    subtitle = "T type · Y nearby · E wave",
+    title = ch == "nearby" and "Nearby chat" or "Chat",
+    subtitle = "T type · Y nearby · /w Name msg",
     title_h = 28,
     no_ornament = true,
   })
@@ -555,7 +642,10 @@ function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
     local line = lines[i]
     if line then
       local tag = ""
-      if line.channel == "nearby" then
+      if line.channel == "whisper" then
+        tag = "[w] "
+        UI.color("gold_bright")
+      elseif line.channel == "nearby" then
         tag = "[near] "
         UI.color("ok")
       elseif line.kind == "emote" then
@@ -564,7 +654,11 @@ function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
       else
         UI.color("accent")
       end
-      local prefix = tag .. (line.name or "?") .. ": "
+      local who = line.name or "?"
+      if line.channel == "whisper" and line.to then
+        who = who .. " → " .. tostring(line.to)
+      end
+      local prefix = tag .. who .. ": "
       love.graphics.print(prefix, x + 12, row)
       local fw = love.graphics.getFont():getWidth(prefix)
       UI.color("text")

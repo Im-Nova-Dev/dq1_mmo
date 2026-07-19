@@ -144,6 +144,20 @@ def test_equip_consumable_rejected():
     _run(scenario())
 
 
+def test_buy_not_enough_gold():
+    async def scenario():
+        db, char = await _db()
+        char["gold"] = "0"
+        from game.item_manager import buy_item
+
+        ok, reason = await buy_item(db, char, "club")
+        assert ok is False
+        assert reason == "not enough gold"
+        await db.close()
+
+    _run(scenario())
+
+
 def test_repel_consume_on_manager():
     mgr = ConnectionManager()
 

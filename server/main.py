@@ -8,11 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.routes import router as auth_router
 from config import CORS_ORIGINS, HOST, PORT, VERSION
 from database.db import close_db, init_db
-from game.combat_engine import combat_engine
+from game.combat_engine import combat_engine, reset_combat_engine
 from network.message_handler import handle_disconnect, handle_message
 from network.presence import start_presence_tasks, stop_presence_tasks
 from network.protocol import ServerMessageType, msg
-from network.websocket_manager import manager
+from network.websocket_manager import manager, reset_manager
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("dq1")
@@ -20,11 +20,27 @@ log = logging.getLogger("dq1")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    await init_db()
+    # Fresh multiplayer state each process/start (prevents cross-test leakage).
+    reset_manager()
+    reset_combat_engine()
+    db_gen = await init_db()
     start_presence_tasks()
-    yield
-    await stop_presence_tasks()
-    await close_db()
+    try:
+        yield
+    finally:
+        try:
+            await stop_presence_tasks()
+        except Exception:
+            log.exception("stop_presence_tasks failed")
+        try:
+            reset_manager()
+            reset_combat_engine()
+        except Exception:
+            log.exception("reset multiplayer state failed")
+        try:
+            await close_db(db_gen)
+        except Exception:
+            log.exception("close_db failed")
 
 
 app = FastAPI(title="DQ1 MMO Server", version=VERSION, lifespan=lifespan)
@@ -93,7 +109,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Heartbeats + lightweight presence must never be rate-limited
             msg_type = data.get("type")
-            _exempt = ("ping", "pong", "sync", "who")
+            _exempt = ("ping", "pong", "sync", "who", "look", "examine")
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):
                     await _send(websocket, msg(ServerMessageType.ERROR, reason="rate_limit"))
@@ -154,15 +170,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         you={"x": connect_meta["x"], "y": connect_meta["y"]},
                         online=len(manager.online_ids()),
                         repel=manager.repel_remaining(connect_meta["character_id"]),
+                        radiant=manager.radiant_remaining(connect_meta["character_id"]),
                     )
                 )
-                # Tell everyone the roster count changed (include self via outbound after)
-                try:
-                    await manager.broadcast_online()
-                except Exception:
-                    log.exception("broadcast_online failed")
 
-            # Best-effort delivery; stop the read loop if the socket is dead
+            # Deliver auth_ok / world_state / combat_resume BEFORE any global pulse so
+            # clients always see auth_ok as the first post-auth message (not `online`).
             send_failed = False
             for out in outbound:
                 try:
@@ -177,6 +190,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     break
             if send_failed:
                 break
+
+            if connect_meta is not None:
+                # Roster pulse after the joiner already received auth_ok + world_state
+                try:
+                    await manager.broadcast_online()
+                except Exception:
+                    log.exception("broadcast_online failed")
 
     except WebSocketDisconnect:
         pass

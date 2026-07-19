@@ -20,8 +20,12 @@ class ClientMessageType(StrEnum):
     SYNC = "sync"  # request full presence snapshot
     CHAT = "chat"  # global chat (or channel=nearby|global)
     SAY = "say"  # nearby (AOI) chat
+    WHISPER = "whisper"  # private message to one online player
+    TELL = "tell"  # alias for whisper
     EMOTE = "emote"  # social emote to nearby players
     WHO = "who"  # lightweight online/nearby query
+    LOOK = "look"  # examine nearby / online player (public card)
+    EXAMINE = "examine"  # alias for look
 
 
 class ServerMessageType(StrEnum):
@@ -46,6 +50,7 @@ class ServerMessageType(StrEnum):
     CHAT = "chat"
     EMOTE = "emote"
     WHO = "who"
+    LOOK = "look"  # examine result
     ONLINE = "online"  # global online count pulse
     ERROR = "error"
     PONG = "pong"

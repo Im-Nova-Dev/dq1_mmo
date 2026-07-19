@@ -76,7 +76,7 @@ async def rest_at_inn(db, character: dict) -> tuple[bool, str, dict]:
     cur_hp = int(character.get("current_hp") or 0)
     cur_mp = int(character.get("current_mp") or 0)
     if cur_hp >= max_hp and cur_mp >= max_mp:
-        return False, "already rested", {}
+        return False, "already at full HP/MP", {}
 
     cost = inn_cost(character)
     gold = _safe_gold(character)

@@ -1,126 +1,181 @@
 # DQ1 MMO — Human guide
 
-For **people** (players, operators, human contributors).
+For **people**: players, operators, and human contributors.
 
-| You want… | Go here |
-|:----------|:--------|
+| You want… | Open this |
+|:----------|:----------|
 | Install & overview | [../README.md](../README.md) |
-| AI / protocol docs | [../AGENTS.md](../AGENTS.md) |
-| Docs index | [README.md](README.md) |
+| Docs map | [README.md](README.md) |
 | Swap sprites | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
+| Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — agents only |
 
-**Version:** 0.5.9 · synced 2026-07-19
+**Version:** 0.5.15 · docs refreshed 2026-07-19
 
 ---
 
 ## What is this?
 
-Multiplayer **Dragon Quest I–style** game:
+A multiplayer **Dragon Quest I–style** game:
 
-- Account + hero (gold + **3 herbs**)
-- Shared town / field / dungeon
+- Account + hero (starting gold + **3 herbs**)
+- Shared **town / field / dungeon** on one map
 - Server-side combat (attack, magic, flee, herbs)
-- Town **inn** and **field magic** (Heal, Return, …)
-- Chat (global + nearby), emotes, live **online roster**
-- Shop, gear, swappable PNG art
+- Town **inn** and **field magic**
+- Chat: **global**, **nearby**, and **whisper**
+- Emotes, live **online roster**, status sheet (EXP to next)
+- Shop, gear (sell equipped OK), swappable PNG art
+- Up to **3 heroes** per account (create / delete)
 
-MVP: one map; no parties, PvP, trade, or quests.
+**Not in the MVP:** parties, PvP, trade, quests, multi-map worlds.
 
 ---
 
-## Playing
+## First session
 
-### First session
+1. Start the server · run `love client` (see [README](../README.md))
+2. Register · create a hero · **Enter World**
+3. You spawn in **town** (safe — no random fights)
 
-1. Start server · `love client`
-2. Register · create hero · Enter World
-3. Town is safe
+Hero select: **N** new · **D** delete (confirm **Y**) · max 3 heroes.
 
-### Zones
+---
+
+## Zones
 
 | Zone | Notes |
 |:-----|:------|
-| Town | Shop · **inn (R)** · no fights |
-| Field | Random encounters |
-| Water | Blocked |
-| Dungeon | Harder fights · Outside spell exits |
+| **Town** | Shop · **inn (R)** · no random encounters |
+| **Field** | Random encounters |
+| **Water** | Blocked |
+| **Dungeon** | Harder fights · **Outside** spell exits to the field |
 
-### Combat
+---
 
-Attack / Flee / Spells / **Herb (H)**.  
-Defeat → town, half gold. Disconnect mid-fight: ~60s to resume.
+## Combat
 
-### Inn
+Menu: **Attack** · **Flee** · **Spells** · **Herb (H)**.
 
-**R** in town → full HP/MP for **max(4, level×4)** gold.
+- Defeat → respawn in town, lose half your gold, partial HP
+- Disconnect mid-fight: about **60 seconds** to reconnect and resume
 
-### Field magic
+---
 
-Learned by level (same as classic DQ1 progression).
+## Inn
+
+Press **R** in town for full HP/MP.
+
+- Cost: **max(4, level × 4)** gold  
+- If you can’t afford it, the client shows how much you need
+
+---
+
+## Field magic
 
 | Key | Action |
-|:----|:-------|
-| **H** | Heal / Healmore on the field |
-| **M** | Cycle Return, Repel, Outside, Radiant, … |
+|:---:|:-------|
+| **H** | Heal / Healmore (if known) |
+| **M** | Cycle field spells (Return, Repel, Outside, Radiant, …) |
+| **K** | List field + battle spells you know |
 
-- **Return** → town  
-- **Repel** → fewer random fights for a while  
-- **Outside** → leave dungeon to the field  
+| Spell | Effect |
+|:------|:-------|
+| **Return** | Warp to town |
+| **Repel** | Fewer random fights (HUD: remaining steps) |
+| **Radiant** | Soft light — fewer dungeon fights for a while (HUD: **light N**) |
+| **Outside** | Leave dungeon → field |
+| **Fairy Water** | Same idea as Repel (item) |
 
-### Items
+---
+
+## Items
 
 | Item | Effect |
 |:-----|:-------|
-| Herb | Heal (world + battle) |
-| Wings | Warp to town |
-| Fairy Water | Temporary repel |
+| **Herb** | Heal (world + battle) |
+| **Wings** | Warp to town |
+| **Fairy Water** | Temporary repel |
 
-**Enter** uses consumables or equips gear. **Tab** in inventory = shop (town).
-
-### Social
-
-| Key | Effect |
-|:----|:-------|
-| **T** / **Y** | Global / nearby chat |
-| **E** | Wave |
-| **O** or **P** | Who’s online / nearby |
-| **C** | Toggle chat |
-
-HUD shows nearby + online counts. Online roster updates when people join/leave (names/levels only, not map positions). ⚔ = in combat.
+In inventory: **Enter** uses consumables or equips gear (don’t equip herbs — use them).  
+**Tab** opens the shop list in town.
 
 ---
 
-## Controls
+## Social
+
+| Key / command | Effect |
+|:--------------|:-------|
+| **T** / **Y** | Global / nearby chat |
+| **/w Name message** | Whisper (private); also `/tell` |
+| **E** | Cycle emotes (wave, bow, cheer, dance, …) |
+| **F** | Status sheet (stats, gear, spells) |
+| **O** or **P** / **Tab** | Who’s online · nearby list |
+| **L** | Look at a nearby (or roster) adventurer |
+| **C** | Toggle chat panel |
+
+**HUD:** nearby · online · **repel N** · **light N** (Radiant) when active.  
+**F** status sheet: level, EXP (+ to next), gold, gear, spells.  
+**Online roster** shows names/levels (and ⚔ if in combat) — **not** map positions.
+
+Whispers appear as `[w]` in the chat log. Only online characters can be whispered.
+
+**Herbs** at full HP on the field are not consumed. You can **sell equipped** gear from the inventory (slot clears automatically).
+
+---
+
+## Controls (summary)
 
 | Context | Keys |
 |:--------|:-----|
-| Overworld | WASD · T/Y chat · E wave · R inn · H/M magic · O who · I · Esc |
-| Combat | ↑↓ · Enter · A / F / H |
-| Inventory | Enter · R inn · S sell · U unequip · Tab shop |
+| **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
+| **Overworld** | WASD · T/Y chat · /w whisper · E emote · F stats · R inn · H/M magic · K spells · O who · I inv · Esc |
+| **Combat** | ↑↓ · Enter · A / F / H |
+| **Inventory** | Enter · R inn · S sell · U unequip · Tab shop |
 
 ---
 
-## Hosting
+## Hosting (operators)
 
 ```bash
 cd server && source .venv/bin/activate && ./run.sh
 ```
 
-Prod: strong `SECRET_KEY`, `ENV=production`, `ALLOW_DEBUG=0`, durable DB, tight CORS.  
-Health: `GET /health`.
+| Check | |
+|:------|:--|
+| Health | `GET /health` |
+| API docs | `http://127.0.0.1:8000/docs` |
+
+**Production checklist**
+
+- Strong `SECRET_KEY`
+- `ENV=production`
+- `ALLOW_DEBUG=0`
+- Durable `DATABASE_URL` path
+- Tight `CORS_ORIGINS`
+
+Env vars are listed in the [root README](../README.md#configuration) and `.env.example`.
 
 ---
 
 ## Multiplayer on one PC
 
-`./tools/mp_sim.sh` · `./tools/mp_love.sh 2`  
-Tests: `python tests/run_tests.py` in `server/`.
+```bash
+./tools/mp_sim.sh              # headless bots
+./tools/mp_love.sh 2           # two Love2D windows
+```
+
+Automated tests:
+
+```bash
+cd server && source .venv/bin/activate && python tests/run_tests.py
+```
 
 ---
 
-## Docs: humans vs agents
+## Humans vs agents
 
-- **You** → this file + README  
-- **Coding agents** → [AGENTS.md](../AGENTS.md) for protocol/tests only  
+| Audience | Docs |
+|:---------|:-----|
+| **You (human)** | This file + [README](../README.md) |
+| **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) only for protocol, hot paths, and tests |
 
-Do not put long protocol tables in human docs.
+Do **not** put long WebSocket protocol tables in human docs — they live in `AGENTS.md`.

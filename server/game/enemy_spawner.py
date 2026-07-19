@@ -8,7 +8,8 @@ from game.world_manager import zone_at
 
 FIELD_ENCOUNTER_CHANCE = 9  # /100 per step
 DUNGEON_ENCOUNTER_CHANCE = 16
-
+# RADIANT (field spell) softens dungeon encounters
+DUNGEON_ENCOUNTER_CHANCE_LIT = 6
 FIELD_WEIGHTS = {
     "slime": 30,
     "red_slime": 20,
@@ -43,7 +44,14 @@ def _table_ids(weights: dict[str, int]) -> list[str]:
     return [eid for eid in weights if eid in enemies]
 
 
-def roll_encounter(x: int, y: int, rng: Rng | None = None) -> str | None:
+def roll_encounter(
+    x: int,
+    y: int,
+    rng: Rng | None = None,
+    *,
+    radiant: bool = False,
+) -> str | None:
+    """Roll a random encounter. `radiant` lowers dungeon encounter chance (RADIANT spell)."""
     rng = rng or Rng()
     zone = zone_at(x, y)
     if zone == "town":
@@ -53,7 +61,8 @@ def roll_encounter(x: int, y: int, rng: Rng | None = None) -> str | None:
             return None
         return weighted_pick(rng, FIELD_WEIGHTS)
     if zone == "dungeon":
-        if not rng.chance(DUNGEON_ENCOUNTER_CHANCE, 100):
+        chance = DUNGEON_ENCOUNTER_CHANCE_LIT if radiant else DUNGEON_ENCOUNTER_CHANCE
+        if not rng.chance(chance, 100):
             return None
         return weighted_pick(rng, DUNGEON_WEIGHTS)
     return None

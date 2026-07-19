@@ -257,8 +257,19 @@ function Network.say(text)
   return Network.send({ type = "say", text = text, channel = "nearby" })
 end
 
+function Network.whisper(to_name, text)
+  return Network.send({ type = "whisper", to = to_name, text = text })
+end
+
 function Network.emote(emote)
   return Network.send({ type = "emote", emote = emote or "wave" })
+end
+
+function Network.look(name_or_id)
+  if type(name_or_id) == "number" then
+    return Network.send({ type = "look", player_id = name_or_id })
+  end
+  return Network.send({ type = "look", name = tostring(name_or_id or "") })
 end
 
 function Network.ping(with_presence)

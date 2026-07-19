@@ -1,7 +1,10 @@
 # AGENTS.md — LLM / agent contract for `dq1_mmo`
 
-You are editing this multiplayer game. Prefer this file over guessing.  
-For human-oriented prose, see [docs/HUMAN.md](docs/HUMAN.md) and the root [README.md](README.md).
+> **Audience: coding agents and LLMs only.**  
+> Humans: [README.md](README.md) · [docs/HUMAN.md](docs/HUMAN.md) · [docs/README.md](docs/README.md).  
+> Do **not** mirror this protocol section into human docs.
+
+You are editing this multiplayer game. Prefer this file over guessing.
 
 ## Scope
 
@@ -9,26 +12,26 @@ For human-oriented prose, see [docs/HUMAN.md](docs/HUMAN.md) and the root [READM
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI presence, chat/emotes, who + live online roster | Multi-map worlds |
-| Auth JWT, equipment, shop, consumables, inn, field magic, XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| SQLite persistence | Binary protocol · parties / PvP / trade |
+| Grid overworld, AOI, chat/emotes/whisper, who + online roster | Multi-map worlds |
+| Auth JWT, equip/shop/sell (incl. equipped), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests | Binary protocol |
 
-**Version:** `0.5.9` (`server/config.py` → `VERSION`)
+**Version:** `0.5.15` (`server/config.py` → `VERSION`) · **90** tests in `server/tests/run_tests.py`
 
 ## Documentation map (do not mix)
 
 | File | Audience | Use for |
 |:-----|:---------|:--------|
-| `README.md` | Humans on GitHub | Run instructions, features, controls |
+| `README.md` | Humans on GitHub | Install, features, controls (no protocol dumps) |
 | `docs/HUMAN.md` | Humans | Gameplay & ops detail |
 | `docs/README.md` | Both | Index + audience rules |
-| `AGENTS.md` | **You (agents)** | Protocol, paths, tests, constraints |
+| **`AGENTS.md`** | **You (agents)** | Protocol, paths, tests, reliability, constraints |
 | `plan.md` | Historical | Original roadmap only — **not source of truth** |
 
-**Never** put long protocol tables or “do not invent” lists only in `README.md` / `docs/HUMAN.md`.  
+**Never** put long protocol tables in `README.md` / `docs/HUMAN.md`.  
 **Never** put “how to install Love2D for players” only in this file.
 
-When you change behavior, update **README + HUMAN + this file** as needed.
+When you change behavior, update **README + HUMAN + this file** as needed (and bump `VERSION`).
 
 ## Install / run (agent checklist)
 
@@ -102,15 +105,17 @@ All messages are JSON objects with a `type` string.
 | `auth` | `token`, `character_id` | First message after connect |
 | `move` | `x`, `y`, `seq` | Adjacent step only; rate-limited |
 | `attack` / `flee` | — | Combat only, hero turn |
-| `use_spell` | `spell` / `id` | **Combat** battle spells, or **field** magic if not in combat (`field: true` spells) |
+| `use_spell` | `spell` / `id` | **Combat** battle spells, or **field** magic if not in combat (`field: true` spells). Field: heal/healmore (refuse at full HP), return, repel, radiant (light buff), outside (dungeon only) |
 | `equip` / `unequip` | `slot`, `item` | Not in combat |
 | `buy` / `sell` / `shop` / `inventory` | `item` | Shop only in **town** |
 | `use_item` | `item` / `item_id` | Herb (heal), Wings (town), Fairy Water (repel 64 steps). Herb OK in combat (uses turn). |
 | `rest` / `inn` | optional `preview` | Town inn: full HP/MP for gold (`level*4`, min 4). Not in combat. |
-| `chat` | `text`, optional `channel` | Default **global**; `channel=nearby` for AOI |
+| `chat` | `text`, optional `channel` | Default **global**; `channel=nearby` for AOI; `channel=whisper` + `to` |
 | `say` | `text` | **Nearby** (AOI) chat |
+| `whisper` / `tell` | `to` (name), `text` | Private message to one **online** player (echo to self) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `who` | — | Nearby players + `online` count (lightweight; no full map) |
+| `look` / `examine` | `name` or `player_id` | Public card; coords only if nearby. Rate-exempt. |
 | `ping` | `t`, optional `sync` | Heartbeat / presence refresh |
 | `sync` | — | Full nearby snapshot |
 | `debug_encounter` | `enemy`, optional `seed` | Only if `ALLOW_DEBUG` |
@@ -120,20 +125,21 @@ All messages are JSON objects with a `type` string.
 | type | Purpose |
 |:-----|:--------|
 | `auth_ok` / `auth_fail` | Session |
-| `world_state` | `players`, `map`, optional `you`, `online`, `repel` |
+| `world_state` | `players`, `map`, optional `you`, `online`, `repel`, `radiant` |
 | `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `duplicate`/`reason` |
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
 | `player_update` | `level`, `in_combat`, position |
-| `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby`) |
+| `chat` | `player_id`, `name`, `text`, `channel` (`global` \| `nearby` \| `whisper`); whisper also has `to` / `to_id` |
 | `combat_start` / `combat_resume` / `combat_update` / `combat_end` | Battles |
 | `level_up` | After victory |
 | `inventory_update` / `shop_list` | Economy |
 | `item_used` | Consumable result (`healed`, `teleported`, `repel_steps`, `message`) |
 | `rest_ok` | Inn result or preview (`cost`, `character`, `message`) |
-| `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `character`) |
+| `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `radiant_steps`, `character`) |
 | `emote` | Nearby emote broadcast |
 | `who` | `players`, `online`, `roster`, `you` (incl. `repel`) |
-| `online` | Global pulse: `online` count + `roster` (no positions) |
+| `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
+| `online` | Global pulse: `online` count + `roster` (no positions); debounced ~150ms with delayed flush |
 | `error` | `reason` (+ sometimes `x`/`y`/`seq`/`retry_after`) |
 | `pong` | Echo `t` for RTT |
 
@@ -147,10 +153,16 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 4. Combat disconnect → grace (`COMBAT_GRACE_SECONDS`); resume via `combat_resume`.
 5. Idle kick: `disconnect()` already notifies AOI — **do not** global double-broadcast `player_left`.
 6. Chat: sanitize (strip control chars, collapse whitespace); empty → error; rate-limit → `chat_rate_limit`.
-7. **Ping / sync / who must not be rate-limited** (main.py exempts them so RTT and presence stay healthy under move spam).
+7. **Ping / sync / who / look must not be rate-limited** (main.py exempts them so RTT and presence stay healthy under move spam).
 8. Outbound WS batches: best-effort send; one failure must not crash the connection loop.
 9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8767).
 10. If a WS **send fails**, stop the receive loop and disconnect cleanly (do not call `receive_*` on a dead socket).
+11. On connect, deliver **`auth_ok` (+ world_state) before** `broadcast_online()` so the joiner never sees `online` first.
+12. DB / presence / manager locks must be **loop-safe** (per-loop locks + generation-stamped `close_db`) — sequential uvicorn tests use new event loops.
+13. Lifespan **must** `reset_manager()` + `reset_combat_engine()` so multiplayer state never leaks across restarts/tests.
+14. `init_db` must read `config.DATABASE_URL` live (never freeze via `from config import DATABASE_URL`).
+15. Brief disconnects preserve **repel** and **radiant** via soft grace (~60s); move `seq` always resets on auth (client starts at 0).
+16. REST: `DELETE /auth/characters/{id}` (owner only, 204). Character payloads may include `xp_progress`.
 
 ## Tests (mandatory for your changes)
 
@@ -173,6 +185,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_field_magic` | Field spell lists + heal formula |
 | `tests.test_mp_teleport` | RETURN spell AOI + who under move spam |
 | `tests.test_online_roster` | Online pulse on join/leave + roster (no coords) |
+| `tests.test_mp_expand` | Whisper, repel soft-reconnect, socket replace, combat roster pulse |
+| `tests.test_adversarial_hunt` | Sell equipped, herb full HP, protocol/combat guards, gold clamp |
+| `tests.test_features_v0513` | Radiant light, char delete, XP progress |
+| `tests.test_mp_look` | Look/examine, online debounce, 4-player stress, field spell in combat |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

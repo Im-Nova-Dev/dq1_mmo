@@ -81,6 +81,10 @@ def main() -> int:
         "tests.test_field_magic",
         "tests.test_mp_teleport",
         "tests.test_online_roster",
+        "tests.test_mp_expand",
+        "tests.test_adversarial_hunt",
+        "tests.test_features_v0513",
+        "tests.test_mp_look",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)

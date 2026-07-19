@@ -670,3 +670,9 @@ class CombatEngine:
 
 
 combat_engine = CombatEngine()
+
+
+def reset_combat_engine() -> None:
+    """Clear all battles/grace (lifespan start for isolated multiplayer tests)."""
+    combat_engine.active.clear()
+    combat_engine.grace_until.clear()

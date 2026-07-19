@@ -63,7 +63,7 @@ def test_rest_heals_and_charges():
         # already full
         ok2, reason2, _ = await rest_at_inn(db, char)
         assert ok2 is False
-        assert reason2 == "already rested"
+        assert reason2 == "already at full HP/MP"
         await db.close()
 
     _run(scenario())

@@ -5,6 +5,8 @@ local State = require("client.state")
 local UI = require("client.ui")
 local World = require("client.world")
 
+local EMOTES = { "wave", "bow", "cheer", "dance", "laugh", "point", "think", "cry", "sit" }
+
 local Overworld = {
   status = "",
   move_cooldown = 0,
@@ -13,12 +15,16 @@ local Overworld = {
   net_info = "",
   online = 0,
   roster = {},
+  repel = 0,
+  radiant = 0,
   show_list = true,
+  show_stats = false,
   chat_log = {},
   chat_draft = "",
   chat_open = false,
   chat_channel = "global", -- global | nearby
   show_chat = true,
+  _emote_i = 0,
 }
 
 local MOVE_COOLDOWN = 0.12
@@ -97,6 +103,12 @@ local function bind_handlers(self)
     if data.online ~= nil then
       self.online = tonumber(data.online) or self.online
     end
+    if data.repel ~= nil then
+      self.repel = tonumber(data.repel) or 0
+    end
+    if data.radiant ~= nil then
+      self.radiant = tonumber(data.radiant) or 0
+    end
     if data.you and World.local_player and World.pending_count() == 0 then
       World.local_player.x = math.floor(data.you.x)
       World.local_player.y = math.floor(data.you.y)
@@ -113,13 +125,26 @@ local function bind_handlers(self)
     if data.players then
       World.set_players(data.players)
     end
+    if data.you and data.you.repel ~= nil then
+      self.repel = tonumber(data.you.repel) or 0
+    end
+    if data.you and data.you.radiant ~= nil then
+      self.radiant = tonumber(data.you.radiant) or 0
+    end
+    if data.radiant ~= nil then
+      self.radiant = tonumber(data.radiant) or 0
+    end
     self.roster = data.roster or self.roster
     local n = 0
     for _ in pairs(World.players) do
       n = n + 1
     end
     local roster_n = type(self.roster) == "table" and #self.roster or (self.online or 0)
-    UI.toast(string.format("Online %d · nearby %d", roster_n, n), "info")
+    local extra = ""
+    if (self.repel or 0) > 0 then
+      extra = string.format(" · repel %d", self.repel)
+    end
+    UI.toast(string.format("Online %d · nearby %d%s", roster_n, n, extra), "info")
   end)
 
   Network.on("online", function(data)
@@ -196,10 +221,32 @@ local function bind_handlers(self)
       text = data.text or "",
       player_id = data.player_id,
       channel = data.channel or "global",
+      to = data.to,
     }
     while #self.chat_log > 40 do
       table.remove(self.chat_log, 1)
     end
+    if data.channel == "whisper" then
+      UI.toast("Whisper from " .. tostring(data.name or "?"), "info")
+    end
+  end)
+
+  Network.on("look", function(data)
+    local p = data.player or data
+    if not p or not p.name then
+      return
+    end
+    local loc = ""
+    if p.nearby and p.x and p.y then
+      loc = string.format(" @ (%d,%d)", math.floor(p.x + 0.01), math.floor(p.y + 0.01))
+    elseif p.nearby == false then
+      loc = " (far)"
+    end
+    local combat = p.in_combat and " ⚔" or ""
+    UI.toast(
+      string.format("%s  Lv%d%s%s", tostring(p.name), tonumber(p.level) or 1, combat, loc),
+      "info"
+    )
   end)
 
   Network.on("emote", function(data)
@@ -239,9 +286,6 @@ local function bind_handlers(self)
   end)
 
   Network.on("item_used", function(data)
-    if data.message then
-      UI.toast(data.message, "ok")
-    end
     if data.current_hp and Session.character then
       Session.character.current_hp = data.current_hp
     end
@@ -258,6 +302,15 @@ local function bind_handlers(self)
         World.pending = {}
         self.zone = zone_name(World.local_player.x, World.local_player.y)
       end
+    end
+    if data.repel_steps then
+      self.repel = tonumber(data.repel_steps) or 0
+    end
+    if data.radiant_steps then
+      self.radiant = tonumber(data.radiant_steps) or 0
+    end
+    if data.message then
+      UI.toast(data.message, "ok")
     end
   end)
 
@@ -285,6 +338,12 @@ local function bind_handlers(self)
         World.pending = {}
         self.zone = zone_name(World.local_player.x, World.local_player.y)
       end
+    end
+    if data.repel_steps then
+      self.repel = tonumber(data.repel_steps) or 0
+    end
+    if data.radiant_steps then
+      self.radiant = tonumber(data.radiant_steps) or 0
     end
     if data.message then
       UI.toast(data.message, "ok")
@@ -342,8 +401,12 @@ local function bind_handlers(self)
     if data.reason == "empty chat" then
       return
     end
-    self.status = "Error: " .. tostring(data.reason)
-    UI.toast(tostring(data.reason), "danger")
+    local r = tostring(data.reason or "error")
+    if data.cost and r == "not enough gold" then
+      r = string.format("not enough gold (need %s G)", tostring(data.cost))
+    end
+    self.status = "Error: " .. r
+    UI.toast(r, "danger")
   end)
 
   Network.on("pong", function() end)
@@ -410,13 +473,31 @@ function Overworld:update(dt)
   for _ in pairs(World.players) do
     others = others + 1
   end
-  self.net_info = string.format(
-    "%s · %dms · %d nearby · %d online",
-    Network.status(),
-    rtt_ms,
-    others,
-    self.online or 0
-  )
+  local buffs = ""
+  if (self.repel or 0) > 0 then
+    buffs = buffs .. string.format(" · repel %d", self.repel)
+  end
+  if (self.radiant or 0) > 0 then
+    buffs = buffs .. string.format(" · light %d", self.radiant)
+  end
+  if buffs ~= "" then
+    self.net_info = string.format(
+      "%s · %dms · %d near · %d on%s",
+      Network.status(),
+      rtt_ms,
+      others,
+      self.online or 0,
+      buffs
+    )
+  else
+    self.net_info = string.format(
+      "%s · %dms · %d nearby · %d online",
+      Network.status(),
+      rtt_ms,
+      others,
+      self.online or 0
+    )
+  end
 
   if self.locked or self.chat_open then
     return
@@ -513,6 +594,11 @@ function Overworld:draw()
     UI.player_list(w - 260, 170, 248, 210, World.local_player, World.players, "Nearby")
   end
 
+  -- Character status sheet (F)
+  if self.show_stats and Session.character then
+    UI.stats_sheet(math.floor(w / 2 - 160), 80, 320, math.min(420, h - 140), Session.character)
+  end
+
   -- Chat panel
   if self.show_chat then
     UI.chat_log(
@@ -532,7 +618,7 @@ function Overworld:draw()
     h - 48,
     w - 24,
     36,
-    "WASD · T/Y chat · E wave · R inn · H heal · I inv · O who · Esc"
+    "WASD · T/Y chat · E emote · F stats · R inn · H/M magic · O who · I inv · Esc"
   )
 
   if self.status and self.status ~= "Connected" then
@@ -552,7 +638,14 @@ function Overworld:keypressed(key)
     elseif key == "return" or key == "kpenter" then
       local text = (self.chat_draft or ""):match("^%s*(.-)%s*$")
       if text and text ~= "" then
-        if self.chat_channel == "nearby" then
+        -- /w Name message  or  /tell Name message
+        local wname, wmsg = text:match("^[/%!]w%s+(%S+)%s+(.+)$")
+        if not wname then
+          wname, wmsg = text:match("^[/%!]tell%s+(%S+)%s+(.+)$")
+        end
+        if wname and wmsg then
+          Network.whisper(wname, wmsg)
+        elseif self.chat_channel == "nearby" then
           Network.say(text)
         else
           Network.chat(text, "global")
@@ -584,7 +677,15 @@ function Overworld:keypressed(key)
     self.show_chat = true
     UI.toast("Nearby chat", "info")
   elseif key == "e" and not self.locked then
-    Network.emote("wave")
+    self._emote_i = (self._emote_i % #EMOTES) + 1
+    local em = EMOTES[self._emote_i]
+    Network.emote(em)
+    UI.toast("Emote: " .. em, "info")
+  elseif key == "f" and not self.locked then
+    self.show_stats = not self.show_stats
+    if self.show_stats then
+      UI.toast("Status (F to close)", "info")
+    end
   elseif key == "r" and not self.locked then
     if self.zone == "town" then
       Network.send({ type = "rest" })
@@ -652,6 +753,55 @@ function Overworld:keypressed(key)
     end
   elseif key == "o" and not self.locked then
     Network.send({ type = "who" })
+  elseif key == "l" and not self.locked then
+    -- Examine first nearby peer, else first roster entry
+    local target = nil
+    for _, p in pairs(World.players or {}) do
+      if p and p.name then
+        target = p.name
+        break
+      end
+    end
+    if not target and type(self.roster) == "table" then
+      for _, p in ipairs(self.roster) do
+        if p and p.name and (not World.local_player or p.name ~= World.local_player.name) then
+          target = p.name
+          break
+        end
+      end
+    end
+    if target then
+      Network.look(target)
+    else
+      UI.toast("No one to look at", "danger")
+    end
+  elseif key == "k" and not self.locked then
+    local fs = Session.character and Session.character.field_spells or {}
+    local bs = Session.character and Session.character.known_spells or {}
+    local flist, blist = {}, {}
+    if type(fs) == "table" then
+      for _, s in ipairs(fs) do
+        flist[#flist + 1] = s
+      end
+    end
+    if type(bs) == "table" then
+      for _, s in ipairs(bs) do
+        blist[#blist + 1] = s
+      end
+    end
+    local msg = "Field: "
+    if #flist > 0 then
+      msg = msg .. table.concat(flist, ", ")
+    else
+      msg = msg .. "(none)"
+    end
+    msg = msg .. "  ·  Battle: "
+    if #blist > 0 then
+      msg = msg .. table.concat(blist, ", ")
+    else
+      msg = msg .. "(none)"
+    end
+    UI.toast(msg, "info")
   elseif key == "c" and not self.locked then
     self.show_chat = not self.show_chat
   end

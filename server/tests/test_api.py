@@ -50,72 +50,73 @@ def test_full_flow(tmp_path, monkeypatch):
         async def ws_flow():
             import websockets
 
+            async def recv_type(ws, *types, timeout=3):
+                while True:
+                    m = json.loads(await asyncio.wait_for(ws.recv(), timeout))
+                    if m.get("type") in types:
+                        return m
+
             async with websockets.connect(ws_url) as ws:
                 await ws.send(
                     json.dumps(
                         {"type": "auth", "token": token, "character_id": ch["id"]}
                     )
                 )
+                # First delivered message after auth must be auth_ok (not online pulse).
                 m1 = json.loads(await asyncio.wait_for(ws.recv(), 3))
-                m2 = json.loads(await asyncio.wait_for(ws.recv(), 3))
-                assert m1["type"] == "auth_ok"
+                assert m1["type"] == "auth_ok", m1
+                m2 = await recv_type(ws, "world_state")
                 assert m2["type"] == "world_state"
                 assert "bonuses" in m1["character"]
                 assert "repel" in m2 or m2.get("online") is not None
 
-                async def recv_type(*types, timeout=3):
-                    while True:
-                        m = json.loads(await asyncio.wait_for(ws.recv(), timeout))
-                        if m.get("type") in types:
-                            return m
-
                 await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
-                mok = await recv_type("move_ok")
+                mok = await recv_type(ws, "move_ok")
                 assert mok["ok"] is True and mok["seq"] == 1 and mok["x"] == 3
 
                 await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
-                mok2 = await recv_type("move_ok")
+                mok2 = await recv_type(ws, "move_ok")
                 assert mok2.get("duplicate") is True
 
                 await ws.send(json.dumps({"type": "buy", "item": "club"}))
-                inv = await recv_type("inventory_update", "error")
+                inv = await recv_type(ws, "inventory_update", "error")
                 if inv["type"] == "error":
-                    inv = await recv_type("inventory_update")
+                    inv = await recv_type(ws, "inventory_update")
                 assert inv["type"] == "inventory_update"
                 assert any(i["item_id"] == "club" for i in inv["items"])
 
                 await ws.send(
                     json.dumps({"type": "equip", "slot": "weapon", "item": "club"})
                 )
-                inv2 = await recv_type("inventory_update", "error")
+                inv2 = await recv_type(ws, "inventory_update", "error")
                 if inv2["type"] == "error":
-                    inv2 = await recv_type("inventory_update")
+                    inv2 = await recv_type(ws, "inventory_update")
                 assert inv2["character"]["equipment_weapon"] == "club"
                 assert inv2["character"]["bonuses"]["attack_power"] == 8
                 assert "field_spells" in inv2["character"]
 
                 await ws.send(json.dumps({"type": "ping", "t": 1.23}))
-                pong = await recv_type("pong")
+                pong = await recv_type(ws, "pong")
                 assert pong.get("t") == 1.23
 
                 await ws.send(
                     json.dumps({"type": "debug_encounter", "enemy": "slime", "seed": 11})
                 )
-                start = await recv_type("combat_start")
+                start = await recv_type(ws, "combat_start")
                 assert start["type"] == "combat_start"
-                await recv_type("combat_update")
+                await recv_type(ws, "combat_update")
 
                 for _ in range(15):
                     await ws.send(json.dumps({"type": "attack"}))
-                    m = await recv_type("combat_update", "combat_end", "level_up")
+                    m = await recv_type(ws, "combat_update", "combat_end", "level_up")
                     while m["type"] == "level_up":
-                        m = await recv_type("combat_update", "combat_end", "level_up")
+                        m = await recv_type(ws, "combat_update", "combat_end", "level_up")
                     if m["type"] == "combat_end":
                         assert m["result"] == "victory"
                         assert m["character"]["equipment_weapon"] == "club"
                         return
                     if m.get("outcome") == "victory":
-                        m = await recv_type("combat_end")
+                        m = await recv_type(ws, "combat_end")
                         assert m["type"] == "combat_end"
                         return
                 raise AssertionError("battle did not end")

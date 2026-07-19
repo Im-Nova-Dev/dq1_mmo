@@ -18,6 +18,36 @@ def level_for_xp(xp: int) -> int:
     return level
 
 
+def xp_to_next_level(xp: int, level: int | None = None) -> dict:
+    """XP progress toward the next level (for HUD / status sheet)."""
+    xp = max(0, int(xp or 0))
+    lv = int(level) if level is not None else level_for_xp(xp)
+    lv = max(1, min(30, lv))
+    cur_row = get_level_row(lv) or {}
+    next_row = get_level_row(lv + 1) if lv < 30 else None
+    cur_total = int(cur_row.get("total_xp") or 0)
+    if not next_row:
+        return {
+            "level": lv,
+            "xp": xp,
+            "xp_into_level": max(0, xp - cur_total),
+            "xp_for_level": 0,
+            "xp_to_next": 0,
+            "max_level": True,
+        }
+    next_total = int(next_row.get("total_xp") or cur_total)
+    span = max(1, next_total - cur_total)
+    into = max(0, min(span, xp - cur_total))
+    return {
+        "level": lv,
+        "xp": xp,
+        "xp_into_level": into,
+        "xp_for_level": span,
+        "xp_to_next": max(0, next_total - xp),
+        "max_level": False,
+    }
+
+
 def apply_xp(hero: dict, xp_gain: int) -> dict:
     """Mutate hero with XP; return report with level_ups list."""
     old_level = int(hero.get("level", 1))

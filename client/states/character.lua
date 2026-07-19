@@ -7,6 +7,7 @@ local Character = {
   list = {},
   selected = 1,
   creating = false,
+  confirm_delete = false,
   new_name = "Solo",
   error = nil,
   status = "Loading...",
@@ -123,7 +124,17 @@ function Character:draw()
 
   UI.set_font("tiny")
   UI.color("muted")
-  love.graphics.printf("↑↓ select   ·   Enter world   ·   N new   ·   Esc logout", px, py + ph - 28, pw, "center")
+  if self.confirm_delete then
+    love.graphics.printf("Delete this hero?  Y yes  ·  N cancel", px, py + ph - 28, pw, "center")
+  else
+    love.graphics.printf(
+      "↑↓ select  ·  Enter world  ·  N new  ·  D delete  ·  Esc logout",
+      px,
+      py + ph - 28,
+      pw,
+      "center"
+    )
+  end
   UI.reset_color()
 end
 
@@ -163,8 +174,40 @@ function Character:_create()
   self.status = "Created " .. tostring(c.name)
 end
 
+function Character:_delete()
+  if self.busy then
+    return
+  end
+  local c = self.list[self.selected]
+  if not c then
+    self.error = "No hero selected"
+    self.confirm_delete = false
+    return
+  end
+  self.error = nil
+  self.busy = true
+  local ok, err = Auth.delete_character(c.id)
+  self.busy = false
+  self.confirm_delete = false
+  if not ok then
+    self.error = tostring(err or "delete failed")
+    return
+  end
+  self.status = "Deleted " .. tostring(c.name)
+  self:_reload()
+end
+
 function Character:keypressed(key)
   if self.busy then
+    return
+  end
+  if self.confirm_delete then
+    if key == "y" then
+      self:_delete()
+    elseif key == "n" or key == "escape" then
+      self.confirm_delete = false
+      self.status = "Delete cancelled"
+    end
     return
   end
   if self.creating then
@@ -191,6 +234,14 @@ function Character:keypressed(key)
       self.creating = true
       self.error = nil
       self.new_name = "Solo"
+    end
+  elseif key == "d" then
+    if not self.list[self.selected] then
+      self.error = "No hero to delete"
+    else
+      self.confirm_delete = true
+      self.error = nil
+      self.status = "Confirm delete: " .. tostring(self.list[self.selected].name)
     end
   elseif key == "escape" then
     Session.token = nil

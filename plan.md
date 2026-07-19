@@ -7,7 +7,8 @@
 > - [docs/HUMAN.md](docs/HUMAN.md) — player/operator guide  
 > - [AGENTS.md](AGENTS.md) — agent/LLM contract, protocol, tests  
 >
-> Shipped baseline as of docs refresh: **v0.5.9** (MVP + inn, field magic, online roster, chat/emotes, consumables, sprites, expanded tests).
+> Shipped baseline as of docs refresh: **v0.5.14** (MVP + radiant light, delete hero, XP progress, whisper, sell equipped, 86 tests).  
+> **Not the live source of truth** — use README + docs/HUMAN.md + AGENTS.md.
 
 ## Architecture Overview
 

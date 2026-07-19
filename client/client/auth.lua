@@ -174,4 +174,32 @@ function Auth.create_character(name)
   return data
 end
 
+function Auth.delete_character(character_id)
+  if not Session.token then
+    return nil, "Not logged in"
+  end
+  if not character_id then
+    return nil, "No hero selected"
+  end
+  local res, err = Http.request(
+    "DELETE",
+    Session.server_http .. "/auth/characters/" .. tostring(character_id),
+    nil,
+    auth_header()
+  )
+  if not res then
+    return nil, err or "Cannot reach server"
+  end
+  if res.status == 401 then
+    return nil, "Session expired — log in again"
+  end
+  if res.status == 404 then
+    return nil, "Hero not found"
+  end
+  if res.status ~= 204 and res.status ~= 200 then
+    return parse_fail(res, "delete failed: " .. tostring(res.status))
+  end
+  return true
+end
+
 return Auth

@@ -11,6 +11,7 @@ from network.websocket_manager import HEARTBEAT_CHECK_INTERVAL, manager
 log = logging.getLogger("dq1.presence")
 
 _task: asyncio.Task | None = None
+_task_loop: asyncio.AbstractEventLoop | None = None
 FLUSH_INTERVAL = 3.0
 
 
@@ -81,6 +82,16 @@ async def _loop() -> None:
             expired = await expire_combats()
             if expired:
                 log.info("expired %s orphaned combats", expired)
+            try:
+                await manager.flush_online_pulse()
+            except Exception:
+                pass
+            try:
+                purged = manager.purge_expired_soft_grace()
+                if purged:
+                    log.debug("purged %s soft-grace bags", purged)
+            except Exception:
+                pass
             if ticks % max(1, int(HEARTBEAT_CHECK_INTERVAL // FLUSH_INTERVAL)) == 0:
                 kicked = await kick_idle()
                 if kicked:
@@ -96,18 +107,48 @@ async def _loop() -> None:
 
 
 def start_presence_tasks() -> None:
-    global _task
+    """Start presence loop on the *current* event loop (safe across test restarts)."""
+    global _task, _task_loop
+    loop = asyncio.get_running_loop()
+    # Abandon any task from a previous loop without awaiting it (wrong-loop crash).
+    if _task is not None and _task_loop is not loop:
+        try:
+            if not _task.done():
+                _task_loop.call_soon_threadsafe(_task.cancel) if _task_loop and _task_loop.is_running() else None
+        except Exception:
+            pass
+        _task = None
+        _task_loop = None
     if _task is None or _task.done():
         _task = asyncio.create_task(_loop(), name="dq1-presence")
+        _task_loop = loop
 
 
 async def stop_presence_tasks() -> None:
-    global _task
-    if _task is not None:
-        _task.cancel()
+    global _task, _task_loop
+    task = _task
+    task_loop = _task_loop
+    _task = None
+    _task_loop = None
+    if task is not None:
         try:
-            await _task
-        except asyncio.CancelledError:
-            pass
-        _task = None
-    await flush_dirty_positions()
+            current = asyncio.get_running_loop()
+        except RuntimeError:
+            current = None
+        if task_loop is not None and current is not None and task_loop is not current:
+            # Task belongs to another (dead) loop — do not await.
+            try:
+                if not task.done() and task_loop.is_running():
+                    task_loop.call_soon_threadsafe(task.cancel)
+            except Exception:
+                pass
+        else:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, RuntimeError):
+                pass
+    try:
+        await flush_dirty_positions()
+    except Exception:
+        pass

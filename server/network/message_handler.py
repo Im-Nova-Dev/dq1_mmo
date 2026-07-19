@@ -85,7 +85,7 @@ async def expire_combat_grace(character_id: int) -> None:
     await apply_character_patch(character_id, patch)
     combat_engine.end(character_id)
     manager.set_in_combat(character_id, False)
-    await manager.publish_status(character_id)
+    await manager.publish_status(character_id, pulse_online=True)
 
 
 def sanitize_chat(raw: Any) -> str | None:
@@ -183,6 +183,7 @@ async def handle_message(
                 online=len(manager.online_ids()),
                 you={"x": meta["x"], "y": meta["y"]} if meta else None,
                 repel=manager.repel_remaining(character_id),
+                radiant=manager.radiant_remaining(character_id),
             )
         )
         return character_id, user_id, outbound, None
@@ -207,9 +208,49 @@ async def handle_message(
                     "y": meta["y"] if meta else None,
                     "in_combat": bool(meta.get("in_combat")) if meta else False,
                     "repel": manager.repel_remaining(character_id),
+                    "radiant": manager.radiant_remaining(character_id),
                 },
             )
         )
+        return character_id, user_id, outbound, None
+
+    # --- Look / examine (public card; full coords only if nearby) ---
+    if msg_type in (ClientMessageType.LOOK, ClientMessageType.EXAMINE, "look", "examine"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        target_name = data.get("name") or data.get("to") or data.get("target") or data.get("player")
+        target_id = data.get("player_id") or data.get("id")
+        tid: int | None = None
+        if target_id is not None:
+            try:
+                tid = int(target_id)
+            except (TypeError, ValueError):
+                tid = None
+        if tid is None and isinstance(target_name, str):
+            tid = manager.find_id_by_name(target_name)
+        if tid is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            return character_id, user_id, outbound, None
+        tmeta = manager.get_meta(tid)
+        if tmeta is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        nearby_ids = set(manager.ids_nearby(character_id))
+        is_near = tid == character_id or tid in nearby_ids
+        card = {
+            "id": tid,
+            "name": tmeta.get("name"),
+            "level": tmeta.get("level"),
+            "in_combat": bool(tmeta.get("in_combat")),
+            "nearby": is_near,
+        }
+        if is_near:
+            card["x"] = tmeta.get("x")
+            card["y"] = tmeta.get("y")
+            card["map_id"] = tmeta.get("map_id")
+        outbound.append(msg(ServerMessageType.LOOK, player=card))
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.AUTH:
@@ -251,6 +292,12 @@ async def handle_message(
         character["known_spells"] = battle_spells_at(int(character["level"]))
         character["field_spells"] = field_spells_at(int(character["level"]))
         character["bonuses"] = equipment_bonuses(character)
+        from game.progression import xp_to_next_level
+
+        character["xp_progress"] = xp_to_next_level(
+            int(character.get("experience") or 0),
+            int(character.get("level") or 1),
+        )
 
         resume_battle = combat_engine.get(character["id"])
         if resume_battle is not None and resume_battle.outcome == "ongoing":
@@ -341,9 +388,12 @@ async def handle_message(
         formula = sp.get("formula") or spell_id
 
         if formula in ("heal", "healmore"):
-            amt = F.heal_amount(rng) if formula == "heal" else F.healmore_amount(rng)
             max_hp = int(char.get("max_hp") or 1)
             cur_hp = int(char.get("current_hp") or 0)
+            if cur_hp >= max_hp:
+                outbound.append(msg(ServerMessageType.ERROR, reason="already at full HP"))
+                return character_id, user_id, outbound, None
+            amt = F.heal_amount(rng) if formula == "heal" else F.healmore_amount(rng)
             new_hp, actual = F.apply_heal(cur_hp, max_hp, amt)
             patch["current_hp"] = new_hp
             info.update(
@@ -393,7 +443,17 @@ async def handle_message(
                 }
             )
         elif spell_id == "radiant":
-            info["message"] = f"You cast {sp.get('name')}! A soft light surrounds you."
+            steps = int(getattr(manager, "RADIANT_STEPS", 64) or 64)
+            manager.set_radiant(character_id, steps)
+            info.update(
+                {
+                    "radiant_steps": steps,
+                    "message": (
+                        f"You cast {sp.get('name')}! A soft light surrounds you "
+                        f"({steps} steps — safer in dungeons)."
+                    ),
+                }
+            )
         else:
             outbound.append(msg(ServerMessageType.ERROR, reason="cannot cast on field"))
             return character_id, user_id, outbound, None
@@ -431,6 +491,16 @@ async def handle_message(
         if battle is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="not in combat"))
             return character_id, user_id, outbound, None
+
+        # Field-only spells must not be mis-routed as battle actions mid-fight
+        if msg_type in (ClientMessageType.USE_SPELL, "use_spell"):
+            sid = str(data.get("spell") or data.get("id") or "")
+            sp = get_spell(sid) if sid else None
+            if sp and sp.get("field") and not sp.get("battle"):
+                outbound.append(
+                    msg(ServerMessageType.ERROR, reason="in combat")
+                )
+                return character_id, user_id, outbound, None
 
         if msg_type == ClientMessageType.ATTACK or (
             msg_type == "combat_action" and data.get("action") == "attack"
@@ -484,7 +554,7 @@ async def handle_message(
             manager.set_in_combat(character_id, False)
             if char.get("level"):
                 manager.set_level(character_id, int(char["level"]))
-            await manager.publish_status(character_id)
+            await manager.publish_status(character_id, pulse_online=True)
             outbound.append(
                 msg(
                     ServerMessageType.COMBAT_END,
@@ -594,12 +664,18 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
         outbound.extend(aoi_msgs)
 
-        # Fairy Water: consume a repel step; while active, skip random fights
+        # Fairy Water / REPEL: consume a step; while active, skip random fights
         if manager.consume_repel_step(character_id):
             return character_id, user_id, outbound, None
 
-        # Random encounter
-        enemy_id = roll_encounter(tx, ty, Rng())
+        # RADIANT: soft light in dungeons (lower encounter rate); tick each step
+        lit = manager.radiant_remaining(character_id) > 0
+        if lit:
+            # Only consume steps while light is "used" (any zone) so duration is finite
+            manager.consume_radiant_step(character_id)
+
+        # Random encounter (radiant reduces dungeon rate)
+        enemy_id = roll_encounter(tx, ty, Rng(), radiant=lit)
         if enemy_id:
             async with db_write() as db:
                 await db.execute(
@@ -614,7 +690,7 @@ async def handle_message(
                 char["known_spells"] = battle_spells_at(int(char["level"]))
                 battle = combat_engine.start(character_id, char, enemy_id)
                 manager.set_in_combat(character_id, True)
-                await manager.publish_status(character_id)
+                await manager.publish_status(character_id, pulse_online=True)
                 start_events = battle._take_batch()
                 outbound.append(
                     msg(
@@ -627,6 +703,51 @@ async def handle_message(
                 )
                 outbound.append(_combat_update(battle, start_events))
 
+        return character_id, user_id, outbound, None
+
+    # --- Whisper / tell (private, by online character name) ---
+    if msg_type in (ClientMessageType.WHISPER, ClientMessageType.TELL, "whisper", "tell"):
+        text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
+        if text is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
+            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        if not isinstance(target_name, str) or not target_name.strip():
+            outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
+            return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        target_id = manager.find_id_by_name(target_name)
+        if target_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if target_id == character_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot whisper yourself"))
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        tmeta = manager.get_meta(target_id)
+        name = (meta or {}).get("name") or "Hero"
+        tname = (tmeta or {}).get("name") or target_name.strip()
+        whisper_msg = msg(
+            ServerMessageType.CHAT,
+            player_id=character_id,
+            name=name,
+            text=text,
+            channel="whisper",
+            to=tname,
+            to_id=target_id,
+        )
+        # Deliver to target + echo to self (so UI shows the send)
+        await manager.send(target_id, whisper_msg)
+        outbound.append(whisper_msg)
         return character_id, user_id, outbound, None
 
     # --- Chat: global (`chat`) or nearby AOI (`say`) ---
@@ -649,13 +770,40 @@ async def handle_message(
         name = (meta or {}).get("name") or "Hero"
         # Explicit channel wins; `say` defaults nearby, `chat` defaults global
         channel = (data.get("channel") or "").lower()
-        if channel not in ("global", "nearby", "local"):
+        if channel not in ("global", "nearby", "local", "whisper"):
             if msg_type in (ClientMessageType.SAY, "say"):
                 channel = "nearby"
             else:
                 channel = "global"
         if channel == "local":
             channel = "nearby"
+        # chat with channel=whisper and `to` name → private path
+        if channel == "whisper":
+            target_name = data.get("to") or data.get("name") or data.get("target")
+            if not isinstance(target_name, str) or not target_name.strip():
+                outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
+                return character_id, user_id, outbound, None
+            target_id = manager.find_id_by_name(target_name)
+            if target_id is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
+            if target_id == character_id:
+                outbound.append(msg(ServerMessageType.ERROR, reason="cannot whisper yourself"))
+                return character_id, user_id, outbound, None
+            tmeta = manager.get_meta(target_id)
+            tname = (tmeta or {}).get("name") or target_name.strip()
+            whisper_msg = msg(
+                ServerMessageType.CHAT,
+                player_id=character_id,
+                name=name,
+                text=text,
+                channel="whisper",
+                to=tname,
+                to_id=target_id,
+            )
+            await manager.send(target_id, whisper_msg)
+            outbound.append(whisper_msg)
+            return character_id, user_id, outbound, None
         chat_msg = msg(
             ServerMessageType.CHAT,
             player_id=character_id,
@@ -804,7 +952,7 @@ async def handle_message(
                 char = await _persist_battle_end(character_id, battle)
                 combat_engine.end(character_id)
                 manager.set_in_combat(character_id, False)
-                await manager.publish_status(character_id)
+                await manager.publish_status(character_id, pulse_online=True)
                 outbound.append(
                     msg(
                         ServerMessageType.COMBAT_END,
@@ -919,6 +1067,7 @@ async def handle_message(
             ok, reason = await equip_item(db, char, str(slot or ""), str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            return character_id, user_id, outbound, None
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
@@ -935,6 +1084,7 @@ async def handle_message(
             ok, reason = await unequip_item(db, char, str(slot or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            return character_id, user_id, outbound, None
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
@@ -955,6 +1105,7 @@ async def handle_message(
             ok, reason = await buy_item(db, char, str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+            return character_id, user_id, outbound, None
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
@@ -1001,7 +1152,7 @@ async def handle_message(
             seed = None
         battle = combat_engine.start(character_id, char, str(enemy_id), seed=seed)
         manager.set_in_combat(character_id, True)
-        await manager.publish_status(character_id)
+        await manager.publish_status(character_id, pulse_online=True)
         start_events = battle._take_batch()
         outbound.append(
             msg(

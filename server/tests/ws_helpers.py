@@ -39,8 +39,24 @@ def start_server(port: int | None = None) -> tuple[uvicorn.Server, int, str, str
 
 
 def stop_server(server: uvicorn.Server) -> None:
+    """Request shutdown and wait for the lifespan cleanup to finish."""
+    port = getattr(getattr(server, "config", None), "port", None)
     server.should_exit = True
-    time.sleep(0.15)
+    # Wait until health stops responding (lifespan close_db has run).
+    for _ in range(80):
+        if port is None:
+            if not getattr(server, "started", True):
+                break
+            time.sleep(0.05)
+            continue
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.1)
+            time.sleep(0.05)
+        except Exception:
+            time.sleep(0.05)
+            break
+    else:
+        time.sleep(0.2)
 
 
 def http_json(
@@ -57,9 +73,17 @@ def http_json(
     r = urllib.request.Request(f"{base}{path}", data=body, headers=headers, method=method)
     try:
         with urllib.request.urlopen(r) as resp:
-            return resp.status, json.loads(resp.read().decode())
+            raw = resp.read().decode()
+            try:
+                return resp.status, json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                return resp.status, {"raw": raw}
     except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read().decode())
+        raw = e.read().decode()
+        try:
+            return e.code, json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return e.code, {"raw": raw, "error": "non-json response"}
 
 
 def register_char(
