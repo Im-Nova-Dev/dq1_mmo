@@ -37,6 +37,7 @@ from game.world_manager import (
 )
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
+from network.handlers import mute as mute_handlers
 from network.handlers import presence_peeks
 from network.handlers import self_peeks as self_peek_handlers
 from network.handlers import session as session_handlers
@@ -156,7 +157,13 @@ async def handle_message(
     if presence_peek is not None:
         return presence_peek
 
-    # who/near/counts/zone · look · status · gold/hp/xp · version/played/time via handlers
+    mute_peek = await mute_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if mute_peek is not None:
+        return mute_peek
+
+    # who/near · look · status · gold · version/played · mute via handlers
 
     # --- Controls / keybinds summary (client HUD helper) ---
     if msg_type in ("keys", "controls", "keybinds", "keymap"):
@@ -1394,166 +1401,7 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # version / played / time handled via network.handlers.meta_peeks
-
-    # --- Ignore / mute list (session soft-grace) ---
-    if msg_type in (ClientMessageType.IGNORE, "ignore", "mute", "block"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        target_name = data.get("name") or data.get("to") or data.get("player")
-        target_id = manager.find_id_by_player_id(
-            data.get("player_id") or data.get("id") or data.get("to_id")
-        )
-        social_mode = _social_alias(target_name, data)
-        if target_id is None and social_mode:
-            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
-            if lid is None:
-                outbound.append(
-                    msg(
-                        ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to ignore",
-                    )
-                )
-                return character_id, user_id, outbound, None
-            target_id = lid
-            target_name = lname
-        if target_id is None and isinstance(target_name, str) and not social_mode:
-            target_id, nerr = manager.resolve_live_name(target_name)
-            if nerr == "name ambiguous":
-                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                return character_id, user_id, outbound, None
-        if target_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-            return character_id, user_id, outbound, None
-        ok, reason = manager.ignore_player(character_id, target_id)
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        tmeta = manager.get_meta(target_id)
-        outbound.append(
-            msg(
-                ServerMessageType.IGNORE,
-                action="ignore",
-                ok=True,
-                reason=reason,
-                player={
-                    "id": target_id,
-                    "name": (tmeta or {}).get("name"),
-                },
-                ignores=manager.ignore_list(character_id),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    if msg_type in (ClientMessageType.UNIGNORE, "unignore", "unmute", "unblock"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        target_name = data.get("name") or data.get("to") or data.get("player")
-        target_id = manager.find_id_by_player_id(
-            data.get("player_id") or data.get("id") or data.get("to_id")
-        )
-        social_mode = _social_alias(target_name, data)
-        if target_id is None and social_mode:
-            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
-            if lid is None:
-                outbound.append(
-                    msg(
-                        ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to unignore",
-                    )
-                )
-                return character_id, user_id, outbound, None
-            target_id = lid
-            target_name = lname
-        if target_id is None and isinstance(target_name, str) and not social_mode:
-            # Prefer live resolve; fall back to offline ignore_names scan
-            target_id, nerr = manager.resolve_live_name(target_name)
-            if nerr == "name ambiguous":
-                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                return character_id, user_id, outbound, None
-            if target_id is None:
-                # Offline ignored player: match cached name
-                meta = manager.get_meta(character_id) or {}
-                names = meta.get("ignore_names") or {}
-                key = target_name.strip().lower()
-                for tid, n in names.items():
-                    if str(n).strip().lower() == key:
-                        try:
-                            target_id = int(tid)
-                        except (TypeError, ValueError):
-                            target_id = None
-                        break
-        if target_id is None:
-            # allow unignore by id even if offline (strict id parse — no bool→1)
-            from network.websocket_manager import coerce_character_id
-
-            target_id = coerce_character_id(
-                data.get("player_id")
-                if data.get("player_id") is not None
-                else data.get("id")
-            )
-        if target_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
-            return character_id, user_id, outbound, None
-        ok, reason = manager.unignore_player(character_id, target_id)
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        outbound.append(
-            msg(
-                ServerMessageType.IGNORE,
-                action="unignore",
-                ok=True,
-                reason=reason,
-                player_id=target_id,
-                ignores=manager.ignore_list(character_id),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    if msg_type in (
-        ClientMessageType.IGNORES,
-        "ignores",
-        "ignore_list",
-        "blocklist",
-        "blocks",
-    ):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        ignores = manager.ignore_list(character_id)
-        n_on = sum(1 for c in ignores if c.get("online"))
-        n_off = len(ignores) - n_on
-        if ignores:
-            bits = []
-            for c in ignores[:8]:
-                nm = c.get("name") or "?"
-                if c.get("online"):
-                    near = "near" if c.get("nearby") else "far"
-                    bits.append(f"{nm}[{near}]")
-                else:
-                    bits.append(f"{nm}(offline)")
-            more = f" +{len(ignores) - 8} more" if len(ignores) > 8 else ""
-            ig_msg = f"Mute list ({len(ignores)}): " + ", ".join(bits) + more
-        else:
-            ig_msg = "Mute list empty."
-        outbound.append(
-            msg(
-                ServerMessageType.IGNORE,
-                action="list",
-                ignores=ignores,
-                count=len(ignores),
-                online_count=n_on,
-                offline_count=n_off,
-                message=ig_msg,
-            )
-        )
-        return character_id, user_id, outbound, None
+    # version / played / time via meta_peeks · ignore/unignore/ignores via mute
 
     # --- Find online players by name prefix (no coordinates) ---
     if msg_type in (ClientMessageType.FIND, "find", "search"):

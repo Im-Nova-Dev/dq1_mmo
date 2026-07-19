@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.129-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-667-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.130-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-673-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.129 · **667** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.130 · **673** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.129):** **`/played`** may note zone · fighting · nearby · **`/version`** and **`/time`** show a short online census · quick peeks (`/gold` · `/hp` · `/buffs`) still mention zone/fight · **667** tests.
+**Recent for players/ops (v0.5.130):** **`/ignore`** and **`/unignore`** confirm with a plain line · **`/ignores`** notes near/far and zone when online · soft reconnect still restores your mute list · **673** tests.
 
 ---
 
@@ -186,9 +186,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find combat:yes** · **/find fighting** | List heroes currently in combat (no map positions) |
 | **/find idle** · **/find idle:yes** | List idle heroes (AFK or soft timeout) |
 | **/help** or **?** | Server list of commands / keys |
-| **/ignore Name** | Mute chat/emotes from that hero |
-| **/unignore Name** | Stop ignoring |
-| **/ignores** · **/blocklist** | List who you are ignoring (online near/far · names stay if they log off) |
+| **/ignore Name** | Mute chat/emotes from that hero — plain confirmation |
+| **/unignore Name** | Stop ignoring — plain confirmation |
+| **/ignores** · **/blocklist** | List who you are ignoring (online near/far · zone · names stay if they log off) |
 | **/inspect Name** · **/profile Name** · **/card Name** · **/whereis Name** | Same as look / examine |
 | **/who** | Online / nearby + zone counts + AFK / combat peeks (same as **O**) |
 | **/players** | Same as `/who` |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 667 passed
+# expect: 673 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.129** · **667** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.130** · **673** tests).
 
 | Do | Don’t |
 |:---|:------|

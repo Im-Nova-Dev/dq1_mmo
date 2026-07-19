@@ -891,8 +891,18 @@ class ConnectionManager:
                 peer = social_peer_card(
                     self, tid_i, om.get("name") or cached, viewer_id=character_id
                 )
-                if peer is not None and "nearby" in peer:
-                    entry["nearby"] = bool(peer.get("nearby"))
+                if peer is not None:
+                    if "nearby" in peer:
+                        entry["nearby"] = bool(peer.get("nearby"))
+                    # Soft-reconnect mute list: zone/AFK/fight without map coords
+                    if peer.get("zone"):
+                        entry["zone"] = peer["zone"]
+                    if peer.get("afk"):
+                        entry["afk"] = True
+                        if peer.get("afk_message"):
+                            entry["afk_message"] = peer["afk_message"]
+                    if peer.get("in_combat"):
+                        entry["in_combat"] = True
                 out.append(entry)
             else:
                 out.append(
