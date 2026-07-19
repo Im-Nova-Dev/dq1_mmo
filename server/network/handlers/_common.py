@@ -404,3 +404,47 @@ def peer_status_suffix(card: dict[str, Any] | None) -> str:
     if "nearby" in card:
         bits.append("near" if card.get("nearby") else "far")
     return f" [{','.join(bits)}]" if bits else " (online)"
+
+
+def soft_reconnect_social_snapshot(
+    manager_obj: Any, character_id: int
+) -> dict[str, Any]:
+    """Peer cards for soft reconnect: share · emote · invite (auth + sync parity).
+
+    Returns dict with last_*_to/from cards (or None) and boolean flags for restored.
+    """
+    st_id, st_name = manager_obj.last_share_to(character_id)
+    sf_id, sf_name = manager_obj.last_share_from(character_id)
+    et_id, et_name = manager_obj.last_emote_to(character_id)
+    ef_id, ef_name = manager_obj.last_emote_from(character_id)
+    it_id, it_name = manager_obj.last_invite_to(character_id)
+    if_id, if_name = manager_obj.last_invite_from(character_id)
+    last_share_to = social_peer_card(
+        manager_obj, st_id, st_name, viewer_id=character_id
+    )
+    last_share_from = social_peer_card(
+        manager_obj, sf_id, sf_name, viewer_id=character_id
+    )
+    last_emote_to = social_peer_card(
+        manager_obj, et_id, et_name, viewer_id=character_id
+    )
+    last_emote_from = social_peer_card(
+        manager_obj, ef_id, ef_name, viewer_id=character_id
+    )
+    last_invite_to = social_peer_card(
+        manager_obj, it_id, it_name, viewer_id=character_id
+    )
+    last_invite_from = social_peer_card(
+        manager_obj, if_id, if_name, viewer_id=character_id
+    )
+    return {
+        "last_share_to": last_share_to,
+        "last_share_from": last_share_from,
+        "last_emote_to": last_emote_to,
+        "last_emote_from": last_emote_from,
+        "last_invite_to": last_invite_to,
+        "last_invite_from": last_invite_from,
+        "has_share": bool(last_share_to or last_share_from),
+        "has_emote": bool(last_emote_to or last_emote_from),
+        "has_invite": bool(last_invite_to or last_invite_from),
+    }

@@ -81,25 +81,10 @@ async def handle_sync(
     last_whisper = None
     if lw_id is not None or lw_name:
         last_whisper = {"id": lw_id, "name": lw_name}
-    from network.handlers._common import social_peer_card
+    from network.handlers._common import soft_reconnect_social_snapshot
     from network.websocket_manager import _is_idle as _idle_chk
 
-    st_id, st_name = manager.last_share_to(character_id)
-    sf_id, sf_name = manager.last_share_from(character_id)
-    last_share_to = social_peer_card(
-        manager, st_id, st_name, viewer_id=character_id
-    )
-    last_share_from = social_peer_card(
-        manager, sf_id, sf_name, viewer_id=character_id
-    )
-    et_id, et_name = manager.last_emote_to(character_id)
-    ef_id, ef_name = manager.last_emote_from(character_id)
-    last_emote_to = social_peer_card(
-        manager, et_id, et_name, viewer_id=character_id
-    )
-    last_emote_from = social_peer_card(
-        manager, ef_id, ef_name, viewer_id=character_id
-    )
+    social = soft_reconnect_social_snapshot(manager, character_id)
     you_blob = None
     if meta is not None:
         you_blob = {
@@ -135,10 +120,12 @@ async def handle_sync(
             session_id=manager.session_id(character_id),
             ignores=ignores_snap,
             last_whisper=last_whisper,
-            last_share_to=last_share_to,
-            last_share_from=last_share_from,
-            last_emote_to=last_emote_to,
-            last_emote_from=last_emote_from,
+            last_share_to=social["last_share_to"],
+            last_share_from=social["last_share_from"],
+            last_emote_to=social["last_emote_to"],
+            last_emote_from=social["last_emote_from"],
+            last_invite_to=social["last_invite_to"],
+            last_invite_from=social["last_invite_from"],
         )
     )
     return character_id, user_id, outbound, None

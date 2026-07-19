@@ -410,24 +410,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 last_whisper = None
                 if lw_id is not None or lw_name:
                     last_whisper = {"id": lw_id, "name": lw_name}
-                # Soft-grace social share peers for multiplayer UI resync
-                from network.handlers._common import social_peer_card
+                # Soft-grace social peers for multiplayer UI resync (share · emote · invite)
+                from network.handlers._common import soft_reconnect_social_snapshot
 
-                st_id, st_name = manager.last_share_to(cid)
-                sf_id, sf_name = manager.last_share_from(cid)
-                last_share_to = social_peer_card(
-                    manager, st_id, st_name, viewer_id=cid
-                )
-                last_share_from = social_peer_card(
-                    manager, sf_id, sf_name, viewer_id=cid
-                )
+                social = soft_reconnect_social_snapshot(manager, cid)
                 repel_n = manager.repel_remaining(cid)
                 radiant_n = manager.radiant_remaining(cid)
                 # Explicit soft-reconnect hygiene flags for multiplayer clients
                 restored = {
                     "ignores": len(ignores_snap) > 0,
                     "last_whisper": last_whisper is not None,
-                    "last_share": bool(last_share_to or last_share_from),
+                    "last_share": social["has_share"],
+                    "last_emote": social["has_emote"],
+                    "last_invite": social["has_invite"],
                     "repel": repel_n > 0,
                     "radiant": radiant_n > 0,
                 }
@@ -454,8 +449,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         session_id=sid,
                         ignores=ignores_snap,
                         last_whisper=last_whisper,
-                        last_share_to=last_share_to,
-                        last_share_from=last_share_from,
+                        last_share_to=social["last_share_to"],
+                        last_share_from=social["last_share_from"],
+                        last_emote_to=social["last_emote_to"],
+                        last_emote_from=social["last_emote_from"],
+                        last_invite_to=social["last_invite_to"],
+                        last_invite_from=social["last_invite_from"],
                         restored=restored,
                     )
                 )
@@ -480,6 +479,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         bits.append("last whisper")
                     if restored["last_share"]:
                         bits.append("share peers")
+                    if restored["last_emote"]:
+                        bits.append("emote peers")
+                    if restored["last_invite"]:
+                        bits.append("meetup invites")
                     if restored["repel"] or restored["radiant"]:
                         bits.append("buffs")
                     if bits:
@@ -494,8 +497,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         o["welcome"] = welcome
                         o["ignores"] = ignores_snap
                         o["last_whisper"] = last_whisper
-                        o["last_share_to"] = last_share_to
-                        o["last_share_from"] = last_share_from
+                        o["last_share_to"] = social["last_share_to"]
+                        o["last_share_from"] = social["last_share_from"]
+                        o["last_emote_to"] = social["last_emote_to"]
+                        o["last_emote_from"] = social["last_emote_from"]
+                        o["last_invite_to"] = social["last_invite_to"]
+                        o["last_invite_from"] = social["last_invite_from"]
                         o["repel"] = repel_n
                         o["radiant"] = radiant_n
                         o["restored"] = restored

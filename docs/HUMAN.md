@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.119-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-610-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.120-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-617-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.119 · **610** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.120 · **617** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.119):** waves are **two-way** — **`/lastemote`** shows who you waved **at** and who waved **at you** · **`@emote`** / **`@emotedby`** · soft reconnect keeps emote partners · **610** tests.
+**Recent for players/ops (v0.5.120):** brief disconnect restores **share**, **wave/emote**, and **meetup invite** partners together (plus mute list, last whisper, buffs) · welcome may note what came back · **617** tests.
 
 ---
 
@@ -37,7 +37,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
 | **Social** | Global · nearby · zone · yell · whisper · `/r` · invite / cancel / pending · **share** · **`/lastshare`** · **`@share`** / **`@from`** · **wave** · **`/lastemote`** (to + from) · **`@emote`** / **`@emotedby`** · askwhere · thank · poke · accept / decline · fighting · social (near/far) · emotes · roll · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat · zone population |
-| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect (mute list · last whisper · **share partners** · **emote partners** · buffs) · **`/stuck` home** · mute list · **change password** · swappable PNG art |
+| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect (mute list · last whisper · **share** · **emote** · **invite** peers · buffs) · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -221,7 +221,7 @@ Your own chat and emotes always appear once in your log (global, nearby, and zon
 Failed whispers and private social messages (yourself, offline targets, or a dropped connection) do **not** block the next message you try to send — and if you were AFK, your AFK badge stays on after a failed delivery.  
 If someone invited you and then went offline, **`/accept`** or **`/decline`** clears that stuck invite so you are not stuck forever.
 
-**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), **share partners** (`@share` / `@from`), **emote partners** (`@emote` / `@emotedby`), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.  
+**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), **share partners** (`@share` / `@from`), **emote partners** (`@emote` / `@emotedby`), **meetup invite peers** (`/pending` / `/lastinvite`), and **Repel / Radiant** buffs come back when you rejoin. The welcome toast may list what was restored. Other players see a cleaner join/leave when someone reconnects.  
 Chatting, whispering, emoting, or **walking** clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
 
 **Two-way social memory (plain language):** after you **`/share`** or **`/wave`**, both sides are remembered when possible. Always type the **`@`**.
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 610 passed
+# expect: 617 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.119** · **610** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.120** · **617** tests).
 
 | Do | Don’t |
 |:---|:------|
