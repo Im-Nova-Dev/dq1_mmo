@@ -71,6 +71,65 @@ def _afk_snap(meta: dict[str, Any] | None) -> tuple[bool, str | None]:
     return was, msg_txt
 
 
+# Social target aliases for multiplayer private commands
+_LAST_TOKENS = frozenset({"@last", "last", "!"})
+# Require @ prefix so a hero named "pending" / "meetup" stays addressable by name
+_PENDING_TOKENS = frozenset({"@pending", "@invite", "@meetup"})
+
+
+def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str | None:
+    """Return 'last' | 'pending' | None from to/name token or flags.
+
+    @last  — last whisper / emote / invite peer (command-specific chain)
+    @pending / @invite — pending meetup peer (incoming then outgoing)
+    """
+    if data:
+        if data.get("pending") or data.get("invite_peer"):
+            return "pending"
+        if data.get("reply"):
+            return "last"
+    if not isinstance(target_name, str):
+        return None
+    t = target_name.strip().lower()
+    if t in _LAST_TOKENS:
+        return "last"
+    if t in _PENDING_TOKENS:
+        return "pending"
+    return None
+
+
+def _resolve_social_peer(
+    manager: Any,
+    character_id: int,
+    mode: str,
+    *,
+    chain: tuple[str, ...] = ("whisper", "emote", "invite_from", "invite_to"),
+) -> tuple[int | None, str | None, str | None]:
+    """Resolve @last / @pending peer. Returns (id, name, empty_reason)."""
+    if mode == "pending":
+        lid, lname = manager.last_invite_from(character_id)
+        if lid is None:
+            lid, lname = manager.last_invite_to(character_id)
+        if lid is None:
+            return None, None, "no pending invite"
+        return lid, lname, None
+    # mode == last
+    for step in chain:
+        if step == "whisper":
+            lid, lname = manager.last_whisper_from(character_id)
+        elif step == "emote":
+            lid, lname = manager.last_emote_to(character_id)
+        elif step == "invite_from":
+            lid, lname = manager.last_invite_from(character_id)
+        elif step == "invite_to":
+            lid, lname = manager.last_invite_to(character_id)
+        else:
+            continue
+        if lid is not None:
+            return lid, lname, None
+    return None, None, "no one"
+
+
 def _parse_positive_qty(raw: Any) -> int | None:
     """Parse buy/sell/discard quantity. Returns int >= 1 or None if invalid.
 
@@ -629,15 +688,29 @@ async def handle_message(
             if tid is None:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
                 return character_id, user_id, outbound, None
+        social_mode = _social_alias(target_name, data)
+        if tid is None and social_mode:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
+            if lid is None:
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to look at",
+                    )
+                )
+                return character_id, user_id, outbound, None
+            tid = lid
+            target_name = lname
         if tid is None and isinstance(target_name, str) and target_name.strip():
-            tid, nerr = manager.resolve_live_name(target_name)
-            if nerr == "name ambiguous":
-                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                return character_id, user_id, outbound, None
-            if tid is None and nerr == "player not online":
-                # Named target resolved to nobody live — not "not found" (typo vs offline)
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-                return character_id, user_id, outbound, None
+            if not social_mode:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                if tid is None and nerr == "player not online":
+                    # Named target resolved to nobody live — not "not found" (typo vs offline)
+                    outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                    return character_id, user_id, outbound, None
         # Bare look / empty name → examine self (MVP social convenience)
         if tid is None and not had_raw_pid and (
             target_name is None
@@ -993,28 +1066,28 @@ async def handle_message(
                 commands=[
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
-                    {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
+                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @pending message"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · zone:town · afk:yes · combat:yes · idle:yes"},
                     {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
-                    {"cmd": "look", "hint": "L · /look · /inspect · /profile · /whereis"},
+                    {"cmd": "look", "hint": "L · /look · /look @pending · /whereis @last"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /wave · /bow Name · /wave @last — emote shortcuts"},
+                    {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @pending — emote shortcuts"},
                     {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
                     {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
-                    {"cmd": "invite", "hint": "/invite Name · /meet @last — meetup invite"},
+                    {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @pending"},
                     {"cmd": "cancel", "hint": "/cancel · /uninvite — cancel your last invite"},
                     {"cmd": "accept", "hint": "/accept · /coming — reply to last invite"},
                     {"cmd": "decline", "hint": "/decline · /later — decline last invite"},
                     {"cmd": "lastinvite", "hint": "/lastinvite — who invited you last"},
                     {"cmd": "pending", "hint": "/pending · /invites — pending meetup in + out"},
-                    {"cmd": "share", "hint": "/share Name — privately share your zone + coords"},
-                    {"cmd": "poke", "hint": "/poke Name · /nudge @last — get their attention"},
-                    {"cmd": "askwhere", "hint": "/askwhere Name · /locate @last — ask them to /share"},
-                    {"cmd": "thank", "hint": "/thank Name · /ty @last — private thanks"},
+                    {"cmd": "share", "hint": "/share Name · /share @pending — share zone + coords"},
+                    {"cmd": "poke", "hint": "/poke Name · /nudge @last · /poke @pending"},
+                    {"cmd": "askwhere", "hint": "/askwhere Name · /locate @pending"},
+                    {"cmd": "thank", "hint": "/thank Name · /ty @last · /ty @pending"},
                     {"cmd": "fighting", "hint": "/fighting · /combats — nearby heroes in combat"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
@@ -1035,7 +1108,7 @@ async def handle_message(
                     {"cmd": "discard", "hint": "/discard herb [qty] · D in bag — free a slot"},
                     {"cmd": "cast", "hint": "/cast heal · /repel · /return · H/M keys"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
-                    {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores · /blocklist"},
+                    {"cmd": "ignore", "hint": "/ignore · /ignore @pending · /unignore @last"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
@@ -1257,10 +1330,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        social_mode = _social_alias(target_name, data)
         raw_pid = None
         if data.get("to_id") is not None:
             raw_pid = data.get("to_id")
@@ -1277,18 +1347,28 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            # Prefer last whisper peer, else last directed-emote target
-            lid, lname = manager.last_whisper_from(character_id)
+        if social_mode and target_id is None:
+            # @last: whisper/emote; @pending: meetup peer (invite back / re-send)
+            chain = (
+                ("whisper", "emote")
+                if social_mode == "last"
+                else ("invite_from", "invite_to")
+            )
+            lid, lname, empty = _resolve_social_peer(
+                manager, character_id, social_mode, chain=chain
+            )
             if lid is None:
-                lid, lname = manager.last_emote_to(character_id)
-            if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to invite"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty or "no one to invite",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not want_last:
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -1297,7 +1377,7 @@ async def handle_message(
         if target_id is None:
             if not (
                 isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not want_last:
+            ) and raw_pid is None and not social_mode:
                 outbound.append(msg(ServerMessageType.ERROR, reason="invite target required"))
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
@@ -1452,6 +1532,7 @@ async def handle_message(
         name = (meta or {}).get("name") or "Hero"
         live_name = tname
         notified = False
+        muted_skip = False
         if tid in manager.online_ids():
             tmeta = manager.get_meta(tid)
             live_name = (tmeta or {}).get("name") or tname or "Hero"
@@ -1474,11 +1555,19 @@ async def handle_message(
                         cancel_msg["session_id"] = sid_c
                     await manager.send(tid, cancel_msg)
                     notified = True
+                else:
+                    muted_skip = True
                 # still clear their pending pointer even if muted
         # Always drop peer pointer (live + soft-grace) so offline guests
         # do not rehydrate a zombie invite after reconnect.
         manager.clear_invite_from_peer(tid, character_id)
         manager.clear_last_invite_to(character_id)
+        if notified:
+            clear_msg = f"Invite to {live_name} cancelled."
+        elif muted_skip:
+            clear_msg = f"Cleared invite to {live_name} (they muted you)."
+        else:
+            clear_msg = f"Cleared invite to {live_name} (already answered or offline)."
         outbound.append(
             msg(
                 "invite_cancel",
@@ -1486,11 +1575,8 @@ async def handle_message(
                 to=live_name,
                 to_id=tid,
                 notified=notified,
-                message=(
-                    f"Invite to {live_name} cancelled."
-                    if notified
-                    else f"Cleared invite to {live_name} (already answered or offline)."
-                ),
+                muted=muted_skip,
+                message=clear_msg,
             )
         )
         if was_idle:
@@ -1503,10 +1589,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        social_mode = _social_alias(target_name, data)
         raw_pid = None
         if data.get("to_id") is not None:
             raw_pid = data.get("to_id")
@@ -1523,21 +1606,20 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            lid, lname = manager.last_whisper_from(character_id)
+        if social_mode and target_id is None:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
             if lid is None:
-                lid, lname = manager.last_emote_to(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_to(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_from(character_id)
-            if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to share with"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to share with",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not want_last:
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -1546,7 +1628,7 @@ async def handle_message(
         if target_id is None:
             if not (
                 isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not want_last:
+            ) and raw_pid is None and not social_mode:
                 outbound.append(msg(ServerMessageType.ERROR, reason="share target required"))
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
@@ -1645,10 +1727,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        social_mode = _social_alias(target_name, data)
         raw_pid = None
         if data.get("to_id") is not None:
             raw_pid = data.get("to_id")
@@ -1665,21 +1744,20 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            lid, lname = manager.last_whisper_from(character_id)
+        if social_mode and target_id is None:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
             if lid is None:
-                lid, lname = manager.last_emote_to(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_from(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_to(character_id)
-            if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to poke"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to poke",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not want_last:
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -1688,7 +1766,7 @@ async def handle_message(
         if target_id is None:
             if not (
                 isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not want_last:
+            ) and raw_pid is None and not social_mode:
                 outbound.append(msg(ServerMessageType.ERROR, reason="poke target required"))
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
@@ -1775,10 +1853,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        social_mode = _social_alias(target_name, data)
         raw_pid = None
         if data.get("to_id") is not None:
             raw_pid = data.get("to_id")
@@ -1795,21 +1870,20 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            lid, lname = manager.last_whisper_from(character_id)
+        if social_mode and target_id is None:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
             if lid is None:
-                lid, lname = manager.last_emote_to(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_from(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_to(character_id)
-            if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to ask"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to ask",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not want_last:
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -1818,7 +1892,7 @@ async def handle_message(
         if target_id is None:
             if not (
                 isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not want_last:
+            ) and raw_pid is None and not social_mode:
                 outbound.append(msg(ServerMessageType.ERROR, reason="askwhere target required"))
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
@@ -1896,10 +1970,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        social_mode = _social_alias(target_name, data)
         raw_pid = None
         if data.get("to_id") is not None:
             raw_pid = data.get("to_id")
@@ -1916,21 +1987,20 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            lid, lname = manager.last_whisper_from(character_id)
+        if social_mode and target_id is None:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
             if lid is None:
-                lid, lname = manager.last_emote_to(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_from(character_id)
-            if lid is None:
-                lid, lname = manager.last_invite_to(character_id)
-            if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to thank"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to thank",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not want_last:
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -1939,7 +2009,7 @@ async def handle_message(
         if target_id is None:
             if not (
                 isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not want_last:
+            ) and raw_pid is None and not social_mode:
                 outbound.append(msg(ServerMessageType.ERROR, reason="thank target required"))
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
@@ -2461,7 +2531,20 @@ async def handle_message(
         target_id = manager.find_id_by_player_id(
             data.get("player_id") or data.get("id") or data.get("to_id")
         )
-        if target_id is None and isinstance(target_name, str):
+        social_mode = _social_alias(target_name, data)
+        if target_id is None and social_mode:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
+            if lid is None:
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to ignore",
+                    )
+                )
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and not social_mode:
             target_id, nerr = manager.resolve_live_name(target_name)
             if nerr == "name ambiguous":
                 outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
@@ -2498,7 +2581,20 @@ async def handle_message(
         target_id = manager.find_id_by_player_id(
             data.get("player_id") or data.get("id") or data.get("to_id")
         )
-        if target_id is None and isinstance(target_name, str):
+        social_mode = _social_alias(target_name, data)
+        if target_id is None and social_mode:
+            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
+            if lid is None:
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to unignore",
+                    )
+                )
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and not social_mode:
             # Prefer live resolve; fall back to offline ignore_names scan
             target_id, nerr = manager.resolve_live_name(target_name)
             if nerr == "name ambiguous":
@@ -3394,22 +3490,40 @@ async def handle_message(
         if text is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
             return character_id, user_id, outbound, None
-        # Server-side reply: use last whisper peer (survives soft reconnect)
-        want_reply = (
-            msg_type in (ClientMessageType.REPLY, "reply")
-            or bool(data.get("reply"))
-            or str(data.get("to") or "").strip().lower() in ("@last", "last", "!")
-        )
+        # Server-side reply / social aliases (@last · @pending)
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        if want_reply and (
-            target_name is None
-            or str(target_name).strip().lower() in ("@last", "last", "!", "")
-        ):
-            lid, lname = manager.last_whisper_from(character_id)
-            target_id = lid if lid is not None else None
-            if target_id is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to reply to"))
+        is_reply_cmd = msg_type in (ClientMessageType.REPLY, "reply")
+        social_mode = _social_alias(target_name, data)
+        if is_reply_cmd and social_mode is None:
+            social_mode = "last"
+        if social_mode is None and bool(data.get("reply")):
+            social_mode = "last"
+        if social_mode is None and (
+            target_name is None or (isinstance(target_name, str) and not target_name.strip())
+        ) and is_reply_cmd:
+            social_mode = "last"
+        target_id = None
+        if social_mode:
+            # reply/@last: whisper peer first; @pending: meetup peer
+            chain = (
+                ("whisper", "emote", "invite_from", "invite_to")
+                if social_mode == "last"
+                else ("invite_from", "invite_to")
+            )
+            if social_mode == "last" and is_reply_cmd:
+                chain = ("whisper", "invite_from", "invite_to", "emote")
+            lid, lname, empty = _resolve_social_peer(
+                manager, character_id, social_mode, chain=chain
+            )
+            if lid is None:
+                reason = empty or (
+                    "no one to reply to" if is_reply_cmd or social_mode == "last" else "no pending invite"
+                )
+                if social_mode == "last" and is_reply_cmd:
+                    reason = "no one to reply to"
+                outbound.append(msg(ServerMessageType.ERROR, reason=reason))
                 return character_id, user_id, outbound, None
+            target_id = lid
             target_name = lname
         else:
             target_id = manager.find_id_by_player_id(
@@ -3556,15 +3670,38 @@ async def handle_message(
         # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
         if channel == "whisper":
             target_name = data.get("to") or data.get("name") or data.get("target")
+            social_mode_w = _social_alias(target_name, data)
             target_id = manager.find_id_by_player_id(
                 data.get("to_id") or data.get("player_id") or data.get("id")
             )
-            if target_id is None and isinstance(target_name, str) and target_name.strip():
-                tid, nerr = manager.resolve_live_name(target_name)
-                if nerr == "name ambiguous":
-                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+            if social_mode_w and target_id is None:
+                chain_w = (
+                    ("whisper", "emote", "invite_from", "invite_to")
+                    if social_mode_w == "last"
+                    else ("invite_from", "invite_to")
+                )
+                lid_w, lname_w, empty_w = _resolve_social_peer(
+                    manager, character_id, social_mode_w, chain=chain_w
+                )
+                if lid_w is None:
+                    outbound.append(
+                        msg(
+                            ServerMessageType.ERROR,
+                            reason=empty_w
+                            if social_mode_w == "pending"
+                            else "no one to reply to",
+                        )
+                    )
                     return character_id, user_id, outbound, None
-                target_id = tid
+                target_id = lid_w
+                target_name = lname_w
+            if target_id is None and isinstance(target_name, str) and target_name.strip():
+                if not social_mode_w:
+                    tid, nerr = manager.resolve_live_name(target_name)
+                    if nerr == "name ambiguous":
+                        outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                        return character_id, user_id, outbound, None
+                    target_id = tid
             if target_id is None and not (
                 isinstance(target_name, str) and target_name.strip()
             ):
@@ -3847,11 +3984,8 @@ async def handle_message(
             return character_id, user_id, outbound, None
         # Optional directed target — validate BEFORE rate limit (no AFK burn on fail)
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        # /wave @last · reply-style directed emote (server-tracked last target)
-        want_last = bool(data.get("reply")) or (
-            isinstance(target_name, str)
-            and target_name.strip().lower() in ("@last", "last", "!")
-        )
+        # /wave @last · @pending · reply-style directed emote
+        social_mode = _social_alias(target_name, data)
         # Prefer explicit to_id / player_id. For shortcuts only, `id` is a player id
         # (generic emote uses `id` as emote name — never as target).
         raw_pid = None
@@ -3866,7 +4000,7 @@ async def handle_message(
         )
         tname: str | None = None
         # Explicit id that does not resolve → error (never fall through to undirected)
-        if raw_pid is not None and target_id is None and not want_last:
+        if raw_pid is not None and target_id is None and not social_mode:
             from network.websocket_manager import coerce_character_id
 
             if coerce_character_id(raw_pid) is None:
@@ -3874,24 +4008,40 @@ async def handle_message(
             else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        if want_last and target_id is None:
-            lid, lname = manager.last_emote_to(character_id)
+        if social_mode and target_id is None:
+            chain = (
+                ("emote", "whisper", "invite_from", "invite_to")
+                if social_mode == "last"
+                else ("invite_from", "invite_to")
+            )
+            lid, lname, empty = _resolve_social_peer(
+                manager, character_id, social_mode, chain=chain
+            )
             if lid is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="no one to emote"))
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason=empty if social_mode == "pending" else "no one to emote",
+                    )
+                )
                 return character_id, user_id, outbound, None
             target_id = lid
             target_name = lname
         if target_id is None and isinstance(target_name, str) and target_name.strip():
-            # Skip name resolve when token is a last-emote sentinel
-            if not want_last:
+            # Skip name resolve when token is a social alias sentinel
+            if not social_mode:
                 tid, nerr = manager.resolve_live_name(target_name)
                 if nerr == "name ambiguous":
                     outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
                     return character_id, user_id, outbound, None
-                if tid is None:
-                    outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-                    return character_id, user_id, outbound, None
                 target_id = tid
+                # Explicit directed name that does not resolve must not fall through
+                # to an undirected emote (multiplayer reliability).
+                if target_id is None:
+                    outbound.append(
+                        msg(ServerMessageType.ERROR, reason="player not online")
+                    )
+                    return character_id, user_id, outbound, None
         if target_id is not None:
             if target_id == character_id:
                 outbound.append(msg(ServerMessageType.ERROR, reason="cannot emote yourself"))

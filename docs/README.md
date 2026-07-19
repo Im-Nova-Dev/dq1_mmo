@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.103** (2026-07-19) · suite **494** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish · `/thank` · offline invite clear · last push `3a5c5c2` (v0.5.98)
+**Last docs refresh:** **v0.5.106** (2026-07-19) · suite **517** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish · `/thank` · offline invite clear · last push `3a5c5c2` (v0.5.98)
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

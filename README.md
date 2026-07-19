@@ -7,13 +7,13 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.103</b> · <b>494</b> tests green · meetup · thank · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.106</b> · <b>517</b> tests green · meetup · thank · shop · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.103-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.106-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-494_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-517_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -65,7 +65,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-494_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-517_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -142,7 +142,7 @@ protocol · tests · reliability
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.103** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.106** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -158,8 +158,8 @@ protocol · tests · reliability
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.103-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/494_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.106-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/517_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -168,9 +168,11 @@ protocol · tests · reliability
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.103** — mute-safe cancel · invite supersede · **494** tests |
+| | **v0.5.106** — `/look @pending` · `/ignore @pending` · **517** tests |
 |:--|:--|
 | 🙏 | **`/thank Name` · `/ty @last`** — private thanks (great after `/share`) |
+| 👀 | **`/look @pending`** · **`/ignore @pending`** — inspect or mute your meetup peer |
+| 🎯 | **`@pending` · `@invite`** — poke / share / thank / whisper / wave meetup peer |
 | 🔇 | **Mute hygiene** — cancel / retarget never toast someone who ignored you |
 | 🔔 | **Invite replaced?** previous inviter gets a notice · soft-grace timeout clears meetup pointers |
 | 📋 | **`/pending` · `/invites`** — see pending meetup invites in and out |
@@ -179,7 +181,7 @@ protocol · tests · reliability
 | 🛡️ | Failed private messages (disconnect mid-send) **keep your AFK badge** honest |
 | 👉 | **`/poke` · `/nudge`** · full meetup loop (**invite · share · accept · cancel**) |
 | 📊 | **`/who`** fighting census · **`/find combat:yes`** · near/zone ⚔💤 tags |
-| ✅ | **494** automated tests green |
+| ✅ | **517** automated tests green |
 
 > [!TIP]
 > **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/thank @last`** · **`/poke Hero`** · they **`/accept`** · **`/r`** · **`/cancel`** if plans change.  
@@ -197,6 +199,9 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.106** | Look/ignore `@pending` · whisper/wave `@pending` · **517** tests |
+| **0.5.105** | Whisper/emote `@pending` · bare names not aliases · **509** tests |
+| **0.5.104** | `@pending` on poke/share/thank/askwhere · muted cancel text · **503** tests |
 | **0.5.103** | Cancel/retarget respect ignore (no mute spam) · **494** tests |
 | **0.5.102** | Invite supersede notice · soft-grace purge · guest `/r` after invite · **488** tests |
 | **0.5.101** | `/pending` · double-invite clears previous pointers · **479** tests |
@@ -301,7 +306,7 @@ protocol · tests · reliability
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **494** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **517** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -361,7 +366,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 494 passed
+# expect: 517 passed
 ```
 
 ---
@@ -616,9 +621,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-494_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-517_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.103-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.106-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -695,8 +700,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.103-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/494_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.106-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/517_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
