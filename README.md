@@ -122,6 +122,8 @@ protocol · tests · reliability
 
 <p align="center">
   <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_social-334155?style=for-the-badge" />
+  <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
+  <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
 </p>
 
 ```mermaid
@@ -141,11 +143,12 @@ flowchart LR
 
 <table>
 <tr>
-<td align="center" width="20%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
-<td align="center" width="20%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
-<td align="center" width="20%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
-<td align="center" width="20%"><b>👋 Social</b><br/><sub>invite · near/far</sub></td>
-<td align="center" width="20%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
+<td align="center" width="16%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
+<td align="center" width="16%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
+<td align="center" width="16%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
+<td align="center" width="16%"><b>👋 Social</b><br/><sub>invite · wave</sub></td>
+<td align="center" width="16%"><b>📍 Memory</b><br/><sub>@share · @emote</sub></td>
+<td align="center" width="16%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
 </tr>
 </table>
 
@@ -200,6 +203,39 @@ flowchart LR
 | 🔄 | Soft reconnect keeps emote partners |
 | ✅ | **610** automated tests green |
 
+<p align="center">
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.119-7c3aed?style=for-the-badge" />
+  <img alt="aliases" src="https://img.shields.io/badge/@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/610_tests-059669?style=for-the-badge" />
+</p>
+
+<table>
+<tr>
+<td width="50%" valign="top" align="center">
+
+### 📍 Share shortcuts
+| Alias | Means |
+|:------|:------|
+| **`@share`** | who *you* last shared with |
+| **`@from`** | who last shared *with you* |
+
+<sub>Always type the **`@`**</sub>
+
+</td>
+<td width="50%" valign="top" align="center">
+
+### 👋 Wave shortcuts
+| Alias | Means |
+|:------|:------|
+| **`@emote`** | who *you* last waved at |
+| **`@emotedby`** | who last waved *at you* |
+
+<sub>**`/lastemote`** shows both sides</sub>
+
+</td>
+</tr>
+</table>
+
 ```mermaid
 flowchart LR
   subgraph wave ["Two-way waves"]
@@ -217,6 +253,9 @@ flowchart LR
 > [!TIP]
 > **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/wave Hero`** · **`/thank @share`** (or **`@from`**) · **`/w @emotedby`** · **`/poke`** · **`/accept`** · **`/r`** · **`/cancel`**.  
 > **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
+
+> [!NOTE]
+> **Brief disconnect (~1 min):** mute list, last whisper, share partners, **emote partners**, and buffs come back when you rejoin — no need to re-wave just to remember who waved.
 
 > [!IMPORTANT]
 > **Two audiences, two trees — do not mix.**  
@@ -326,8 +365,8 @@ flowchart LR
 |:--|:--|
 | 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · **`/roll`** |
 | 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share` · `/lastshare` · `/askwhere` · `/thank` · `/poke`** — social (not a party) |
-| 📍 | **`@share`** = who *you* shared with · **`@from`** = who shared *with you* (needs the **@**) |
-| 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · **`@emote`** / **`@emotedby`** · **`/fighting`** |
+| 📍 | **`@share`** / **`@from`** · **`@emote`** / **`@emotedby`** — two-way social memory (needs the **@**) |
+| 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · **`/fighting`** · **`/social`** |
 | 🔍 | **`/find`** · **`/find combat:yes`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |

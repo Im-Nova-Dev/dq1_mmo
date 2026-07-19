@@ -224,7 +224,19 @@ If someone invited you and then went offline, **`/accept`** or **`/decline`** cl
 **Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), **share partners** (`@share` / `@from`), **emote partners** (`@emote` / `@emotedby`), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.  
 Chatting, whispering, emoting, or **walking** clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
 
-**Two-way social memory (plain language):** after you **`/share`** or **`/wave`**, both sides are remembered when possible. **`@share`** / **`@emote`** point at who *you* last contacted that way; **`@from`** / **`@emotedby`** point at who contacted *you*. Always type the **`@`**.
+**Two-way social memory (plain language):** after you **`/share`** or **`/wave`**, both sides are remembered when possible. Always type the **`@`**.
+
+| Shortcut | Points to |
+|:---------|:----------|
+| **`@share`** | who *you* last shared your spot with |
+| **`@from`** | who last shared *their* spot with you |
+| **`@emote`** | who *you* last waved / emoted at |
+| **`@emotedby`** | who last waved / emoted *at you* |
+| **`@last`** | last whisper / social peer (command-specific) |
+| **`@pending`** | pending meetup invite peer |
+
+Handy: **`/lastshare`** · **`/lastemote`** · **`/social`** show both directions when set.  
+Example: **`/w @emotedby hi`** · **`/thank @from`** · **`/wave @emote`**.
 
 Chat tags in the log:
 
