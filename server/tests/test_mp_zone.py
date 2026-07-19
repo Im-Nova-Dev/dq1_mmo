@@ -246,6 +246,13 @@ def test_zone_chat_ws(tmp_path, monkeypatch):
                             if mok.get("reason") == "rate_limit":
                                 await asyncio.sleep(0.12)
                                 continue
+                            if mok.get("reason") == "invalid step":
+                                # Combat/desync can reject a step; retry after drain
+                                await drain(wc, 0.15)
+                                continue
+                        if mok.get("type") == "error" and mok.get("reason") == "invalid step":
+                            await drain(wc, 0.15)
+                            continue
                         return mok
                     return mok
 

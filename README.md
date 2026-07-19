@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.122</b> · <b>629</b> tests green · soft reconnect (whisper · share · emote · invite) · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.123</b> · <b>635</b> tests green · soft reconnect (played · whisper · share · emote · invite) · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.122-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.123-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-629_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-635_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -84,7 +84,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-629_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-635_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -168,7 +168,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.122** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.123** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -185,27 +185,27 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.122-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/629_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.123-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/635_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-whisper_·_soft_reconnect-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-played_·_soft_reconnect-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.122** — whisper soft reconnect · **629** tests |
+| | **v0.5.123** — soft reconnect keeps session time · **635** tests |
 |:--|:--|
-| 💬 | After a brief drop, **`/r`** still knows who you were whispering |
-| 📍 | **`/lastwhisper`** shows if they are online and **near or far** |
-| 🔄 | Soft reconnect keeps whisper · share · wave · meetup memory together |
-| ✅ | **629** automated tests green |
+| ⏱ | Brief disconnect keeps **`/played`** / **`/session`** age (not a fresh 0s) |
+| 🔄 | Soft reconnect still restores whisper · share · wave · meetup memory |
+| ✅ | Live socket replace still keeps the same timer |
+| 🧪 | **635** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.122-7c3aed?style=for-the-badge" />
-  <img alt="whisper" src="https://img.shields.io/badge//r_·_/lastwhisper-near_·_far-06b6d4?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/629_tests-059669?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.123-7c3aed?style=for-the-badge" />
+  <img alt="played" src="https://img.shields.io/badge//played_survives_soft_reconnect-06b6d4?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/635_tests-059669?style=for-the-badge" />
 </p>
 
 <table>
@@ -281,7 +281,7 @@ flowchart TB
 > **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
 
 > [!NOTE]
-> **Brief disconnect (~1 min):** mute list, **last whisper** (so **`/r`** works), **share partners**, **emote partners**, **meetup invites**, and buffs come back when you rejoin — including whether that whisper partner is **near or far**.
+> **Brief disconnect (~1 min):** mute list, **last whisper** (so **`/r`** works), **share partners**, **emote partners**, **meetup invites**, buffs, and your **`/played` session age** come back when you rejoin — including whether that whisper partner is **near or far**.
 
 > [!IMPORTANT]
 > **Two audiences, two trees — do not mix.**  
@@ -295,6 +295,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.123** | Soft reconnect keeps `/played` session age · **635** tests |
 | **0.5.122** | Soft reconnect last whisper near/far peer card · **629** tests |
 | **0.5.121** | `/lastinvite` shows to + from (meetup memory) · **623** tests |
 | **0.5.120** | Soft reconnect restores share · emote · invite peers · **617** tests |
@@ -419,7 +420,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **629** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **635** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -457,7 +458,7 @@ flowchart TB
 | **Client** | What you see and press — movement prediction, combat menus, chat |
 | **Server** | Truth for fights, gold, position, who is online |
 | **SQLite** | Heroes, inventory, accounts (local-first) |
-| **Soft reconnect** | Brief disconnects keep mute list, **last whisper peer card**, **share · emote · invite** partners, and buffs when possible |
+| **Soft reconnect** | Brief disconnects keep mute list, **`/played` age**, **last whisper peer card**, **share · emote · invite** partners, and buffs when possible |
 
 <p align="center">
   <img alt="authority" src="https://img.shields.io/badge/authority-server_wins-f43f5e?style=for-the-badge" />
@@ -517,7 +518,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 629 passed
+# expect: 635 passed
 ```
 
 ---
@@ -794,9 +795,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-629_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-635_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.122-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.123-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -874,8 +875,8 @@ flowchart LR
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.122-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/629_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.123-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/635_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

@@ -46,7 +46,7 @@ async def auth(ws, token, cid):
 
 
 def test_session_started_preserved_on_live_replace():
-    """Live socket replace keeps /played timer; soft reconnect does not."""
+    """Live socket replace and brief soft reconnect keep /played timer."""
     mgr = ConnectionManager()
 
     class FakeWS:
@@ -73,14 +73,17 @@ def test_session_started_preserved_on_live_replace():
         assert meta2 is not None
         assert float(meta2["session_started"]) == started, (started, meta2["session_started"])
         assert a.closed is True
-        # Soft disconnect + reconnect resets timer
+        # Soft disconnect + reconnect within grace keeps timer
         await mgr.disconnect(1)
         await asyncio.sleep(0.02)
         c = FakeWS(3)
         await mgr.connect(1, c, name="Hero", x=2, y=2, map_id=0)
         meta3 = mgr.get_meta(1)
         assert meta3 is not None
-        assert float(meta3["session_started"]) >= started + 0.04, meta3["session_started"]
+        assert float(meta3["session_started"]) == started, (
+            started,
+            meta3["session_started"],
+        )
 
     asyncio.run(scenario())
 
@@ -201,8 +204,8 @@ def test_s_and_g_chat_channels(tmp_path, monkeypatch):
         stop_server(server)
 
 
-def test_soft_reconnect_ignore_and_played_reset(tmp_path, monkeypatch):
-    """Ignore list survives soft reconnect; played timer resets after full leave."""
+def test_soft_reconnect_ignore_and_played_continues(tmp_path, monkeypatch):
+    """Ignore list survives soft reconnect; /played age continues (not reset)."""
     db_path = tmp_path / "soft.db"
     monkeypatch.setenv("DATABASE_URL", str(db_path))
     import config
@@ -229,10 +232,11 @@ def test_soft_reconnect_ignore_and_played_reset(tmp_path, monkeypatch):
                 ig = await recv_until(wsa, "ignore", "error", "ignores")
                 assert ig.get("type") in ("ignore", "ignores"), ig
 
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(1.1)
                 await wsa.send(json.dumps({"type": "played"}))
                 pl = await recv_until(wsa, "played", "error")
                 age1 = int(pl.get("seconds") or 0)
+                assert age1 >= 1, pl
 
             # Soft reconnect within grace
             await asyncio.sleep(0.15)
@@ -259,8 +263,8 @@ def test_soft_reconnect_ignore_and_played_reset(tmp_path, monkeypatch):
 
                 await wsa2.send(json.dumps({"type": "played"}))
                 pl2 = await recv_until(wsa2, "played", "error")
-                # New connection after disconnect → age should be small
-                assert int(pl2.get("seconds") or 0) <= max(2, age1), pl2
+                # Soft reconnect continues /played clock (not a fresh 0s session)
+                assert int(pl2.get("seconds") or 0) >= age1, (age1, pl2)
 
         asyncio.run(flow())
     finally:

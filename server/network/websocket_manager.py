@@ -218,6 +218,12 @@ class ConnectionManager:
         last_invite_name = meta.get("last_invite_from_name")
         last_invite_to_id = meta.get("last_invite_to_id")
         last_invite_to_name = meta.get("last_invite_to_name")
+        try:
+            session_started = float(meta.get("session_started") or 0.0)
+        except (TypeError, ValueError):
+            session_started = 0.0
+        if session_started <= 0:
+            session_started = 0.0
         if (
             repel <= 0
             and radiant <= 0
@@ -229,6 +235,7 @@ class ConnectionManager:
             and not last_share_from_id
             and not last_invite_id
             and not last_invite_to_id
+            and session_started <= 0
         ):
             self._soft_grace.pop(character_id, None)
             return
@@ -251,6 +258,8 @@ class ConnectionManager:
             "last_invite_from_name": last_invite_name,
             "last_invite_to_id": last_invite_to_id,
             "last_invite_to_name": last_invite_to_name,
+            # Brief reconnect keeps /played connection age (monotonic stamp)
+            "session_started": session_started,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
         }
 
@@ -290,6 +299,12 @@ class ConnectionManager:
                 grace_invite_name = old_meta.get("last_invite_from_name")
                 grace_invite_to_id = old_meta.get("last_invite_to_id")
                 grace_invite_to_name = old_meta.get("last_invite_to_name")
+                try:
+                    grace_session_started = float(
+                        old_meta.get("session_started") or 0.0
+                    )
+                except (TypeError, ValueError):
+                    grace_session_started = 0.0
             else:
                 bag = self._take_soft_grace(character_id)
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
@@ -310,6 +325,10 @@ class ConnectionManager:
                 grace_invite_name = bag.get("last_invite_from_name")
                 grace_invite_to_id = bag.get("last_invite_to_id")
                 grace_invite_to_name = bag.get("last_invite_to_name")
+                try:
+                    grace_session_started = float(bag.get("session_started") or 0.0)
+                except (TypeError, ValueError):
+                    grace_session_started = 0.0
 
             if old is not None and old is not websocket:
                 try:
@@ -326,16 +345,11 @@ class ConnectionManager:
             now = time.monotonic()
             self._session_seq += 1
             session_id = self._session_seq
-            # Live socket replace (double-login / reconnect race): keep /played timer.
-            # Fresh connect or soft-grace rejoin: new connection age.
+            # Keep /played connection age on live replace OR brief soft-grace rejoin.
+            # Fresh connect (no grace) starts a new age. Full leave after grace expires too.
             session_started = now
-            if old_meta is not None and old is not None:
-                try:
-                    prev = float(old_meta.get("session_started") or 0.0)
-                    if prev > 0:
-                        session_started = prev
-                except (TypeError, ValueError):
-                    session_started = now
+            if grace_session_started > 0:
+                session_started = grace_session_started
             self._connections[character_id] = websocket
             self._meta[character_id] = {
                 "id": character_id,

@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.122-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-629-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.123-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-635-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.122 · **629** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.123 · **635** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.122):** soft reconnect brings back your **last whisper partner** as a full card (near/far when online) · **`/lastwhisper`** / **`/r`** stay reliable · **629** tests.
+**Recent for players/ops (v0.5.123):** a brief disconnect keeps your **`/played`** / **`/session`** timer running (not reset to 0) · soft reconnect still restores social memory · **635** tests.
 
 ---
 
@@ -174,7 +174,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/status** or **/me** or **/whoami** | Same status sheet via chat |
 | **/version** · **/about** · **/server** · **/info** | Server version + online count + uptime |
 | **/time** · **/uptime** | Server clock and how long the world has been up |
-| **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — also shows your zone and how many are online/nearby |
+| **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — survives a brief disconnect · also shows zone and online counts |
 | **/motd** · **/rules** | Message of the day |
 | **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
@@ -221,7 +221,7 @@ Your own chat and emotes always appear once in your log (global, nearby, and zon
 Failed whispers and private social messages (yourself, offline targets, or a dropped connection) do **not** block the next message you try to send — and if you were AFK, your AFK badge stays on after a failed delivery.  
 If someone invited you and then went offline, **`/accept`** or **`/decline`** clears that stuck invite so you are not stuck forever.
 
-**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (full near/far card so **`/r`** still works), **share partners** (`@share` / `@from`), **emote partners** (`@emote` / `@emotedby`), **meetup invite peers** (`/pending` / `/lastinvite`), and **Repel / Radiant** buffs come back when you rejoin. The welcome toast may list what was restored. Other players see a cleaner join/leave when someone reconnects.  
+**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (full near/far card so **`/r`** still works), **share partners** (`@share` / `@from`), **emote partners** (`@emote` / `@emotedby`), **meetup invite peers** (`/pending` / `/lastinvite`), and **Repel / Radiant** buffs come back when you rejoin — and your **`/played`** timer keeps counting. The welcome toast may list what was restored. Other players see a cleaner join/leave when someone reconnects.  
 Chatting, whispering, emoting, or **walking** clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
 
 **Two-way social memory (plain language):** after you **`/share`**, **`/wave`**, or **`/invite`**, partners are remembered when possible — and a brief disconnect keeps them. Always type the **`@`**.
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 629 passed
+# expect: 635 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.122** · **629** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.123** · **635** tests).
 
 | Do | Don’t |
 |:---|:------|

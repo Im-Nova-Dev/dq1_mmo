@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.122` (`server/config.py` → `VERSION`) · **629** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.123` (`server/config.py` → `VERSION`) · **635** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.122** / **629** until the suite or `VERSION` changes.  
-Last **pushed** ship: `120bf90` (**v0.5.122** last whisper soft reconnect peer cards).  
+Keep badges at **0.5.123** / **635** until the suite or `VERSION` changes.  
+Last **pushed** ship: `b742e0a` (docs) / `120bf90` (v0.5.122). Shipping **0.5.123**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.122 / 629** · human plain-language whisper reconnect · protocol only here.
+Docs pass (**this run**): badges **0.5.123 / 635** · soft reconnect session_started · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -339,7 +339,7 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 125. `buffs`/`effects`/`debuffs` → repel/radiant/combat/AFK peek; `keys`/`controls`/`keybinds` → control summary.
 126. `inspect` aliases look; `blocklist`/`blocks` alias ignores list; discard bare → `item required`.
 127. `counts` includes `you` card (zone/afk/idle/session/nearby); find supports `idle:yes|no` (invalid → error).
-128. Connect meta stores **`session_started`** (monotonic) for `/played`. Soft reconnect (after disconnect) → **new** age; **live socket replace** preserves `session_started`.
+128. Connect meta stores **`session_started`** (monotonic) for `/played`. **Live replace** and **soft-grace rejoin** preserve `session_started`; grace expiry / cold join → new age.
 129. Look aliases: `profile`/`card`/`player_info`/`whereis`/`where_is`; zone aliases add `mapinfo`; version aliases add `server`/`info`.
 130. Chat type `s`/`nearby_chat` → nearby; type `g` → global (channel override still wins when valid).
 131. `played`/`session`/`session_time`/`online_time` → multiplayer snapshot + pretty `message` (rate-exempt in `main.py`).
@@ -496,6 +496,9 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 282. Auth/sync `last_whisper` uses full peer card (near/far/zone), not bare `{id,name}` only.
 283. **`lastwhisper`:** `has_peer` + near/far message badges; name-only offline fallback card.
 284. Tests: `test_features_v05122` + `test_mp_reliability_v05122`.
+285. Soft-grace bag stashes **`session_started`**; always bag if session stamp present.
+286. Soft reconnect restores `/played` age; expired grace does not.
+287. Tests: `test_features_v05123` + `test_mp_reliability_v05123` (+ v0573 continue).
 
 ## Tests (mandatory for your changes)
 
