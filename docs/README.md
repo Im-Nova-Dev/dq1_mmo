@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.121** (2026-07-19) · suite **623** tests · `/lastinvite` to+from · soft reconnect meetup memory
+**Last docs refresh:** **v0.5.122** (2026-07-19) · suite **629** tests · soft reconnect last whisper peer card · near/far
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

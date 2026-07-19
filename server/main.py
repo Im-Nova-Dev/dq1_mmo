@@ -406,20 +406,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Soft-grace restore snapshot for client multiplayer UI
                 ignores_snap = manager.ignore_list(connect_meta["character_id"])
                 cid = connect_meta["character_id"]
-                lw_id, lw_name = manager.last_whisper_from(cid)
-                last_whisper = None
-                if lw_id is not None or lw_name:
-                    last_whisper = {"id": lw_id, "name": lw_name}
-                # Soft-grace social peers for multiplayer UI resync (share · emote · invite)
+                # Soft-grace social peers for multiplayer UI resync
+                # (whisper · share · emote · invite) — one snapshot for auth + sync
                 from network.handlers._common import soft_reconnect_social_snapshot
 
                 social = soft_reconnect_social_snapshot(manager, cid)
+                last_whisper = social["last_whisper"]
                 repel_n = manager.repel_remaining(cid)
                 radiant_n = manager.radiant_remaining(cid)
                 # Explicit soft-reconnect hygiene flags for multiplayer clients
                 restored = {
                     "ignores": len(ignores_snap) > 0,
-                    "last_whisper": last_whisper is not None,
+                    "last_whisper": social["has_whisper"],
                     "last_share": social["has_share"],
                     "last_emote": social["has_emote"],
                     "last_invite": social["has_invite"],

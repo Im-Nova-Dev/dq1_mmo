@@ -77,14 +77,11 @@ async def handle_sync(
         except Exception:
             sync_zone = None
     ignores_snap = manager.ignore_list(character_id)
-    lw_id, lw_name = manager.last_whisper_from(character_id)
-    last_whisper = None
-    if lw_id is not None or lw_name:
-        last_whisper = {"id": lw_id, "name": lw_name}
     from network.handlers._common import soft_reconnect_social_snapshot
     from network.websocket_manager import _is_idle as _idle_chk
 
     social = soft_reconnect_social_snapshot(manager, character_id)
+    last_whisper = social["last_whisper"]
     you_blob = None
     if meta is not None:
         you_blob = {

@@ -56,18 +56,26 @@ async def handle(
     if msg_type in LASTWHISPER_TYPES:
         lid, lname = manager.last_whisper_from(character_id)
         peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
+        if peer is None and (lid is not None or lname):
+            peer = {
+                "id": lid,
+                "name": (str(lname) if lname else "Hero")[:24],
+                "online": False,
+            }
         online = bool(peer and peer.get("online"))
         if peer:
-            lw_msg = f"Last whisper: {peer['name']}{peer_status_suffix(peer)}"
+            lw_msg = f"Last whisper: {peer['name']}" + peer_status_suffix(peer)
         else:
             lw_msg = "No one to reply to yet."
         outbound.append(
-            msg(
-                "lastwhisper",
-                peer=peer,
-                online=online,
-                message=lw_msg,
-            )
+            {
+                "type": "lastwhisper",
+                "peer": peer,
+                "to": peer,
+                "online": online,
+                "has_peer": peer is not None,
+                "message": lw_msg,
+            }
         )
         return character_id, user_id, outbound, None
 

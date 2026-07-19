@@ -409,10 +409,22 @@ def peer_status_suffix(card: dict[str, Any] | None) -> str:
 def soft_reconnect_social_snapshot(
     manager_obj: Any, character_id: int
 ) -> dict[str, Any]:
-    """Peer cards for soft reconnect: share · emote · invite (auth + sync parity).
+    """Peer cards for soft reconnect: whisper · share · emote · invite (auth + sync).
 
-    Returns dict with last_*_to/from cards (or None) and boolean flags for restored.
+    Returns dict with last_* cards (or None) and boolean flags for restored.
+    ``last_whisper`` uses the same near/far social_peer_card shape as share/emote.
     """
+    lw_id, lw_name = manager_obj.last_whisper_from(character_id)
+    last_whisper = social_peer_card(
+        manager_obj, lw_id, lw_name, viewer_id=character_id
+    )
+    # Name-only soft-grace edge (id missing): keep minimal offline card for /r UI
+    if last_whisper is None and (lw_id is not None or lw_name):
+        last_whisper = {
+            "id": lw_id,
+            "name": (str(lw_name) if lw_name else "Hero")[:24],
+            "online": False,
+        }
     st_id, st_name = manager_obj.last_share_to(character_id)
     sf_id, sf_name = manager_obj.last_share_from(character_id)
     et_id, et_name = manager_obj.last_emote_to(character_id)
@@ -438,12 +450,14 @@ def soft_reconnect_social_snapshot(
         manager_obj, if_id, if_name, viewer_id=character_id
     )
     return {
+        "last_whisper": last_whisper,
         "last_share_to": last_share_to,
         "last_share_from": last_share_from,
         "last_emote_to": last_emote_to,
         "last_emote_from": last_emote_from,
         "last_invite_to": last_invite_to,
         "last_invite_from": last_invite_from,
+        "has_whisper": last_whisper is not None,
         "has_share": bool(last_share_to or last_share_from),
         "has_emote": bool(last_emote_to or last_emote_from),
         "has_invite": bool(last_invite_to or last_invite_from),
