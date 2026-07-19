@@ -523,7 +523,47 @@ local function bind_handlers(self)
     if data.nearby and data.x and data.y and data.from then
       line = line .. string.format(" · (%s,%s)", tostring(data.x), tostring(data.y))
     end
+    -- Incoming invite: hint how to answer
+    if type(line) == "string" and line:find("invites you") then
+      line = line .. " · /accept or /decline"
+    end
     UI.toast(tostring(line), "ok")
+  end)
+
+  Network.on("invite_reply", function(data)
+    UI.toast(tostring(data.message or "Invite reply."), "info")
+  end)
+
+  Network.on("invite_cancel", function(data)
+    UI.toast(tostring(data.message or "Invite cancelled."), "info")
+  end)
+
+  Network.on("share", function(data)
+    local line = data.message
+    if not line or line == "" then
+      if data.zone or data.x then
+        line = string.format(
+          "Location: %s (%s,%s)",
+          tostring(data.zone or "?"),
+          tostring(data.x or "?"),
+          tostring(data.y or "?")
+        )
+      else
+        line = "Location shared."
+      end
+    end
+    if data.target_afk then
+      line = line .. " (they are AFK)"
+    end
+    UI.toast(tostring(line), "ok")
+  end)
+
+  Network.on("lastinvite", function(data)
+    UI.toast(tostring(data.message or "No meetup invite yet."), "info")
+  end)
+
+  Network.on("fighting", function(data)
+    UI.toast(tostring(data.message or "No one fighting nearby."), "info")
   end)
 
   Network.on("spells", function(data)
@@ -1219,6 +1259,23 @@ function Overworld:keypressed(key)
         local wants_invite_last = text:match("^[/%!]invite%s*$")
           or text:match("^[/%!]meet%s*$")
           or text:match("^[/%!]beckon%s*$")
+        local wants_lastinvite = text:match("^[/%!]lastinvite%s*$")
+          or text:match("^[/%!]last_invite%s*$")
+        local wants_accept = text:match("^[/%!]accept%s*$")
+          or text:match("^[/%!]coming%s*$")
+          or text:match("^[/%!]yes%s*$")
+        local wants_decline = text:match("^[/%!]decline%s*$")
+          or text:match("^[/%!]later%s*$")
+          or text:match("^[/%!]no%s*$")
+        local wants_fighting = text:match("^[/%!]fighting%s*$")
+          or text:match("^[/%!]combats%s*$")
+          or text:match("^[/%!]battles%s*$")
+        local wants_cancel = text:match("^[/%!]cancel%s*$")
+          or text:match("^[/%!]uninvite%s*$")
+        local share_tgt = text:match("^[/%!]share%s+(%S+)$")
+          or text:match("^[/%!]sharepos%s+(%S+)$")
+        local wants_share_last = text:match("^[/%!]share%s*$")
+          or text:match("^[/%!]sharepos%s*$")
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
@@ -1384,6 +1441,48 @@ function Overworld:keypressed(key)
             Network.lastemote()
           else
             Network.send({ type = "lastemote" })
+          end
+        elseif wants_lastinvite then
+          if Network.lastinvite then
+            Network.lastinvite()
+          else
+            Network.send({ type = "lastinvite" })
+          end
+        elseif wants_accept then
+          if Network.accept_invite then
+            Network.accept_invite()
+          else
+            Network.send({ type = "accept" })
+          end
+        elseif wants_decline then
+          if Network.decline_invite then
+            Network.decline_invite()
+          else
+            Network.send({ type = "decline" })
+          end
+        elseif wants_fighting then
+          if Network.fighting then
+            Network.fighting()
+          else
+            Network.send({ type = "fighting" })
+          end
+        elseif wants_cancel then
+          if Network.cancel_invite then
+            Network.cancel_invite()
+          else
+            Network.send({ type = "cancel" })
+          end
+        elseif share_tgt and share_tgt ~= "" then
+          if Network.share then
+            Network.share(share_tgt)
+          else
+            Network.send({ type = "share", to = share_tgt })
+          end
+        elseif wants_share_last then
+          if Network.share then
+            Network.share("@last")
+          else
+            Network.send({ type = "share", to = "@last" })
           end
         elseif wants_stuck then
           Network.send({ type = "stuck" })

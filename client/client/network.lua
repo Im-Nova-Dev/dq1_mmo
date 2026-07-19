@@ -293,6 +293,33 @@ function Network.lastemote()
   return Network.send({ type = "lastemote" })
 end
 
+function Network.lastinvite()
+  return Network.send({ type = "lastinvite" })
+end
+
+function Network.accept_invite()
+  return Network.send({ type = "accept" })
+end
+
+function Network.decline_invite()
+  return Network.send({ type = "decline" })
+end
+
+function Network.fighting()
+  return Network.send({ type = "fighting" })
+end
+
+function Network.cancel_invite()
+  return Network.send({ type = "cancel" })
+end
+
+function Network.share(to_name)
+  if to_name == nil or tostring(to_name) == "" then
+    return Network.send({ type = "share", to = "@last" })
+  end
+  return Network.send({ type = "share", to = tostring(to_name) })
+end
+
 function Network.look(name_or_id)
   if name_or_id == nil or name_or_id == "" then
     -- bare look → server examines self

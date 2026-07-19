@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.92-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-431-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.96-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-448-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.92 · **431** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.96 · **448** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.92):** **`/invite Name`** · **`/meet @last`** · **`/busy` · `/lastemote` · `/wave @last`** · **`/who` · `/near`** show AFK & combat counts · starter clothes + herbs · no emotes mid-fight.
+**Recent for players/ops (v0.5.96):** full meetup loop — **`/invite` · `/share` · `/accept` · `/decline` · `/cancel`** · **`/fighting`** · **`/busy` · `/wave @last`** · starter clothes + herbs · **448** tests.
 
 ---
 
@@ -35,7 +35,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/meet`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/share` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
 | **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
@@ -147,7 +147,12 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line)
 | **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** | List emotes, perform one, or direct an emote at a hero |
 | **/lastemote** | See who your last directed emote targeted |
-| **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — they get a toast with your zone |
+| **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — they get a toast with your zone · **/accept** or **/decline** |
+| **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite you received (one answer only) |
+| **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice) |
+| **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) |
+| **/lastinvite** | Who last invited you |
+| **/fighting** · **/combats** | List nearby heroes currently in combat |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
 | **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
@@ -170,6 +175,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
 | **/find afk** · **/find afk:yes** | List heroes marked AFK (combine with `zone:…`) |
+| **/find combat:yes** · **/find fighting** | List heroes currently in combat (no map positions) |
 | **/find idle** · **/find idle:yes** | List idle heroes (AFK or soft timeout) |
 | **/help** or **?** | Server list of commands / keys |
 | **/ignore Name** | Mute chat/emotes from that hero |
@@ -294,7 +300,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 431 passed
+# expect: 448 passed
 ```
 
 ---
@@ -308,7 +314,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.92** · **431** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.96** · **448** tests).
 
 | Do | Don’t |
 |:---|:------|

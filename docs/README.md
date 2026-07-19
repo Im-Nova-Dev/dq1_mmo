@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.92** (2026-07-19) · suite **431** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `11f9704` (v0.5.89) · local **0.5.90–0.5.92** · README re-polished for GitHub
+**Last docs refresh:** **v0.5.96** (2026-07-19) · suite **448** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `824e15b` (v0.5.92) · local **0.5.93–0.5.96** · README dual tips + audience callout
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -81,9 +81,10 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
 - **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · emote shortcuts (`/bow`, …)
-- **`/invite Name`** · **`/meet @last`** — private meetup invite (not a party)
-- **`/busy`** AFK alias · **`/near` · `/who`** show AFK and nearby combat counts
-- **`/zone`** show in-zone AFK counts
+- **Meetup loop (not a party):** **`/invite` · `/share` · `/accept` · `/decline` · `/cancel` · `/lastinvite`**
+- **`/fighting`** — nearby heroes in combat · **`/busy`** AFK alias
+- **`/near` · `/who` · `/zone`** show AFK / combat censuses
+- Safer multiplayer IDs · invite one-answer hygiene · clean dice sizes
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, walk, or `/stuck`
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up (plus reason if set)

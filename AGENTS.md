@@ -17,20 +17,19 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · directed emotes · emote shortcuts (`/wave`) · last-emote · busy AFK · meetup invite (`/invite`) · nearby_combat census · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
+| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share location · fighting peek · nearby_combat census · AFK notices · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.92` (`server/config.py` → `VERSION`) · **431** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.96` (`server/config.py` → `VERSION`) · **448** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.92** / **431** until the suite or `VERSION` changes.  
-Last **pushed** ship: `11f9704` (v0.5.89). Local tree includes **0.5.90–0.5.92** uncommitted (invite · busy · lastemote · ID/AFK reliability).  
-**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.92 / 431** · re-verified human ≠ agent trees · README GitHub polish (journey diagram · 5-pillar strip · first-hour tip) · leak-scan clean · protocol / reliability / test matrix **only** in this file.
+Keep badges at **0.5.96** / **448** until the suite or `VERSION` changes.  
+Last **pushed** ship: `824e15b` (v0.5.92). Local tree includes **0.5.93–0.5.96** uncommitted.  
+**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
 
 ## Documentation map (do not mix)
 
@@ -135,6 +134,12 @@ All messages are JSON objects with a `type` string.
 | `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
 | `busy` | optional reason | AFK alias (same as `afk`/`away`). |
 | `invite` / `meet` / `beckon` / `come` | `to`/`to_id` or `@last` | Private meetup invite (zone; coords only if nearby). Not a party. Chat-rate. |
+| `cancel` / `uninvite` / `invite_cancel` | — | Cancel your last outgoing invite. Chat-rate. |
+| `share` / `sharepos` | `to`/`to_id` or `@last` | Private share of your zone + coords. Chat-rate. |
+| `lastinvite` / `last_invite` | — | Who last invited you (soft-grace). Rate-exempt. |
+| `accept` / `coming` / `invite_accept` | — | Private reply to last inviter “is coming”. Chat-rate. |
+| `decline` / `later` / `invite_decline` | — | Private decline of last invite. Chat-rate. |
+| `fighting` / `combats` / `battles` | — | Nearby combat roster + count. Rate-exempt. |
 | `who` / `players` / `online_list` | — | Nearby players + `online` + `afk_count` + `nearby_combat` + `zones`; lightweight |
 | `look` / `examine` / `inspect` / `profile` / `card` / `player_info` | `name` or `player_id` | Public card; coords only if nearby. Bare → self. Rate-exempt. |
 | `zone` / `where` / `mapinfo` / `whereami` / `coords` | — | Self zone + x/y + same-zone roster + zone counts. Rate-exempt. |
@@ -376,6 +381,22 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 179. **Meetup invite:** `invite`/`meet`/`beckon`/`come` — validate self/offline/ignore/ambiguous **before** `allow_chat`; private `invite` payload; coords only if target in AOI; echo may set `target_afk`; notes whisper peer for `/invite @last`; send fail → `refund_chat`.
 180. Client wires `/busy`, `/lastemote`, `/invite`, census toasts (`nearby_combat` / AFK counts).
 181. Tests: `test_features_v0592`.
+182. **Invite memory:** successful invite → `note_invite_from` on target; soft-grace restores `last_invite_from_*`.
+183. **`accept`/`coming` · `decline`/`later`:** answer last invite privately (`invite_reply`); validate offline/ignore before rate; send fail → `refund_chat`; failed accept with no invite does not burn AFK.
+184. **`fighting` peek:** nearby in-combat public cards + `nearby_combat`; **`zone_combat`** on `/zone`.
+185. Tests: `test_mp_reliability_v0593` + `test_features_v0593`.
+186. **Accept/decline consume invite** (`clear_last_invite`) after successful delivery — no double-accept spam.
+187. **Accept** notes whisper peers both ways so `/r` works after meetup accept.
+188. **Roll sides:** reject non-integer floats (`2.7`) and bools before `allow_chat` (no AFK clear).
+189. Tests: `test_adversarial_hunt_v0594`.
+190. **Invite cancel:** `cancel`/`uninvite` — inviter clears `last_invite_to`; notifies target; clears target’s pending invite if still from inviter.
+191. **Location share:** `share`/`sharepos` — private zone+coords to a player (whisper privacy); `@last` uses whisper/emote/invite peers; notes `/r` both ways; send fail → `refund_chat`.
+192. Accept/decline also clears inviter’s `last_invite_to` when it points at acceptor.
+193. Tests: `test_features_v0595`.
+194. **`combat_count`:** live sockets with `in_combat` on who/counts/pong/online/health (alongside engine `combats`).
+195. **Find `combat:yes|no`** / bare `fighting` filter (no coords); invalid → `invalid combat filter`.
+196. **Cancel after accept:** only notifies guest if their `last_invite_from` still points at inviter (no spam cancel).
+197. Tests: `test_mp_reliability_v0596`.
 
 ## Tests (mandatory for your changes)
 
@@ -474,6 +495,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_v0590` | wave self/offline/ignore no rate; combat gate; peeks then wave |
 | `tests.test_adversarial_hunt_v0591` | bool/float id traps; AFK non-str; lastemote offline; peek storm; combat matrix |
 | `tests.test_features_v0592` | meetup invite; ignore gate; @last; help; busy; bool to_id |
+| `tests.test_mp_reliability_v0593` | fighting peek; zone_combat; accept/decline; soft lastinvite; whisper |
+| `tests.test_features_v0593` | unauth peeks; failed accept keeps AFK; help |
+| `tests.test_adversarial_hunt_v0594` | double accept blocked; accept→/r; float roll sides; fighting self; ignore accept |
+| `tests.test_features_v0595` | cancel invite; share location; share ignore; help |
+| `tests.test_mp_reliability_v0596` | combat_count census; find combat filter; cancel after accept; share/whisper |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

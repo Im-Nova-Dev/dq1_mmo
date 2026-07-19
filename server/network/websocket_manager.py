@@ -208,12 +208,18 @@ class ConnectionManager:
         last_name = meta.get("last_whisper_from_name")
         last_emote_id = meta.get("last_emote_to_id")
         last_emote_name = meta.get("last_emote_to_name")
+        last_invite_id = meta.get("last_invite_from_id")
+        last_invite_name = meta.get("last_invite_from_name")
+        last_invite_to_id = meta.get("last_invite_to_id")
+        last_invite_to_name = meta.get("last_invite_to_name")
         if (
             repel <= 0
             and radiant <= 0
             and not ignore
             and not last_from
             and not last_emote_id
+            and not last_invite_id
+            and not last_invite_to_id
         ):
             self._soft_grace.pop(character_id, None)
             return
@@ -226,6 +232,10 @@ class ConnectionManager:
             "last_whisper_from_name": last_name,
             "last_emote_to_id": last_emote_id,
             "last_emote_to_name": last_emote_name,
+            "last_invite_from_id": last_invite_id,
+            "last_invite_from_name": last_invite_name,
+            "last_invite_to_id": last_invite_to_id,
+            "last_invite_to_name": last_invite_to_name,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
         }
 
@@ -255,6 +265,10 @@ class ConnectionManager:
                 grace_whisper_name = old_meta.get("last_whisper_from_name")
                 grace_emote_id = old_meta.get("last_emote_to_id")
                 grace_emote_name = old_meta.get("last_emote_to_name")
+                grace_invite_id = old_meta.get("last_invite_from_id")
+                grace_invite_name = old_meta.get("last_invite_from_name")
+                grace_invite_to_id = old_meta.get("last_invite_to_id")
+                grace_invite_to_name = old_meta.get("last_invite_to_name")
             else:
                 bag = self._take_soft_grace(character_id)
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
@@ -265,6 +279,10 @@ class ConnectionManager:
                 grace_whisper_name = bag.get("last_whisper_from_name")
                 grace_emote_id = bag.get("last_emote_to_id")
                 grace_emote_name = bag.get("last_emote_to_name")
+                grace_invite_id = bag.get("last_invite_from_id")
+                grace_invite_name = bag.get("last_invite_from_name")
+                grace_invite_to_id = bag.get("last_invite_to_id")
+                grace_invite_to_name = bag.get("last_invite_to_name")
 
             if old is not None and old is not websocket:
                 try:
@@ -319,6 +337,10 @@ class ConnectionManager:
                 "last_whisper_from_name": grace_whisper_name,
                 "last_emote_to_id": grace_emote_id,
                 "last_emote_to_name": grace_emote_name,
+                "last_invite_from_id": grace_invite_id,
+                "last_invite_from_name": grace_invite_name,
+                "last_invite_to_id": grace_invite_to_id,
+                "last_invite_to_name": grace_invite_to_name,
                 "afk": False,  # manual /afk — cleared on back / activity
                 "afk_since": None,  # monotonic when /afk set (for afk_for peeks)
                 "afk_message": None,  # optional status text while AFK
@@ -422,6 +444,15 @@ class ConnectionManager:
                 n += 1
         return n
 
+    def combat_count(self) -> int:
+        """How many live sockets are currently in combat (multiplayer census)."""
+        n = 0
+        for cid in self._connections:
+            meta = self._meta.get(cid)
+            if meta and meta.get("in_combat"):
+                n += 1
+        return n
+
     def nearby_afk_count(self, character_id: int) -> int:
         """AFK peers currently in geometric AOI (excludes self)."""
         n = 0
@@ -445,6 +476,32 @@ class ConnectionManager:
         for oid in self.ids_nearby(character_id):
             meta = self._meta.get(oid)
             if meta and meta.get("in_combat") and oid in self._connections:
+                n += 1
+        return n
+
+    def nearby_combat_roster(self, character_id: int) -> list[dict[str, Any]]:
+        """Public cards for AOI peers currently in combat (excludes self)."""
+        out: list[dict[str, Any]] = []
+        for oid in self.ids_nearby(character_id):
+            meta = self._meta.get(oid)
+            if not meta or oid not in self._connections:
+                continue
+            if not meta.get("in_combat"):
+                continue
+            out.append(_online_card(meta))
+        out.sort(
+            key=lambda p: (
+                str(p.get("name") or "").lower(),
+                int(p.get("id") or 0),
+            )
+        )
+        return out
+
+    def zone_combat_count(self, character_id: int, *, include_self: bool = True) -> int:
+        """In-combat players in the same zone type as character_id."""
+        n = 0
+        for card in self.zone_roster(character_id, include_self=include_self):
+            if card.get("in_combat"):
                 n += 1
         return n
 
@@ -472,6 +529,7 @@ class ConnectionManager:
             "type": "online",
             "online": len(self._connections),
             "afk_count": self.afk_count(),
+            "combat_count": self.combat_count(),
             "roster": self.online_roster(),
             "zones": self.zone_counts(),
         }
@@ -797,6 +855,67 @@ class ConnectionManager:
         meta["last_emote_to_id"] = int(target_id)
         if target_name:
             meta["last_emote_to_name"] = str(target_name)[:24]
+
+    def note_invite_from(
+        self, listener_id: int, inviter_id: int, inviter_name: str | None = None
+    ) -> None:
+        """Remember last meetup inviter for /accept · /lastinvite after reconnect."""
+        meta = self._meta.get(listener_id)
+        if meta is None:
+            return
+        meta["last_invite_from_id"] = int(inviter_id)
+        if inviter_name:
+            meta["last_invite_from_name"] = str(inviter_name)[:24]
+
+    def last_invite_from(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_invite_from_id")
+        name = meta.get("last_invite_from_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
+    def clear_last_invite(self, character_id: int) -> None:
+        """Drop pending meetup invite after accept/decline (prevents spam replies)."""
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return
+        meta["last_invite_from_id"] = None
+        meta["last_invite_from_name"] = None
+
+    def note_invite_to(
+        self, inviter_id: int, target_id: int, target_name: str | None = None
+    ) -> None:
+        """Remember last invite target so inviter can /cancel."""
+        meta = self._meta.get(inviter_id)
+        if meta is None:
+            return
+        meta["last_invite_to_id"] = int(target_id)
+        if target_name:
+            meta["last_invite_to_name"] = str(target_name)[:24]
+
+    def last_invite_to(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_invite_to_id")
+        name = meta.get("last_invite_to_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
+    def clear_last_invite_to(self, character_id: int) -> None:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return
+        meta["last_invite_to_id"] = None
+        meta["last_invite_to_name"] = None
 
     def last_emote_to(self, character_id: int) -> tuple[int | None, str | None]:
         meta = self._meta.get(character_id)
@@ -1187,13 +1306,15 @@ class ConnectionManager:
         zone: str | None = None,
         afk: bool | None = None,
         idle: bool | None = None,
+        combat: bool | None = None,
     ) -> list[dict[str, Any]]:
         """Case-insensitive name prefix search over online roster (no coordinates).
 
         Optional zone filter: town | field | dungeon (never returns x/y).
         Optional afk filter: True = only AFK, False = only not-AFK, None = all.
         Optional idle filter: True = only idle (soft or AFK), False = active only.
-        Empty prefix + zone/afk/idle lists matching online heroes.
+        Optional combat filter: True = only in combat, False = not fighting.
+        Empty prefix + zone/afk/idle/combat lists matching online heroes.
         """
         key = ""
         if isinstance(prefix, str):
@@ -1208,8 +1329,14 @@ class ConnectionManager:
             else:
                 # Invalid zone → no hits (caller may surface error)
                 return []
-        # Need a name prefix and/or a valid zone/afk/idle filter
-        if not key and zone_key is None and afk is None and idle is None:
+        # Need a name prefix and/or a valid zone/afk/idle/combat filter
+        if (
+            not key
+            and zone_key is None
+            and afk is None
+            and idle is None
+            and combat is None
+        ):
             return []
         try:
             lim = int(limit)
@@ -1233,6 +1360,8 @@ class ConnectionManager:
             if afk is not None and bool(card.get("afk")) is not bool(afk):
                 continue
             if idle is not None and bool(card.get("idle")) is not bool(idle):
+                continue
+            if combat is not None and bool(card.get("in_combat")) is not bool(combat):
                 continue
             hits.append(card)
         hits.sort(
