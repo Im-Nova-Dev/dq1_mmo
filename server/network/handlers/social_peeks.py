@@ -206,20 +206,39 @@ async def handle(
         return character_id, user_id, outbound, None
 
     if msg_type in LASTINVITE_TYPES:
-        lid, lname = manager.last_invite_from(character_id)
-        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
-        online = bool(peer and peer.get("online"))
-        if peer:
-            li_msg = f"Last invite from: {peer['name']}{peer_status_suffix(peer)}"
+        # Bidirectional like lastshare/lastemote: from = invited you, to = you invited
+        from_id, from_name = manager.last_invite_from(character_id)
+        to_id, to_name = manager.last_invite_to(character_id)
+        from_peer = social_peer_card(
+            manager, from_id, from_name, viewer_id=character_id
+        )
+        to_peer = social_peer_card(manager, to_id, to_name, viewer_id=character_id)
+        bits_li: list[str] = []
+        if from_peer:
+            bits_li.append(
+                f"from {from_peer['name']}" + peer_status_suffix(from_peer)
+            )
+        if to_peer:
+            bits_li.append(f"to {to_peer['name']}" + peer_status_suffix(to_peer))
+        if bits_li:
+            li_msg = "Last invite · " + " · ".join(bits_li)
         else:
             li_msg = "No meetup invite yet."
+        # Back-compat: peer prefers incoming (from), else outgoing (to)
+        peer = from_peer or to_peer
+        online = bool(peer and peer.get("online"))
         outbound.append(
-            msg(
-                "lastinvite",
-                peer=peer,
-                online=online,
-                message=li_msg,
-            )
+            {
+                "type": "lastinvite",
+                "peer": peer,
+                "from": from_peer,
+                "from_peer": from_peer,
+                "to": to_peer,
+                "online": online,
+                "has_from": from_peer is not None,
+                "has_to": to_peer is not None,
+                "message": li_msg,
+            }
         )
         return character_id, user_id, outbound, None
 

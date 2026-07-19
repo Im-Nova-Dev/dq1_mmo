@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.120-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-617-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.121-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-623-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.120 · **617** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.121 · **623** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.120):** brief disconnect restores **share**, **wave/emote**, and **meetup invite** partners together (plus mute list, last whisper, buffs) · welcome may note what came back · **617** tests.
+**Recent for players/ops (v0.5.121):** **`/lastinvite`** shows both directions — who invited you **and** who you invited (near/far) · soft reconnect still keeps meetup memory · **623** tests.
 
 ---
 
@@ -156,7 +156,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/askwhere Name** · **/locate @last** | Ask them where they are — they can **/share @last** to answer |
 | **/thank Name** · **/ty @last** | Private thanks (handy after someone shares a location) |
 | **/poke Name** · **/nudge @last** | Private “trying to get your attention” (not a party) |
-| **/lastinvite** | Who last invited you |
+| **/lastinvite** | Who last invited you **and** who you last invited (near/far when online) |
 | **/pending** · **/invites** · **/meetup** | Pending meetup invites (incoming + outgoing) |
 | **/social** · **/peers** | Whisper · invite · emote peers (online/offline) |
 | **/find @pending** · **/find @last** | Find your meetup or last social peer online |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 617 passed
+# expect: 623 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.120** · **617** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.121** · **623** tests).
 
 | Do | Don’t |
 |:---|:------|
