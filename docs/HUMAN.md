@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.100-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-472-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.103-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-494-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.100 · **472** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.103 · **494** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.100):** Meetup invites stay clean across brief disconnects (cancel / answer while offline no longer leaves a ghost invite) · **`/thank`** · **472** tests.
+**Recent for players/ops (v0.5.103):** Cancel/retarget never pings people who muted you · invite-replaced notices · **`/pending`** · **494** tests.
 
 ---
 
@@ -35,7 +35,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/share` · `/askwhere` · `/thank` · `/poke` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/pending` · `/share` · `/askwhere` · `/thank` · `/poke` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
 | **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
@@ -155,6 +155,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/thank Name** · **/ty @last** | Private thanks (handy after someone shares a location) |
 | **/poke Name** · **/nudge @last** | Private “trying to get your attention” (not a party) |
 | **/lastinvite** | Who last invited you |
+| **/pending** · **/invites** · **/meetup** | Pending meetup invites (incoming + outgoing) |
 | **/fighting** · **/combats** | List nearby heroes currently in combat |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
 | **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
@@ -304,7 +305,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 472 passed
+# expect: 494 passed
 ```
 
 ---
@@ -318,7 +319,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.100** · **472** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.103** · **494** tests).
 
 | Do | Don’t |
 |:---|:------|

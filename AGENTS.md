@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.100` (`server/config.py` → `VERSION`) · **472** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.103` (`server/config.py` → `VERSION`) · **494** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.100** / **472** until the suite or `VERSION` changes.  
-Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.100** uncommitted.  
+Keep badges at **0.5.103** / **494** until the suite or `VERSION` changes.  
+Last **pushed** ship: `3a5c5c2` (v0.5.98). Local tree includes **0.5.103** uncommitted.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.100 / 472** · soft-grace invite hygiene · protocol / reliability / test matrix **only** in this file.
+Docs pass (**this run**): badges **0.5.103 / 472** · soft-grace invite hygiene · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -141,6 +141,7 @@ All messages are JSON objects with a `type` string.
 | `thank` / `thanks` / `ty` / `thx` | `to`/`to_id` or `@last` | Private thanks. Chat-rate. |
 | `poke` / `nudge` / `hey` / `attention` / `tap` | `to`/`to_id` or `@last` | Private attention ping. Chat-rate. |
 | `lastinvite` / `last_invite` | — | Who last invited you (soft-grace). Rate-exempt. |
+| `pending` / `invites` / `meetup` | — | Incoming + outgoing meetup pointers. Rate-exempt. |
 | `accept` / `coming` / `invite_accept` | — | Private reply to last inviter “is coming”. Chat-rate. |
 | `decline` / `later` / `invite_decline` | — | Private decline of last invite. Chat-rate. |
 | `fighting` / `combats` / `battles` | — | Nearby combat roster + count. Rate-exempt. |
@@ -415,6 +416,18 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 209. **Cancel:** always `clear_invite_from_peer(target, self)` (zombie-safe when guest offline).
 210. **Offline accept/decline:** `clear_last_invite` + `clear_invite_to_peer(inviter, self)`.
 211. Tests: `test_adversarial_hunt_v05100`.
+212. **`note_invite_from`:** if guest already had another inviter, `clear_invite_to_peer(old, guest)`.
+213. **`note_invite_to`:** if inviter re-targets, `clear_invite_from_peer(old_guest, inviter)`.
+214. **`pending`/`invites`/`meetup`:** rate-exempt peek of incoming+outgoing meetup pointers.
+215. Tests: `test_features_v05101` + `test_mp_reliability_v05101`.
+216. **Invite deliver:** note whisper peers **both** ways (guest `/r` before accept).
+217. **`invite_superseded`:** when `note_invite_from` replaces inviter, notify previous inviter if online.
+218. **Retarget invite:** `note_invite_to` previous guest gets `invite_cancel` reason=retarget if online.
+219. **`purge_expired_soft_grace`:** clear peer invite pointers for expired bags (to/from).
+220. Tests: `test_features_v05102` + `test_mp_reliability_v05102`.
+221. **Cancel / retarget notify:** skip send when `is_ignored_by(target, self)`; still clear pointers.
+222. **Supersede notify:** skip if previous inviter ignores current inviter.
+223. Tests: `test_adversarial_hunt_v05103`.
 
 ## Tests (mandatory for your changes)
 

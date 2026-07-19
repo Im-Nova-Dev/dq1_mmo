@@ -1010,6 +1010,7 @@ async def handle_message(
                     {"cmd": "accept", "hint": "/accept · /coming — reply to last invite"},
                     {"cmd": "decline", "hint": "/decline · /later — decline last invite"},
                     {"cmd": "lastinvite", "hint": "/lastinvite — who invited you last"},
+                    {"cmd": "pending", "hint": "/pending · /invites — pending meetup in + out"},
                     {"cmd": "share", "hint": "/share Name — privately share your zone + coords"},
                     {"cmd": "poke", "hint": "/poke Name · /nudge @last — get their attention"},
                     {"cmd": "askwhere", "hint": "/askwhere Name · /locate @last — ask them to /share"},
@@ -1374,12 +1375,43 @@ async def handle_message(
             )
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        # Remember as social peer for /r and /invite @last
+        # Both sides track social peer for /r · /thank @last after invite
         manager.note_whisper_from(character_id, target_id, tname)
+        manager.note_whisper_from(target_id, character_id, name)
         # Target remembers inviter for /accept · /lastinvite (soft-grace)
-        manager.note_invite_from(target_id, character_id, name)
+        prev_inviter = manager.note_invite_from(target_id, character_id, name)
         # Inviter remembers target for /cancel
-        manager.note_invite_to(character_id, target_id, tname)
+        prev_guest = manager.note_invite_to(character_id, target_id, tname)
+        # Multiplayer hygiene: notify peers whose pending invite was replaced
+        if prev_inviter is not None and prev_inviter in manager.online_ids():
+            # Informational about the guest — still skip if they muted us (no spam)
+            if not manager.is_ignored_by(prev_inviter, character_id):
+                await manager.send(
+                    prev_inviter,
+                    {
+                        "type": "invite_superseded",
+                        "to": tname,
+                        "to_id": target_id,
+                        "message": f"{tname} received another meetup invite.",
+                    },
+                )
+        if prev_guest is not None and prev_guest in manager.online_ids():
+            # Respect ignore: do not push cancel toast to someone who muted us
+            if not manager.is_ignored_by(prev_guest, character_id):
+                prev_meta = manager.get_meta(prev_guest)
+                prev_name = (prev_meta or {}).get("name") or "Hero"
+                await manager.send(
+                    prev_guest,
+                    {
+                        "type": "invite_cancel",
+                        "from": name,
+                        "from_id": character_id,
+                        "to": prev_name,
+                        "to_id": prev_guest,
+                        "message": f"{name} cancelled their meetup invite.",
+                        "reason": "retarget",
+                    },
+                )
         echo = dict(invite_msg)
         echo["message"] = f"Invite sent to {tname}."
         target_afk = bool((tmeta or {}).get("afk"))
@@ -1427,19 +1459,22 @@ async def handle_message(
             # (prevents spam cancel after accept/decline)
             from_id, _ = manager.last_invite_from(tid)
             if from_id == character_id:
-                cancel_msg = {
-                    "type": "invite_cancel",
-                    "from": name,
-                    "from_id": character_id,
-                    "to": live_name,
-                    "to_id": tid,
-                    "message": f"{name} cancelled their meetup invite.",
-                }
-                sid_c = manager.session_id(character_id)
-                if sid_c is not None:
-                    cancel_msg["session_id"] = sid_c
-                await manager.send(tid, cancel_msg)
-                notified = True
+                # Do not push cancel to someone who ignores us (mute hygiene)
+                if not manager.is_ignored_by(tid, character_id):
+                    cancel_msg = {
+                        "type": "invite_cancel",
+                        "from": name,
+                        "from_id": character_id,
+                        "to": live_name,
+                        "to_id": tid,
+                        "message": f"{name} cancelled their meetup invite.",
+                    }
+                    sid_c = manager.session_id(character_id)
+                    if sid_c is not None:
+                        cancel_msg["session_id"] = sid_c
+                    await manager.send(tid, cancel_msg)
+                    notified = True
+                # still clear their pending pointer even if muted
         # Always drop peer pointer (live + soft-grace) so offline guests
         # do not rehydrate a zombie invite after reconnect.
         manager.clear_invite_from_peer(tid, character_id)
@@ -2014,6 +2049,65 @@ async def handle_message(
                     if peer
                     else "No meetup invite yet."
                 ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Pending meetup invites (incoming + outgoing peek) ---
+    if msg_type in ("pending", "invites", "meetup", "invite_status", "pending_invites"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+
+        def _peer_card(pid: int | None, pname: str | None) -> dict | None:
+            if pid is None:
+                return None
+            online = manager.is_online(pid)
+            pmeta = manager.get_meta(pid) if online else None
+            card = {
+                "id": pid,
+                "name": pname or (pmeta or {}).get("name") or "Hero",
+                "online": online,
+                "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
+            }
+            if pmeta is not None:
+                psid = pmeta.get("session_id")
+                if psid is not None:
+                    card["session_id"] = psid
+                if card["afk"]:
+                    pam = pmeta.get("afk_message")
+                    if isinstance(pam, str) and pam.strip():
+                        card["afk_message"] = pam.strip()[:48]
+            return card
+
+        from_id, from_name = manager.last_invite_from(character_id)
+        to_id, to_name = manager.last_invite_to(character_id)
+        incoming = _peer_card(from_id, from_name)
+        outgoing = _peer_card(to_id, to_name)
+        bits: list[str] = []
+        if incoming:
+            bits.append(
+                f"from {incoming['name']}"
+                + (" (online)" if incoming.get("online") else " (offline)")
+            )
+        if outgoing:
+            bits.append(
+                f"to {outgoing['name']}"
+                + (" (online)" if outgoing.get("online") else " (offline)")
+            )
+        if bits:
+            message = "Pending meetup · " + " · ".join(bits)
+        else:
+            message = "No pending meetup invites."
+        outbound.append(
+            msg(
+                "pending",
+                incoming=incoming,
+                outgoing=outgoing,
+                has_incoming=incoming is not None,
+                has_outgoing=outgoing is not None,
+                message=message,
             )
         )
         return character_id, user_id, outbound, None

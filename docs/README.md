@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.100** (2026-07-19) · suite **472** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish · `/thank` · offline invite clear · last push `3a5c5c2` (v0.5.98)
+**Last docs refresh:** **v0.5.103** (2026-07-19) · suite **494** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · README GitHub polish · `/thank` · offline invite clear · last push `3a5c5c2` (v0.5.98)
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -81,7 +81,7 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
 - **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · emote shortcuts (`/bow`, …)
-- **Meetup loop (not a party):** **`/invite` · `/share` · `/askwhere` · `/thank` · `/accept` · `/decline` · `/cancel` · `/lastinvite`**
+- **Meetup loop (not a party):** **`/invite` · `/share` · `/askwhere` · `/thank` · `/accept` · `/decline` · `/cancel` · `/lastinvite` · `/pending`**
 - **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
 - **`/thank` · `/ty @last`** — private thanks (handy after a share)
 - Stuck meetup invites **clear** if you answer while the inviter is offline · cancel while offline clears soft-reconnect ghosts

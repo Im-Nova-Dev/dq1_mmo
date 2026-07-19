@@ -560,6 +560,10 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "Invite cancelled."), "info")
   end)
 
+  Network.on("invite_superseded", function(data)
+    UI.toast(tostring(data.message or "Your meetup invite was replaced."), "info")
+  end)
+
   Network.on("share", function(data)
     local line = data.message
     if not line or line == "" then
@@ -622,6 +626,10 @@ local function bind_handlers(self)
 
   Network.on("lastinvite", function(data)
     UI.toast(tostring(data.message or "No meetup invite yet."), "info")
+  end)
+
+  Network.on("pending", function(data)
+    UI.toast(tostring(data.message or "No pending meetup invites."), "info")
   end)
 
   Network.on("fighting", function(data)
@@ -1323,6 +1331,9 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]beckon%s*$")
         local wants_lastinvite = text:match("^[/%!]lastinvite%s*$")
           or text:match("^[/%!]last_invite%s*$")
+        local wants_pending = text:match("^[/%!]pending%s*$")
+          or text:match("^[/%!]invites%s*$")
+          or text:match("^[/%!]meetup%s*$")
         local wants_accept = text:match("^[/%!]accept%s*$")
           or text:match("^[/%!]coming%s*$")
           or text:match("^[/%!]yes%s*$")
@@ -1532,6 +1543,12 @@ function Overworld:keypressed(key)
             Network.lastinvite()
           else
             Network.send({ type = "lastinvite" })
+          end
+        elseif wants_pending then
+          if Network.pending then
+            Network.pending()
+          else
+            Network.send({ type = "pending" })
           end
         elseif wants_accept then
           if Network.accept_invite then

@@ -571,7 +571,11 @@ class ConnectionManager:
         await self.broadcast(self._online_payload())
 
     def purge_expired_soft_grace(self) -> int:
-        """Drop expired reconnect soft-state bags. Returns number removed."""
+        """Drop expired reconnect soft-state bags. Returns number removed.
+
+        Also clears peer invite pointers that only lived in the expired bag so
+        multiplayer meetup state cannot zombie after soft-grace timeout.
+        """
         now = time.monotonic()
         dead = [
             cid
@@ -579,7 +583,21 @@ class ConnectionManager:
             if now > float(bag.get("expires") or 0.0)
         ]
         for cid in dead:
-            self._soft_grace.pop(cid, None)
+            bag = self._soft_grace.pop(cid, None) or {}
+            # Outgoing invite: guest must not keep last_invite_from this inviter
+            try:
+                to_id = bag.get("last_invite_to_id")
+                if to_id is not None:
+                    self.clear_invite_from_peer(int(to_id), cid)
+            except (TypeError, ValueError):
+                pass
+            # Incoming invite: inviter must not keep last_invite_to this guest
+            try:
+                from_id = bag.get("last_invite_from_id")
+                if from_id is not None:
+                    self.clear_invite_to_peer(int(from_id), cid)
+            except (TypeError, ValueError):
+                pass
         return len(dead)
 
     def get_meta(self, character_id: int) -> dict[str, Any] | None:
@@ -858,14 +876,36 @@ class ConnectionManager:
 
     def note_invite_from(
         self, listener_id: int, inviter_id: int, inviter_name: str | None = None
-    ) -> None:
-        """Remember last meetup inviter for /accept · /lastinvite after reconnect."""
+    ) -> int | None:
+        """Remember last meetup inviter for /accept · /lastinvite after reconnect.
+
+        If the guest already had a pending invite from someone else, clear that
+        previous inviter's last_invite_to so they do not keep a zombie outgoing
+        pointer after a newer invite overwrites theirs.
+
+        Returns the previous inviter id when superseded (for multiplayer notify).
+        """
         meta = self._meta.get(listener_id)
         if meta is None:
-            return
-        meta["last_invite_from_id"] = int(inviter_id)
+            return None
+        try:
+            new_id = int(inviter_id)
+        except (TypeError, ValueError):
+            return None
+        old_from = meta.get("last_invite_from_id")
+        try:
+            old_i = int(old_from) if old_from is not None else None
+        except (TypeError, ValueError):
+            old_i = None
+        superseded: int | None = None
+        if old_i is not None and old_i != new_id:
+            # Previous inviter no longer has a live pending invite to this guest
+            self.clear_invite_to_peer(old_i, listener_id)
+            superseded = old_i
+        meta["last_invite_from_id"] = new_id
         if inviter_name:
             meta["last_invite_from_name"] = str(inviter_name)[:24]
+        return superseded
 
     def last_invite_from(self, character_id: int) -> tuple[int | None, str | None]:
         meta = self._meta.get(character_id)
@@ -934,14 +974,35 @@ class ConnectionManager:
 
     def note_invite_to(
         self, inviter_id: int, target_id: int, target_name: str | None = None
-    ) -> None:
-        """Remember last invite target so inviter can /cancel."""
+    ) -> int | None:
+        """Remember last invite target so inviter can /cancel.
+
+        If the inviter already had a pending invite to someone else, clear that
+        previous guest's last_invite_from when it still points at this inviter
+        (re-invite without cancel must not leave a zombie on the old guest).
+
+        Returns the previous target id when retargeted (for multiplayer notify).
+        """
         meta = self._meta.get(inviter_id)
         if meta is None:
-            return
-        meta["last_invite_to_id"] = int(target_id)
+            return None
+        try:
+            new_tid = int(target_id)
+        except (TypeError, ValueError):
+            return None
+        old_to = meta.get("last_invite_to_id")
+        try:
+            old_t = int(old_to) if old_to is not None else None
+        except (TypeError, ValueError):
+            old_t = None
+        retargeted: int | None = None
+        if old_t is not None and old_t != new_tid:
+            self.clear_invite_from_peer(old_t, inviter_id)
+            retargeted = old_t
+        meta["last_invite_to_id"] = new_tid
         if target_name:
             meta["last_invite_to_name"] = str(target_name)[:24]
+        return retargeted
 
     def last_invite_to(self, character_id: int) -> tuple[int | None, str | None]:
         meta = self._meta.get(character_id)

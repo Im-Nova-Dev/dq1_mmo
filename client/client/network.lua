@@ -297,6 +297,10 @@ function Network.lastinvite()
   return Network.send({ type = "lastinvite" })
 end
 
+function Network.pending()
+  return Network.send({ type = "pending" })
+end
+
 function Network.accept_invite()
   return Network.send({ type = "accept" })
 end
