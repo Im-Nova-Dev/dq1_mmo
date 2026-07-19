@@ -12,7 +12,7 @@ from auth.google_sso import (
 )
 from auth.jwt_handler import create_access_token, decode_access_token
 from auth.local_auth import hash_password, verify_password
-from database.db import get_db
+from database.db import db_write, get_db
 from models.player import (
     CharacterCreate,
     CharacterOut,
@@ -72,21 +72,25 @@ def _row_to_character(row) -> CharacterOut:
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: UserRegister):
-    db = await get_db()
-    async with db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower(),)) as c:
-        if await c.fetchone():
-            raise HTTPException(status_code=400, detail="Email already registered")
-    async with db.execute("SELECT id FROM users WHERE username = ?", (body.username,)) as c:
-        if await c.fetchone():
-            raise HTTPException(status_code=400, detail="Username already taken")
+    try:
+        password_hash = await hash_password(body.password)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Password too long") from None
 
-    password_hash = await hash_password(body.password)
-    cursor = await db.execute(
-        "INSERT INTO users (email, password_hash, username) VALUES (?, ?, ?)",
-        (body.email.lower(), password_hash, body.username),
-    )
-    await db.commit()
-    user_id = cursor.lastrowid
+    async with db_write() as db:
+        async with db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower(),)) as c:
+            if await c.fetchone():
+                raise HTTPException(status_code=400, detail="Email already registered")
+        async with db.execute("SELECT id FROM users WHERE username = ?", (body.username,)) as c:
+            if await c.fetchone():
+                raise HTTPException(status_code=400, detail="Username already taken")
+
+        cursor = await db.execute(
+            "INSERT INTO users (email, password_hash, username) VALUES (?, ?, ?)",
+            (body.email.lower(), password_hash, body.username),
+        )
+        await db.commit()
+        user_id = cursor.lastrowid
     token = create_access_token(user_id, body.username)
     return TokenResponse(access_token=token, user_id=user_id, username=body.username)
 
@@ -209,15 +213,17 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
     from config import STARTING_GOLD
     from game.world_manager import SPAWN_X, SPAWN_Y
 
-    cursor = await db.execute(
-        """
-        INSERT INTO characters (user_id, name, world_x, world_y, gold)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (user["id"], body.name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
-    )
-    await db.commit()
-    async with db.execute("SELECT * FROM characters WHERE id = ?", (cursor.lastrowid,)) as c:
+    async with db_write() as wdb:
+        cursor = await wdb.execute(
+            """
+            INSERT INTO characters (user_id, name, world_x, world_y, gold)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user["id"], body.name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
+        )
+        await wdb.commit()
+        char_id = cursor.lastrowid
+    async with db.execute("SELECT * FROM characters WHERE id = ?", (char_id,)) as c:
         row = await c.fetchone()
     return _row_to_character(row)
 

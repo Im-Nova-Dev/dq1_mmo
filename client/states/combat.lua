@@ -13,6 +13,7 @@ local Combat = {
   result = nil,
   selected = 1,
   menu = {},
+  waiting = false, -- lock input until server responds
 }
 
 local function push_log(self, text)
@@ -65,14 +66,16 @@ function Combat:enter(payload)
   self.ended = false
   self.result = nil
   self.selected = 1
+  self.waiting = false
   apply_events(self, payload.events)
   rebuild_menu(self)
 
   Network.on("combat_update", function(data)
+    self.waiting = false
     if data.enemy then
       self.enemy = data.enemy
     end
-    if data.player_hp then
+    if data.player_hp ~= nil then
       self.hero.hp = data.player_hp
       self.hero.mp = data.player_mp or self.hero.mp
       self.hero.max_hp = data.player_max_hp or self.hero.max_hp
@@ -89,6 +92,7 @@ function Combat:enter(payload)
   end)
 
   Network.on("combat_end", function(data)
+    self.waiting = false
     self.ended = true
     self.result = data.result
     apply_events(self, data.events)
@@ -110,6 +114,25 @@ function Combat:enter(payload)
   Network.on("level_up", function(data)
     push_log(self, "LEVEL UP! Now level " .. tostring(data.new_level))
   end)
+
+  Network.on("error", function(data)
+    self.waiting = false
+    if data.reason and data.reason ~= "wait for your turn" then
+      self.status = tostring(data.reason)
+    else
+      self.status = "Your turn"
+    end
+  end)
+
+  Network.on("auth_ok", function(data)
+    -- reconnect mid-fight: battle was cleared server-side; return to world
+    if data.character then
+      Session.character = data.character
+    end
+    push_log(self, "Reconnected — battle ended.")
+    self.ended = true
+    self.status = "Reconnected (Enter: continue)"
+  end)
 end
 
 function Combat:leave() end
@@ -119,9 +142,10 @@ function Combat:update(dt)
 end
 
 function Combat:_send(action)
-  if self.ended then
+  if self.ended or self.waiting then
     return
   end
+  self.waiting = true
   if action.type == "attack" then
     Network.send({ type = "attack" })
   elseif action.type == "flee" then

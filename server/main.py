@@ -131,9 +131,11 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
-        if character_id is not None:
+        # Only tear down if this socket still owns the character slot.
+        # Prevents a replaced connection's finally from killing the new session.
+        if character_id is not None and manager.owns(character_id, websocket):
             await handle_disconnect(character_id)
-            left = await manager.disconnect(character_id)
+            left = await manager.disconnect(character_id, websocket)
             if left is not None:
                 await manager.broadcast(
                     msg(ServerMessageType.PLAYER_LEFT, player_id=character_id)

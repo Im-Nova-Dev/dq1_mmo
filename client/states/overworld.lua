@@ -89,24 +89,36 @@ local function bind_handlers(self)
     end
     self.status = "Error: " .. tostring(data.reason)
   end)
+  Network.on("pong", function()
+    -- presence refresh accompanies pong via world_state
+  end)
 end
 
 function Overworld:enter()
+  self.locked = false
+  self.move_cooldown = 0.2
+  bind_handlers(self)
+
+  -- Returning from combat/inventory: keep map, refresh local char position
+  if Network.connected and Network.authenticated then
+    if Session.character then
+      World.set_local(Session.character)
+      if World.local_player then
+        self.zone = zone_name(World.local_player.x, World.local_player.y)
+      end
+    end
+    self.status = "Connected"
+    -- Ask server for nearby players again
+    Network.send({ type = "ping" })
+    return
+  end
+
   World.reset()
   if Session.character then
     World.set_local(Session.character)
     self.zone = zone_name(World.local_player.x, World.local_player.y)
   end
   self.status = "Connecting..."
-  self.locked = false
-  self.move_cooldown = 0
-
-  bind_handlers(self)
-
-  if Network.connected and Network.authenticated then
-    self.status = "Connected"
-    return
-  end
 
   local ok, err = Network.connect(Session.server_ws)
   if ok then

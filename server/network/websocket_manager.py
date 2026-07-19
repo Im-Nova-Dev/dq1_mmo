@@ -26,7 +26,7 @@ class ConnectionManager:
     ) -> None:
         async with self._lock:
             old = self._connections.get(character_id)
-            if old is not None:
+            if old is not None and old is not websocket:
                 try:
                     await old.close(code=4000, reason="Replaced by new connection")
                 except Exception:
@@ -41,13 +41,25 @@ class ConnectionManager:
                 "level": level,
             }
 
-    async def disconnect(self, character_id: int) -> dict[str, Any] | None:
+    async def disconnect(
+        self,
+        character_id: int,
+        websocket: WebSocket | None = None,
+    ) -> dict[str, Any] | None:
+        """Remove connection. If websocket is given, only remove when it still owns the slot
+        (prevents a replaced/stale socket from wiping the new session)."""
         async with self._lock:
+            current = self._connections.get(character_id)
+            if websocket is not None and current is not None and current is not websocket:
+                return None
             self._connections.pop(character_id, None)
             return self._meta.pop(character_id, None)
 
     def is_online(self, character_id: int) -> bool:
         return character_id in self._connections
+
+    def owns(self, character_id: int, websocket: WebSocket) -> bool:
+        return self._connections.get(character_id) is websocket
 
     def online_ids(self) -> list[int]:
         return list(self._connections.keys())
@@ -89,23 +101,24 @@ class ConnectionManager:
         if ws is None:
             return False
         try:
-            await ws.send_text(json.dumps(message))
+            await ws.send_text(json.dumps(message, default=str))
             return True
         except Exception:
-            await self.disconnect(character_id)
+            await self.disconnect(character_id, ws)
             return False
 
     async def broadcast(self, message: dict[str, Any], exclude: int | None = None) -> None:
-        dead: list[int] = []
+        dead: list[tuple[int, WebSocket]] = []
+        payload = json.dumps(message, default=str)
         for cid, ws in list(self._connections.items()):
             if exclude is not None and cid == exclude:
                 continue
             try:
-                await ws.send_text(json.dumps(message))
+                await ws.send_text(payload)
             except Exception:
-                dead.append(cid)
-        for cid in dead:
-            await self.disconnect(cid)
+                dead.append((cid, ws))
+        for cid, ws in dead:
+            await self.disconnect(cid, ws)
 
     async def broadcast_nearby(
         self,
@@ -117,7 +130,8 @@ class ConnectionManager:
         me = self._meta.get(source_id)
         if me is None:
             return
-        dead: list[int] = []
+        dead: list[tuple[int, WebSocket]] = []
+        payload = json.dumps(message, default=str)
         for cid, ws in list(self._connections.items()):
             if cid == source_id and not include_self:
                 continue
@@ -129,11 +143,11 @@ class ConnectionManager:
             if not is_nearby(me["x"], me["y"], other["x"], other["y"]):
                 continue
             try:
-                await ws.send_text(json.dumps(message))
+                await ws.send_text(payload)
             except Exception:
-                dead.append(cid)
-        for cid in dead:
-            await self.disconnect(cid)
+                dead.append((cid, ws))
+        for cid, ws in dead:
+            await self.disconnect(cid, ws)
 
 
 manager = ConnectionManager()

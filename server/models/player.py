@@ -3,13 +3,13 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
-    username: str = Field(min_length=2, max_length=24)
+    password: str = Field(min_length=6, max_length=72)
+    username: str = Field(min_length=2, max_length=24, pattern=r"^[A-Za-z0-9_\-]+$")
 
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=72)
 
 
 class TokenResponse(BaseModel):
@@ -20,7 +20,7 @@ class TokenResponse(BaseModel):
 
 
 class CharacterCreate(BaseModel):
-    name: str = Field(min_length=2, max_length=16)
+    name: str = Field(min_length=2, max_length=16, pattern=r"^[A-Za-z0-9_\- ]+$")
 
 
 class CharacterOut(BaseModel):

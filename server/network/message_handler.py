@@ -94,6 +94,12 @@ async def handle_message(
     connect_meta: dict | None = None
 
     if msg_type == ClientMessageType.PING:
+        # Lightweight presence refresh for clients returning from combat/menus
+        if character_id is not None:
+            nearby = manager.nearby_players(character_id)
+            outbound.append(
+                msg(ServerMessageType.WORLD_STATE, players=nearby, enemies=[], map=map_payload())
+            )
         outbound.append(msg(ServerMessageType.PONG))
         return character_id, user_id, outbound, None
 
@@ -194,6 +200,12 @@ async def handle_message(
                     action = {"type": data.get("action"), "id": spell}
             else:
                 action = {"type": "spell", "id": spell}
+
+        # Only accept actions while awaiting hero input (blocks spam mid-resolve)
+        if battle.phase != "awaiting_hero" or battle.outcome != "ongoing":
+            outbound.append(msg(ServerMessageType.ERROR, reason="wait for your turn"))
+            outbound.append(_combat_update(battle, []))
+            return character_id, user_id, outbound, None
 
         result = battle.act(action)
         if not result["ok"]:
