@@ -83,7 +83,13 @@ def test_double_combat_and_combat_gates(tmp_path, monkeypatch):
                 assert m.get("type") == "error" and m.get("reason") == "in combat", m
 
                 await ws.send(json.dumps({"type": "flee"}))
-                await drain(ws, 0.4)
+                # Wait for battle to fully end before probing post-combat gates
+                # (avoid racing combat_end against a second flee).
+                end = await recv_until(ws, "combat_end", "error")
+                if end.get("type") == "error":
+                    # rare: flee rejected — still must leave combat eventually
+                    await recv_until(ws, "combat_end")
+                await drain(ws, 0.15)
 
                 await ws.send(json.dumps({"type": "flee"}))
                 m = await recv_until(ws, "error", "combat_end")

@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.116** (2026-07-19) · suite **589** tests · bidirectional share · recipient `@share`
+**Last docs refresh:** **v0.5.117** (2026-07-19) · suite **595** tests · `@from` · social peeks module
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

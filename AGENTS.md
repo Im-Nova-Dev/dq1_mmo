@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.116` (`server/config.py` → `VERSION`) · **589** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.117` (`server/config.py` → `VERSION`) · **595** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.116** / **589** until the suite or `VERSION` changes.  
-Last **pushed** ship: `dd658d1` (docs) / `fe19668` (v0.5.115). Shipping **0.5.116**.
+Keep badges at **0.5.117** / **595** until the suite or `VERSION` changes.  
+Last **pushed** ship: `951b55c` (v0.5.116). Shipping **0.5.117**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.116 / 589** · bidirectional share · protocol only here.
+Docs pass (**this run**): badges **0.5.117 / 595** · @from · social_peeks extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -89,6 +89,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/message_handler.py` | All game messages + combat + chat (dispatcher; helpers in `handlers/_common.py`) |
 | `server/network/handlers/_common.py` | Shared message helpers (social aliases, qty parse, private delivery, combat UI msgs) |
 | `server/network/handlers/session.py` | Ping + sync session peeks (extracted) |
+| `server/network/handlers/social_peeks.py` | lastwhisper/social/lastemote/lastshare/lastinvite/pending |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
 | `server/network/presence.py` | Position flush, idle kick, combat grace expiry |
@@ -136,7 +137,7 @@ All messages are JSON objects with a `type` string.
 | `wave` / `bow` / `cheer` / `dance` / `cry` / `laugh` / `point` / `sit` / `think` | optional `to`/`to_id` | Emote shortcuts (same as `emote` + that name); directed + `@last` / `reply` |
 | `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
 | `lastshare` / `last_share` / `who_share` / `share_last` | — | Last share **to** + **from** (soft-grace, near/far). Rate-exempt. |
-| social `to` tokens | `@share` / `@lastshare` | Resolve last share peer for whisper/thank/invite/find/… (not bare `share`) |
+| social `to` tokens | `@share` / `@lastshare` · `@from` / `@sharefrom` | Share to (then from) · share-from only |
 | `busy` | optional reason | AFK alias (same as `afk`/`away`). |
 | `invite` / `meet` / `beckon` / `come` | `to`/`to_id` or `@last` | Private meetup invite (zone; coords only if nearby). Not a party. Chat-rate. |
 | `cancel` / `uninvite` / `invite_cancel` | — | Cancel your last outgoing invite. Chat-rate. |
@@ -468,6 +469,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 257. **`lastshare`:** `to` + `from` cards (`has_to`/`has_from`); back-compat `peer` = to then from.
 258. **`@share` resolve:** last_share_to first, else last_share_from (recipient thank/whisper).
 259. Tests: `test_features_v05116` + `test_mp_reliability_v05116`.
+260. **`handlers/social_peeks.py`:** lastwhisper/social/lastemote/lastshare/lastinvite/pending extracted.
+261. **`@from` / `@sharefrom` / `@sharedby`:** mode `share_from` → `last_share_from` only (not bare `from`).
+262. **`@share`:** still to-first then from; **`@from`:** from only.
+263. Tests: `test_features_v05117` + `test_mp_reliability_v05117`; combat gate flee waits for `combat_end`.
 
 ## Tests (mandatory for your changes)
 
