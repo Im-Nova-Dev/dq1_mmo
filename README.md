@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.126</b> · <b>654</b> tests green · <code>/ignores</code> near/far · soft reconnect · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.126</b> · <b>654</b> tests green · <code>/look</code> near/far · <code>/ignores</code> · soft reconnect · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -68,13 +68,14 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · mute list with near/far · two-way social memory · <b>soft reconnect</b> keeps <code>/played</code> · social peers · mute list.
+  Server-side 1v1 · shop · whisper · meetup · <code>/look</code> with near coords / far zone · mute list · two-way social memory · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
+  <img alt="look" src="https://img.shields.io/badge//look-near_coords_·_far_zone-0ea5e9?style=flat-square" />
   <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far-64748b?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-/played_·_mute_·_social-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
@@ -211,40 +212,51 @@ flowchart LR
 
 <table>
 <tr>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
 
 ### ⏱ Session
 | | |
 |:--|:--|
-| **`/played`** | connection age |
-| **`/session`** | same peek |
+| **`/played`** | age |
+| **`/session`** | same |
 
 <sub>keeps counting</sub>
 
 </td>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
+
+### 👁 Look
+| | |
+|:--|:--|
+| **L** · **`/look`** | examine |
+| near / far | coords / zone |
+
+<sub>plain sentence</sub>
+
+</td>
+<td width="14%" valign="top" align="center">
 
 ### 💬 Whisper
 | | |
 |:--|:--|
 | **`/r`** | reply last |
-| **`/lastwhisper`** | who that is |
+| **`/lastwhisper`** | who |
 
-<sub>near/far badges</sub>
+<sub>near/far</sub>
 
 </td>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
 
 ### 🔇 Mute
 | | |
 |:--|:--|
-| **`/ignore`** | mute a hero |
-| **`/ignores`** | list + near/far |
+| **`/ignore`** | mute |
+| **`/ignores`** | list |
 
-<sub>soft reconnect keeps list</sub>
+<sub>near/far</sub>
 
 </td>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
 
 ### 📍 Share
 | Alias | Means |
@@ -255,7 +267,7 @@ flowchart LR
 <sub>**`/lastshare`**</sub>
 
 </td>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
 
 ### 👋 Wave
 | Alias | Means |
@@ -266,13 +278,13 @@ flowchart LR
 <sub>**`/lastemote`**</sub>
 
 </td>
-<td width="16%" valign="top" align="center">
+<td width="14%" valign="top" align="center">
 
 ### 🤝 Meetup
 | Command | Means |
 |:--------|:------|
-| **`/invite`** | meetup ping |
-| **`/pending`** | open invites |
+| **`/invite`** | meetup |
+| **`/pending`** | invites |
 
 <sub>**`/lastinvite`**</sub>
 
@@ -282,20 +294,34 @@ flowchart LR
 
 <p align="center">
   <img alt="at" src="https://img.shields.io/badge/aliases-always_type_@-6366f1?style=for-the-badge" />
+  <img alt="look" src="https://img.shields.io/badge//look_@emote_·_@share_·_@pending-0ea5e9?style=for-the-badge" />
   <img alt="survive" src="https://img.shields.io/badge//played_·_/ignores_·_social-soft_reconnect-06b6d4?style=for-the-badge" />
 </p>
 
 ```mermaid
+flowchart LR
+  subgraph near ["Nearby hero"]
+    N1["/look Hero"] --> N2["Name · spot coords · AFK"]
+  end
+  subgraph far ["Far online hero"]
+    F1["/look Hero"] --> F2["Name · zone only · no map coords"]
+  end
+  subgraph alias ["Social aliases"]
+    A1["/look @emote"] --> A2["Who you last waved at"]
+  end
+```
+
+```mermaid
 flowchart TB
   subgraph play ["While online"]
-    W["/w · /ignore · /wave · /share · /invite · /played"] --> M[Session + social + mute memory]
+    W["/w · /look · /ignore · /wave · /share · /invite · /played"] --> M[Session + social + mute memory]
   end
   subgraph drop ["Brief disconnect ~1 min"]
     M --> S[Soft reconnect bag]
   end
   subgraph back ["You rejoin"]
     S --> R[Welcome may list Restored]
-    R --> A["/played · /ignores near/far · /r · @emote still work"]
+    R --> A["/played · /ignores · /r · @emote still work"]
   end
 ```
 
@@ -318,7 +344,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.126** | Look/examine modular extract · plain look message · **654** tests |
+| **0.5.126** | Clearer `/look` · near coords · far zone · **654** tests |
 | **0.5.125** | Mute list shows near/far online peers · **648** tests |
 | **0.5.124** | Soft reconnect welcome notes session timer restored · **642** tests |
 | **0.5.123** | Soft reconnect keeps `/played` session age · **635** tests |
