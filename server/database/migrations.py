@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS item_instances (
 
 CREATE INDEX IF NOT EXISTS idx_characters_user_id ON characters(user_id);
 CREATE INDEX IF NOT EXISTS idx_item_instances_character_id ON item_instances(character_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_nocase ON users(username COLLATE NOCASE);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE);
 """
 
 

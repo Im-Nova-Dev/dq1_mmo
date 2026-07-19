@@ -1,4 +1,5 @@
 import secrets
+import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
@@ -12,7 +13,9 @@ from auth.google_sso import (
 )
 from auth.jwt_handler import create_access_token, decode_access_token
 from auth.local_auth import hash_password, verify_password
+from config import STARTING_GOLD
 from database.db import db_write, get_db
+from game.world_manager import SPAWN_X, SPAWN_Y
 from models.player import (
     CharacterCreate,
     CharacterOut,
@@ -77,30 +80,46 @@ async def register(body: UserRegister):
     except ValueError:
         raise HTTPException(status_code=400, detail="Password too long") from None
 
-    async with db_write() as db:
-        async with db.execute("SELECT id FROM users WHERE email = ?", (body.email.lower(),)) as c:
-            if await c.fetchone():
-                raise HTTPException(status_code=400, detail="Email already registered")
-        async with db.execute("SELECT id FROM users WHERE username = ?", (body.username,)) as c:
-            if await c.fetchone():
-                raise HTTPException(status_code=400, detail="Username already taken")
+    email = body.email.lower().strip()
+    username = body.username.strip()
 
-        cursor = await db.execute(
-            "INSERT INTO users (email, password_hash, username) VALUES (?, ?, ?)",
-            (body.email.lower(), password_hash, body.username),
-        )
-        await db.commit()
-        user_id = cursor.lastrowid
-    token = create_access_token(user_id, body.username)
-    return TokenResponse(access_token=token, user_id=user_id, username=body.username)
+    try:
+        async with db_write() as db:
+            async with db.execute(
+                "SELECT id FROM users WHERE email = ? COLLATE NOCASE",
+                (email,),
+            ) as c:
+                if await c.fetchone():
+                    raise HTTPException(status_code=400, detail="Email already registered")
+            async with db.execute(
+                "SELECT id FROM users WHERE username = ? COLLATE NOCASE",
+                (username,),
+            ) as c:
+                if await c.fetchone():
+                    raise HTTPException(status_code=400, detail="Username already taken")
+
+            cursor = await db.execute(
+                "INSERT INTO users (email, password_hash, username) VALUES (?, ?, ?)",
+                (email, password_hash, username),
+            )
+            await db.commit()
+            user_id = cursor.lastrowid
+    except HTTPException:
+        raise
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Email or username already taken") from None
+
+    token = create_access_token(user_id, username)
+    return TokenResponse(access_token=token, user_id=user_id, username=username)
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: UserLogin):
+    email = body.email.lower().strip()
     db = await get_db()
     async with db.execute(
-        "SELECT id, password_hash, username FROM users WHERE email = ?",
-        (body.email.lower(),),
+        "SELECT id, password_hash, username FROM users WHERE email = ? COLLATE NOCASE",
+        (email,),
     ) as c:
         row = await c.fetchone()
     if row is None or not row["password_hash"]:
@@ -146,41 +165,46 @@ async def google_callback(code: str = Query(...), state: str = Query(...)):
     if not profile.get("email_verified", True):
         raise HTTPException(status_code=400, detail="Google email not verified")
 
-    db = await get_db()
-    async with db.execute(
-        "SELECT id, username FROM users WHERE google_id = ? OR email = ?",
-        (profile["google_id"], profile["email"].lower()),
-    ) as c:
-        row = await c.fetchone()
+    email = profile["email"].lower()
+    async with db_write() as db:
+        async with db.execute(
+            "SELECT id, username FROM users WHERE google_id = ? OR email = ? COLLATE NOCASE",
+            (profile["google_id"], email),
+        ) as c:
+            row = await c.fetchone()
 
-    if row:
-        user_id = row["id"]
-        username = row["username"]
-        await db.execute(
-            "UPDATE users SET google_id = COALESCE(google_id, ?) WHERE id = ?",
-            (profile["google_id"], user_id),
-        )
-        await db.commit()
-    else:
-        base = "".join(ch for ch in profile["name"] if ch.isalnum() or ch in "_-")[:20] or "hero"
-        username = base
-        n = 1
-        while True:
-            async with db.execute("SELECT id FROM users WHERE username = ?", (username,)) as c:
-                if not await c.fetchone():
-                    break
-            n += 1
-            username = f"{base}{n}"
-        cursor = await db.execute(
-            "INSERT INTO users (email, google_id, username) VALUES (?, ?, ?)",
-            (profile["email"].lower(), profile["google_id"], username),
-        )
-        await db.commit()
-        user_id = cursor.lastrowid
+        if row:
+            user_id = row["id"]
+            username = row["username"]
+            await db.execute(
+                "UPDATE users SET google_id = COALESCE(google_id, ?) WHERE id = ?",
+                (profile["google_id"], user_id),
+            )
+            await db.commit()
+        else:
+            base = "".join(ch for ch in profile["name"] if ch.isalnum() or ch in "_-")[:20] or "hero"
+            username = base
+            n = 1
+            while True:
+                async with db.execute(
+                    "SELECT id FROM users WHERE username = ? COLLATE NOCASE",
+                    (username,),
+                ) as c:
+                    if not await c.fetchone():
+                        break
+                n += 1
+                username = f"{base}{n}"
+            cursor = await db.execute(
+                "INSERT INTO users (email, google_id, username) VALUES (?, ?, ?)",
+                (email, profile["google_id"], username),
+            )
+            await db.commit()
+            user_id = cursor.lastrowid
 
     token = create_access_token(user_id, username)
-    # Browser-friendly redirect for web flows; clients can also poll token via fragment later
-    return RedirectResponse(url=f"/auth/google/done?token={token}&username={username}&user_id={user_id}")
+    return RedirectResponse(
+        url=f"/auth/google/done?token={token}&username={username}&user_id={user_id}"
+    )
 
 
 @router.get("/google/done")
@@ -194,38 +218,42 @@ async def google_done(
 
 @router.post("/characters", response_model=CharacterOut, status_code=status.HTTP_201_CREATED)
 async def create_character(body: CharacterCreate, user: dict = Depends(get_current_user)):
-    db = await get_db()
-    async with db.execute(
-        "SELECT id FROM characters WHERE user_id = ?",
-        (user["id"],),
-    ) as c:
-        existing = await c.fetchall()
-    if len(existing) >= 3:
-        raise HTTPException(status_code=400, detail="Maximum 3 characters per account")
+    name = body.name  # already normalized by validator
 
-    async with db.execute(
-        "SELECT id FROM characters WHERE name = ?",
-        (body.name,),
-    ) as c:
-        if await c.fetchone():
-            raise HTTPException(status_code=400, detail="Character name already taken")
+    try:
+        async with db_write() as db:
+            async with db.execute(
+                "SELECT COUNT(*) AS n FROM characters WHERE user_id = ?",
+                (user["id"],),
+            ) as c:
+                row = await c.fetchone()
+                if int(row["n"]) >= 3:
+                    raise HTTPException(status_code=400, detail="Maximum 3 characters per account")
 
-    from config import STARTING_GOLD
-    from game.world_manager import SPAWN_X, SPAWN_Y
+            async with db.execute(
+                "SELECT id FROM characters WHERE name = ? COLLATE NOCASE",
+                (name,),
+            ) as c:
+                if await c.fetchone():
+                    raise HTTPException(status_code=400, detail="Character name already taken")
 
-    async with db_write() as wdb:
-        cursor = await wdb.execute(
-            """
-            INSERT INTO characters (user_id, name, world_x, world_y, gold)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (user["id"], body.name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
-        )
-        await wdb.commit()
-        char_id = cursor.lastrowid
-    async with db.execute("SELECT * FROM characters WHERE id = ?", (char_id,)) as c:
-        row = await c.fetchone()
-    return _row_to_character(row)
+            cursor = await db.execute(
+                """
+                INSERT INTO characters (user_id, name, world_x, world_y, gold)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (user["id"], name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
+            )
+            await db.commit()
+            char_id = cursor.lastrowid
+            async with db.execute("SELECT * FROM characters WHERE id = ?", (char_id,)) as c:
+                crow = await c.fetchone()
+    except HTTPException:
+        raise
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Character name already taken") from None
+
+    return _row_to_character(crow)
 
 
 @router.get("/characters", response_model=list[CharacterOut])

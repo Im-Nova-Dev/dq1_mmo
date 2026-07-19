@@ -201,13 +201,24 @@ function Http.format_error(detail)
   end
   if type(detail) == "table" then
     if detail.msg then
-      return tostring(detail.msg)
+      local m = tostring(detail.msg)
+      -- strip pydantic "Value error, " prefix
+      m = m:gsub("^Value error, %s*", "")
+      return m
     end
     if detail[1] then
       local parts = {}
       for _, e in ipairs(detail) do
         if type(e) == "table" then
-          parts[#parts + 1] = tostring(e.msg or e.detail or e.type or "error")
+          local m = tostring(e.msg or e.detail or e.type or "error")
+          m = m:gsub("^Value error, %s*", "")
+          -- shorten common pydantic messages
+          if m:find("email") then
+            m = "Invalid email"
+          elseif m:find("at least") then
+            m = m
+          end
+          parts[#parts + 1] = m
         else
           parts[#parts + 1] = tostring(e)
         end

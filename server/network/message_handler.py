@@ -403,12 +403,15 @@ async def handle_message(
         manager.set_position(character_id, tx, ty, seq=seq)
 
         outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
+        meta_now = manager.get_meta(character_id) or {}
         move_msg = msg(
             ServerMessageType.PLAYER_MOVED,
             player_id=character_id,
             x=tx,
             y=ty,
             seq=seq,
+            name=meta_now.get("name"),
+            level=meta_now.get("level"),
         )
         await manager.broadcast_nearby(character_id, move_msg, include_self=False)
 

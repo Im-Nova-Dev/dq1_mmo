@@ -107,7 +107,7 @@ class Bot:
         tag = f"{int(time.time()) % 100000}_{self.index}"
         self.email = f"bot{tag}@example.com"
         self.username = f"Bot{self.index}_{tag[-4:]}"
-        self.name = f"Hero{self.index}"
+        self.name = f"H{self.index}_{tag[-5:]}"
 
         st, reg = http_json(
             "POST",

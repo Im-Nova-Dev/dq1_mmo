@@ -62,6 +62,10 @@ def _json_safe(obj):
     return json.loads(json.dumps(obj, default=str))
 
 
+async def _send(ws: WebSocket, payload: dict) -> None:
+    await ws.send_text(json.dumps(_json_safe(payload)))
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -72,29 +76,23 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             raw = await websocket.receive_text()
             if len(raw) > 16_384:
-                await websocket.send_text(
-                    json.dumps(msg(ServerMessageType.ERROR, reason="message too large"))
-                )
+                await _send(websocket, msg(ServerMessageType.ERROR, reason="message too large"))
                 continue
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
-                await websocket.send_text(
-                    json.dumps(msg(ServerMessageType.ERROR, reason="invalid json"))
+                await _send(websocket, msg(ServerMessageType.ERROR, reason="invalid json"))
+                continue
+
+            if not isinstance(data, dict) or "type" not in data:
+                await _send(
+                    websocket,
+                    msg(ServerMessageType.ERROR, reason="message must be object with type"),
                 )
                 continue
 
-            if not isinstance(data, dict):
-                await websocket.send_text(
-                    json.dumps(msg(ServerMessageType.ERROR, reason="message must be object"))
-                )
-                continue
-
-            # Per-connection rate limit after auth
             if character_id is not None and not manager.allow_message(character_id):
-                await websocket.send_text(
-                    json.dumps(msg(ServerMessageType.ERROR, reason="rate_limit"))
-                )
+                await _send(websocket, msg(ServerMessageType.ERROR, reason="rate_limit"))
                 continue
 
             try:
@@ -103,12 +101,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
             except Exception as exc:
                 log.exception("handle_message failed")
-                await websocket.send_text(
-                    json.dumps(msg(ServerMessageType.ERROR, reason=f"server error: {exc}"))
+                await _send(
+                    websocket, msg(ServerMessageType.ERROR, reason=f"server error: {exc}")
                 )
                 continue
 
             if connect_meta is not None:
+                from game.world_manager import map_payload
+
                 await manager.connect(
                     connect_meta["character_id"],
                     websocket,
@@ -118,19 +118,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     map_id=connect_meta["map_id"],
                     level=connect_meta["level"],
                 )
-                nearby = manager.nearby_players(connect_meta["character_id"])
-                for i, out in enumerate(outbound):
-                    if out.get("type") == ServerMessageType.WORLD_STATE:
-                        outbound[i] = msg(
-                            ServerMessageType.WORLD_STATE,
-                            players=nearby,
-                            enemies=[],
-                            map=out.get("map"),
-                            you={
-                                "x": connect_meta["x"],
-                                "y": connect_meta["y"],
-                            },
-                        )
+
+                # Drop any placeholder world_state from handler; rebuild after connect
+                outbound = [
+                    o for o in outbound if o.get("type") != ServerMessageType.WORLD_STATE
+                ]
+
+                # Tell others first so they can show us
                 await manager.broadcast_nearby(
                     connect_meta["character_id"],
                     msg(
@@ -144,11 +138,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     include_self=False,
                 )
 
+                # Authoritative presence snapshot for the connecting client
+                nearby = manager.nearby_players(connect_meta["character_id"])
+                outbound.append(
+                    msg(
+                        ServerMessageType.WORLD_STATE,
+                        players=nearby,
+                        enemies=[],
+                        map=map_payload(),
+                        you={"x": connect_meta["x"], "y": connect_meta["y"]},
+                        online=len(manager.online_ids()),
+                    )
+                )
+
             for out in outbound:
-                try:
-                    await websocket.send_text(json.dumps(_json_safe(out)))
-                except Exception:
-                    raise
+                await _send(websocket, out)
+
     except WebSocketDisconnect:
         pass
     finally:
@@ -157,7 +162,11 @@ async def websocket_endpoint(websocket: WebSocket):
             left = await manager.disconnect(character_id, websocket)
             if left is not None:
                 await manager.broadcast(
-                    msg(ServerMessageType.PLAYER_LEFT, player_id=character_id)
+                    msg(
+                        ServerMessageType.PLAYER_LEFT,
+                        player_id=character_id,
+                        name=left.get("name"),
+                    )
                 )
 
 
