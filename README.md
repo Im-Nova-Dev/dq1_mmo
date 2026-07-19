@@ -49,6 +49,35 @@ cd server && source .venv/bin/activate
 python tests/run_tests.py
 ```
 
+## Multiplayer testing (one PC)
+
+### Bot simulator (recommended)
+
+Spawns N headless clients that register, connect, move, and report who they see:
+
+```bash
+# auto-starts server if needed, 3 bots meet in town
+./tools/mp_sim.sh
+
+# 5 bots wander 30s
+./tools/mp_sim.sh -n 5 --scenario wander --seconds 30
+
+# interactive control
+./tools/mp_sim.sh -n 2 -i
+```
+
+Interactive commands: `status`, `move 0 e`, `wander`, `meet`, `sync`, `quit`.
+
+### Multiple Love2D windows
+
+```bash
+# terminal 1
+cd server && ./run.sh
+
+# terminal 2 — opens 2 game windows (register different accounts)
+./tools/mp_love.sh 2
+```
+
 ## Layout
 
 ```

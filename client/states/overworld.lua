@@ -2,6 +2,7 @@ local Network = require("client.network")
 local Renderer = require("client.renderer")
 local Session = require("client.session")
 local State = require("client.state")
+local UI = require("client.ui")
 local World = require("client.world")
 
 local Overworld = {
@@ -10,6 +11,7 @@ local Overworld = {
   zone = "town",
   locked = false,
   net_info = "",
+  show_list = true,
 }
 
 local MOVE_COOLDOWN = 0.12
@@ -36,6 +38,19 @@ local function zone_name(x, y)
   return "wall"
 end
 
+local function zone_color(z)
+  if z == "town" then
+    return "gold"
+  end
+  if z == "dungeon" then
+    return "accent"
+  end
+  if z == "field" then
+    return "ok"
+  end
+  return "muted"
+end
+
 local function bind_handlers(self)
   Network.clear_handlers()
 
@@ -52,17 +67,19 @@ local function bind_handlers(self)
     if World.local_player then
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
-    -- combat_resume may follow in same batch
+    UI.toast("Entered the world", "ok")
   end)
 
   Network.on("combat_resume", function(data)
     self.locked = true
     World.pending = {}
+    UI.toast("Battle resumed!", "danger")
     State.switch("combat", data)
   end)
 
   Network.on("auth_fail", function(data)
     self.status = "Auth failed: " .. tostring(data.reason)
+    UI.toast("Auth failed", "danger")
   end)
 
   Network.on("world_state", function(data)
@@ -70,15 +87,12 @@ local function bind_handlers(self)
       World.set_map(data.map)
     end
     World.set_players(data.players)
-    if data.you and World.local_player then
-      -- authoritative snap when no pending predictions
-      if World.pending_count() == 0 then
-        World.local_player.x = math.floor(data.you.x)
-        World.local_player.y = math.floor(data.you.y)
-        World.server_x = World.local_player.x
-        World.server_y = World.local_player.y
-        self.zone = zone_name(World.local_player.x, World.local_player.y)
-      end
+    if data.you and World.local_player and World.pending_count() == 0 then
+      World.local_player.x = math.floor(data.you.x)
+      World.local_player.y = math.floor(data.you.y)
+      World.server_x = World.local_player.x
+      World.server_y = World.local_player.y
+      self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
   end)
 
@@ -87,16 +101,20 @@ local function bind_handlers(self)
     if World.local_player then
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
-    if data.ok == false and data.reason and data.reason ~= "rate_limit" then
-      if data.reason == "in combat" then
-        return
-      end
+    if data.ok == false and data.reason and data.reason ~= "rate_limit" and data.reason ~= "in combat" then
       self.status = "Move: " .. tostring(data.reason)
     end
   end)
 
   Network.on("player_moved", function(data)
     World.update_player(data.player_id, data.x, data.y)
+    local p = World.players[data.player_id]
+    if p and data.level then
+      p.level = data.level
+    end
+    if p and data.name then
+      p.name = data.name
+    end
   end)
 
   Network.on("player_joined", function(data)
@@ -109,15 +127,21 @@ local function bind_handlers(self)
       ty = math.floor(data.y or 0),
       level = data.level or 1,
     }
+    UI.toast((data.name or "Hero") .. " appeared nearby", "join")
   end)
 
   Network.on("player_left", function(data)
+    local p = World.players[data.player_id]
+    local name = p and p.name or ("#" .. tostring(data.player_id))
     World.remove_player(data.player_id)
+    UI.toast(name .. " left the area", "leave")
   end)
 
   Network.on("combat_start", function(data)
     self.locked = true
     World.pending = {}
+    local en = data.enemy and data.enemy.name or "monster"
+    UI.toast("Encounter: " .. en .. "!", "danger")
     State.switch("combat", data)
   end)
 
@@ -135,6 +159,7 @@ local function bind_handlers(self)
       return
     end
     self.status = "Error: " .. tostring(data.reason)
+    UI.toast(tostring(data.reason), "danger")
   end)
 
   Network.on("pong", function() end)
@@ -147,7 +172,6 @@ function Overworld:enter()
 
   if Network.connected and Network.authenticated then
     if Session.character then
-      -- keep predicted pos if any; otherwise use session
       if World.pending_count() == 0 and World.local_player == nil then
         World.set_local(Session.character)
       elseif World.local_player and Session.character then
@@ -189,12 +213,11 @@ function Overworld:update(dt)
   World.tick_remote(dt)
 
   local rtt_ms = math.floor((Network.rtt or 0) * 1000)
-  self.net_info = string.format(
-    "%s  rtt %dms  pend %d",
-    Network.status(),
-    rtt_ms,
-    World.pending_count()
-  )
+  local others = 0
+  for _ in pairs(World.players) do
+    others = others + 1
+  end
+  self.net_info = string.format("%s · %dms · %d nearby", Network.status(), rtt_ms, others)
 
   if self.locked then
     return
@@ -223,10 +246,8 @@ function Overworld:update(dt)
   end
 
   if dx ~= 0 or dy ~= 0 then
-    local base_x = World.local_player.x
-    local base_y = World.local_player.y
-    local nx = base_x + dx
-    local ny = base_y + dy
+    local nx = World.local_player.x + dx
+    local ny = World.local_player.y + dy
     if World.is_walkable(nx, ny) then
       local seq = Network.move(nx, ny)
       World.predict_move(seq, nx, ny)
@@ -237,62 +258,77 @@ function Overworld:update(dt)
 end
 
 function Overworld:draw()
-  love.graphics.clear(0.04, 0.05, 0.08)
+  UI.draw_bg()
   Renderer.draw_overworld()
 
-  love.graphics.setColor(1, 0.92, 0.45)
-  love.graphics.print("DQ1 MMO — Overworld", 16, 12)
-  love.graphics.setColor(0.8, 0.85, 0.9)
+  local w, h = love.graphics.getDimensions()
+  local c = Session.character or {}
   local p = World.local_player
-  local c = Session.character
+
+  -- Top-left HUD
+  UI.panel(12, 12, 280, 118)
+  UI.set_font("large")
+  UI.color("gold")
+  love.graphics.print("DQ1 MMO", 24, 20)
+  UI.set_font("small")
+  UI.color("muted")
+  love.graphics.print(self.net_info, 24, 46)
+
   if p then
-    local hp = tonumber(c and c.current_hp) or 0
-    local mhp = math.max(1, tonumber(c and c.max_hp) or 1)
-    local mp = tonumber(c and c.current_mp) or 0
-    local mmp = math.max(0, tonumber(c and c.max_mp) or 0)
+    UI.set_font("body")
+    UI.color("text")
     love.graphics.print(
-      string.format(
-        "%s  Lv%d  (%d,%d)  [%s]  G %s",
-        p.name,
-        (c and c.level) or p.level or 1,
-        math.floor(p.x + 0.01),
-        math.floor(p.y + 0.01),
-        self.zone,
-        tostring(c and c.gold or "0")
-      ),
-      16,
-      36
+      string.format("%s  Lv%d", p.name or "?", (c.level or p.level or 1)),
+      24,
+      68
     )
-    love.graphics.setColor(0.2, 0.2, 0.25)
-    love.graphics.rectangle("fill", 16, 58, 160, 12)
-    love.graphics.setColor(0.8, 0.2, 0.25)
-    love.graphics.rectangle("fill", 16, 58, 160 * math.min(1, hp / mhp), 12)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(string.format("HP %d/%d", hp, mhp), 20, 56)
+    local hp = tonumber(c.current_hp) or 0
+    local mhp = math.max(1, tonumber(c.max_hp) or 1)
+    local mp = tonumber(c.current_mp) or 0
+    local mmp = math.max(0, tonumber(c.max_mp) or 0)
+    UI.bar(24, 92, 160, 12, hp / mhp, "hp", string.format("HP %d/%d", hp, mhp))
     if mmp > 0 then
-      love.graphics.setColor(0.2, 0.2, 0.25)
-      love.graphics.rectangle("fill", 16, 74, 160, 10)
-      love.graphics.setColor(0.25, 0.45, 0.9)
-      love.graphics.rectangle("fill", 16, 74, 160 * math.min(1, mp / mmp), 10)
-      love.graphics.setColor(1, 1, 1)
-      love.graphics.print(string.format("MP %d/%d", mp, mmp), 20, 72)
+      UI.bar(24, 108, 160, 10, mp / mmp, "mp", string.format("MP %d/%d", mp, mmp))
     end
+    UI.set_font("small")
+    UI.color("gold")
+    love.graphics.print(tostring(c.gold or "0") .. " G", 200, 92)
   end
-  local others = 0
-  for _ in pairs(World.players) do
-    others = others + 1
+
+  -- Zone badge
+  UI.panel(12, 140, 140, 36)
+  UI.set_font("small")
+  UI.color(zone_color(self.zone))
+  love.graphics.print("ZONE  " .. string.upper(self.zone or "?"), 24, 150)
+  if p then
+    UI.color("muted")
+    love.graphics.print(string.format("(%d, %d)", math.floor(p.x + 0.01), math.floor(p.y + 0.01)), 24, 162)
   end
-  love.graphics.setColor(0.8, 0.85, 0.9)
-  love.graphics.print(self.status .. "  |  nearby: " .. others, 16, 96)
-  love.graphics.setColor(0.55, 0.65, 0.7)
-  love.graphics.print(self.net_info, 16, 116)
-  love.graphics.setColor(0.8, 0.85, 0.9)
+
+  -- Minimap
+  UI.minimap(w - 148, 12, 128, World)
+
+  -- Player list
+  if self.show_list then
+    UI.player_list(w - 250, 156, 238, 200, World.local_player, World.players, "Adventurers nearby")
+  end
+
+  -- Bottom help bar
+  UI.panel(12, h - 48, w - 24, 36)
+  UI.set_font("small")
+  UI.color("muted")
   love.graphics.print(
-    "WASD  |  I bag  |  field/dungeon fights  |  east=dungeon  |  B debug  |  Esc",
-    16,
-    love.graphics.getHeight() - 28
+    "WASD move   ·   I inventory   ·   P player list   ·   field/dungeon battles   ·   B debug fight   ·   Esc quit",
+    24,
+    h - 36
   )
-  love.graphics.setColor(1, 1, 1)
+
+  if self.status and self.status ~= "Connected" then
+    UI.set_font("small")
+    UI.color("ok")
+    love.graphics.print(self.status, 24, 188)
+  end
+  UI.reset_color()
 end
 
 function Overworld:keypressed(key)
@@ -303,6 +339,9 @@ function Overworld:keypressed(key)
     Network.send({ type = "debug_encounter", enemy = "slime" })
   elseif key == "i" and not self.locked then
     State.switch("inventory")
+  elseif key == "p" or key == "tab" then
+    self.show_list = not self.show_list
+    UI.toast(self.show_list and "Player list on" or "Player list off", "info")
   end
 end
 
