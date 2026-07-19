@@ -220,6 +220,8 @@ def main() -> int:
         "tests.test_mp_reliability_v05124",
         "tests.test_features_v05125",
         "tests.test_mp_reliability_v05125",
+        "tests.test_features_v05126",
+        "tests.test_mp_reliability_v05126",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)
