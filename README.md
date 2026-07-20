@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.138</b> · <b>714</b> tests green · <code>/askwhere</code> · <code>/locate</code> near/far · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.139</b> · <b>719</b> tests green · <code>/share</code> location · near/far confirm · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.138-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.139-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/tests-709_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/askwhere</code> · <code>/locate</code> near/far · <code>/poke</code> · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/share</code> location · near/far confirm · <code>/poke</code> · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -209,7 +209,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.138** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.139** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -226,26 +226,26 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.138-7c3aed?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.139-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/709_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-askwhere_·_locate-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-share_location-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.138** — askwhere knows near · far · **714** tests |
+| | **v0.5.139** — share knows near · far · **719** tests |
 |:--|:--|
-| 📍 | **`/askwhere`** / **`/locate`** confirm with near/far (and zone) |
+| 📍 | **`/share Hero`** confirms with near/far (they still get your spot) |
 | 🔁 | Failed delivery refunds chat rate and restores AFK |
-| 🙏 | **`/thank`** still works after someone shares |
-| 🧪 | **714** automated tests green |
+| 🔗 | Soft reconnect still remembers **@share** / **@from** partners |
+| 🧪 | **719** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.138-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//askwhere_·_/locate-near_far-a855f7?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.139-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//share-location_·_near_far-a855f7?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/709_tests-059669?style=for-the-badge" />
 </p>
 
@@ -465,6 +465,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.139** | `/share` location + near/far confirm + delivery refund · **719** tests |
 | **0.5.138** | `/askwhere` · `/locate` near/far confirm + delivery refund · **714** tests |
 | **0.5.137** | `/thank` · `/ty` near/far confirm + delivery refund · **709** tests |
 | **0.5.136** | `/poke` · `/nudge` near/far confirm + delivery refund · **704** tests |
@@ -605,7 +606,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **714** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **719** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -730,7 +731,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 714 passed
+# expect: 719 passed
 ```
 
 ---
@@ -1009,7 +1010,7 @@ dq1_mmo/
   &nbsp;
   <img alt="suite" src="https://img.shields.io/badge/suite-709_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.138-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.139-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1114,7 +1115,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.138-7c3aed?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.139-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/709_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />

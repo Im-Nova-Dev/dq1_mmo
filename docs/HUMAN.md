@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.138-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-714-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.139-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-719-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.138 · **714** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.139 · **719** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.138):** **`/askwhere`** / **`/locate`** confirm with near/far (and zone) · they can **`/share @last`** back · failed requests restore AFK · **714** tests.
+**Recent for players/ops (v0.5.139):** **`/share Hero`** confirms with near/far · they still receive your zone and map spot · failed shares restore AFK · **@share** / **@from** memory still soft-reconnects · **719** tests.
 
 > [!TIP]
 > **Thank someone:** **`/thank Hero`** or **`/ty @from`** after a share — you see near/far (and zone); they get a private thanks. Failed delivery refunds chat rate and restores AFK.  
@@ -158,7 +158,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — they get a toast with your zone · **/accept** or **/decline** |
 | **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite you received (one answer only) |
 | **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice) |
-| **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) |
+| **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) · near/far confirm for you |
 | **/askwhere Name** · **/locate @last** | Ask them where they are — they can **/share @last** to answer · near/far confirm |
 | **/thank Name** · **/ty @last** | Private thanks (handy after someone shares a location) · near/far confirm |
 | **/poke Name** · **/nudge @last** | Private “trying to get your attention” (not a party) · confirm near/far · zone |
@@ -329,7 +329,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 714 passed
+# expect: 719 passed
 ```
 
 ---
@@ -343,7 +343,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.138** · **714** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.139** · **719** tests).
 
 | Do | Don’t |
 |:---|:------|

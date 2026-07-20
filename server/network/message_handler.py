@@ -48,6 +48,7 @@ from network.handlers import roll as roll_handlers
 from network.handlers import safety as safety_handlers
 from network.handlers import self_peeks as self_peek_handlers
 from network.handlers import session as session_handlers
+from network.handlers import share as share_handlers
 from network.handlers import social_peeks
 from network.handlers import status as status_handlers
 from network.handlers import thank as thank_handlers
@@ -219,7 +220,13 @@ async def handle_message(
     if askwhere_peek is not None:
         return askwhere_peek
 
-    # peeks + poke + thank + askwhere via handlers
+    share_peek = await share_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if share_peek is not None:
+        return share_peek
+
+    # peeks + poke + thank + askwhere + share via handlers
 
     # Social peeks (lastwhisper/social/lastemote/lastshare/lastinvite/pending)
     # handled early via network.handlers.social_peeks
@@ -490,148 +497,7 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
-    # --- Private location share (meetup helper — always opt-in) ---
-    if msg_type in ("share", "sharepos", "share_pos", "whereami_share", "here_i_am"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        social_mode = _social_alias(target_name, data)
-        raw_pid = None
-        if data.get("to_id") is not None:
-            raw_pid = data.get("to_id")
-        elif data.get("player_id") is not None:
-            raw_pid = data.get("player_id")
-        target_id = (
-            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
-        )
-        if raw_pid is not None and target_id is None:
-            from network.websocket_manager import coerce_character_id
-
-            if coerce_character_id(raw_pid) is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
-            else:
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-            return character_id, user_id, outbound, None
-        if social_mode and target_id is None:
-            lid, lname, empty = _resolve_social_peer(manager, character_id, social_mode)
-            if lid is None:
-                outbound.append(
-                    msg(
-                        ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to share with",
-                    )
-                )
-                return character_id, user_id, outbound, None
-            target_id = lid
-            target_name = lname
-        if target_id is None and isinstance(target_name, str) and target_name.strip():
-            if not social_mode:
-                tid, nerr = manager.resolve_live_name(target_name)
-                if nerr == "name ambiguous":
-                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                    return character_id, user_id, outbound, None
-                target_id = tid
-        if target_id is None:
-            if not (
-                isinstance(target_name, str) and target_name.strip()
-            ) and raw_pid is None and not social_mode:
-                outbound.append(msg(ServerMessageType.ERROR, reason="share target required"))
-            else:
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-            return character_id, user_id, outbound, None
-        if target_id == character_id:
-            outbound.append(msg(ServerMessageType.ERROR, reason="cannot share with yourself"))
-            return character_id, user_id, outbound, None
-        if target_id not in manager.online_ids():
-            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-            return character_id, user_id, outbound, None
-        if manager.is_ignored_by(target_id, character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
-            return character_id, user_id, outbound, None
-        if manager.is_ignored_by(character_id, target_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
-            return character_id, user_id, outbound, None
-        meta_pre = manager.get_meta(character_id)
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        was_idle = _idle_chk(meta_pre) if meta_pre else False
-        was_afk, afk_msg_snap = _afk_snap(meta_pre)
-        ok_chat, retry = manager.allow_chat(character_id)
-        if not ok_chat:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        tmeta = manager.get_meta(target_id)
-        name = (meta or {}).get("name") or "Hero"
-        tname = (tmeta or {}).get("name") or (
-            target_name.strip() if isinstance(target_name, str) else "Hero"
-        )
-        you_zone = None
-        you_x = you_y = None
-        if meta is not None:
-            try:
-                you_x, you_y = int(meta["x"]), int(meta["y"])
-                you_zone = zone_at(you_x, you_y)
-            except Exception:
-                you_zone = None
-        zone_bit = (
-            f"the {you_zone}"
-            if you_zone in ("town", "field", "dungeon")
-            else "the map"
-        )
-        pos_bit = (
-            f" at ({you_x}, {you_y})"
-            if you_x is not None and you_y is not None
-            else ""
-        )
-        share_line = f"{name} shares their location: {zone_bit}{pos_bit}."
-        share_msg: dict = {
-            "type": "share",
-            "from": name,
-            "from_id": character_id,
-            "to": tname,
-            "to_id": target_id,
-            "zone": you_zone,
-            "x": you_x,
-            "y": you_y,
-            "message": share_line,
-        }
-        sid_s = manager.session_id(character_id)
-        if sid_s is not None:
-            share_msg["session_id"] = sid_s
-        if not await private_social_delivery(
-            character_id,
-            target_id,
-            share_msg,
-            was_afk=was_afk,
-            afk_message=afk_msg_snap,
-            outbound=outbound,
-        ):
-            return character_id, user_id, outbound, None
-        manager.note_whisper_from(character_id, target_id, tname)
-        manager.note_whisper_from(target_id, character_id, name)
-        manager.note_share_to(character_id, target_id, tname)
-        # Recipient remembers sharer for /thank @share · /lastshare after reconnect
-        manager.note_share_from(target_id, character_id, name)
-        echo = dict(share_msg)
-        echo["message"] = f"Location shared with {tname}."
-        target_afk = bool((tmeta or {}).get("afk"))
-        if target_afk:
-            echo["target_afk"] = True
-            am = (tmeta or {}).get("afk_message")
-            if isinstance(am, str) and am.strip():
-                echo["target_afk_message"] = am.strip()[:48]
-        outbound.append(echo)
-        if was_idle:
-            await manager.publish_status(character_id)
-        return character_id, user_id, outbound, None
+    # share via network.handlers.share
 
     # poke/nudge via network.handlers.poke
 
