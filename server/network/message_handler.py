@@ -15,7 +15,6 @@ from game.item_manager import (
     equipment_bonuses,
     list_items,
     resolve_item_id,
-    use_consumable,
 )
 from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
@@ -55,6 +54,7 @@ from network.handlers import share as share_handlers
 from network.handlers import social_peeks
 from network.handlers import status as status_handlers
 from network.handlers import thank as thank_handlers
+from network.handlers import use_item as use_item_handlers
 from network.handlers._common import (  # noqa: F401 — re-export for tests
     _afk_snap,
     _announce_combat_outcome,
@@ -283,7 +283,13 @@ async def handle_message(
     if inn_peek is not None:
         return inn_peek
 
-    # peeks + social private + invite/emote/whisper/chat/shop/inventory/inn via handlers
+    use_peek = await use_item_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if use_peek is not None:
+        return use_peek
+
+    # peeks + social private + shop/inventory/inn/use_item via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -947,155 +953,7 @@ async def handle_message(
 
         return character_id, user_id, outbound, None
 
-    # whisper · chat/say/yell via network.handlers
-
-    # roll/dice · emotes via network.handlers
-
-    # --- Use consumable (herb / wings / fairy water) ---
-    if msg_type in (ClientMessageType.USE_ITEM, "use_item", "use", "consume"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        item_raw = data.get("item") or data.get("item_id")
-        item_id, item_err = _resolve_item_arg(item_raw)
-        if item_err or not item_id:
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason=item_err or "item required")
-            )
-            return character_id, user_id, outbound, None
-
-        in_combat = combat_engine.is_in_combat(character_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-
-        # Combat item use is a full turn — only on hero phase
-        battle = combat_engine.get(character_id) if in_combat else None
-        if in_combat:
-            if battle is None or battle.phase != "awaiting_hero" or battle.outcome != "ongoing":
-                outbound.append(msg(ServerMessageType.ERROR, reason="wait for your turn"))
-                return character_id, user_id, outbound, None
-
-        async with db_write() as db:
-            ok, reason, info = await use_consumable(
-                db, char, str(item_id), in_combat=in_combat, rng=Rng()
-            )
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            outbound.append(await _inventory_msg(character_id))
-            return character_id, user_id, outbound, None
-
-        # Successful use is multiplayer activity — clear AFK for peers
-        was_afk_use = manager.mark_active(character_id)
-        if was_afk_use:
-            await manager.publish_status(character_id, pulse_online=True)
-
-        # Refresh character after use
-        char = await get_character(character_id) or char
-
-        if info.get("effect") == "repel":
-            manager.set_repel(character_id, int(info.get("repel_steps") or 0))
-
-        if info.get("teleported"):
-            tx, ty = int(info["x"]), int(info["y"])
-            aoi_msgs = await manager.publish_move(
-                character_id, tx, ty, seq=None
-            )
-            outbound.extend(aoi_msgs)
-            try:
-                tzone = zone_at(tx, ty)
-            except Exception:
-                tzone = None
-            mok = msg(
-                ServerMessageType.MOVE_OK,
-                ok=True,
-                x=tx,
-                y=ty,
-                seq=None,
-                reason="wings",
-            )
-            if tzone:
-                mok["zone"] = tzone
-            outbound.append(mok)
-
-        if in_combat and battle is not None and info.get("effect") == "heal":
-            # Spend turn: heal already applied to DB — sync battle HP then enemy acts
-            amount = int(info.get("amount_rolled") or info.get("healed") or 0)
-            # Prefer rolled amount so battle heal matches DQ band even if already at high HP
-            result = battle.act(
-                {
-                    "type": "item",
-                    "id": str(item_id),
-                    "name": info.get("name"),
-                    "effect": "heal",
-                    "amount": amount,
-                }
-            )
-            # Re-sync DB HP from battle after enemy counter
-            if result.get("ok"):
-                patch_hp = max(0, int(battle.hero["hp"]))
-                patch_mp = max(0, int(battle.hero["mp"]))
-                await apply_character_patch(
-                    character_id,
-                    {
-                        "current_hp": max(1, patch_hp) if battle.outcome == "defeat" else patch_hp,
-                        "current_mp": patch_mp,
-                    },
-                )
-            events = result.get("events") or []
-            outbound.append(_combat_update(battle, events))
-            if battle.outcome != "ongoing":
-                char = await _persist_battle_end(character_id, battle)
-                combat_engine.end(character_id)
-                manager.set_in_combat(character_id, False)
-                await manager.publish_status(character_id, pulse_online=True)
-                end_payload = {
-                    "result": battle.outcome,
-                    "xp": (battle.rewards or {}).get("xp", 0),
-                    "gold": (battle.rewards or {}).get("gold", 0),
-                    "character": char,
-                    "events": events,
-                }
-                if battle.outcome == "defeat":
-                    end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
-                    end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
-                outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
-                await _announce_combat_outcome(character_id, str(battle.outcome))
-                if battle.outcome == "defeat":
-                    aoi_msgs = await manager.publish_move(
-                        character_id, SPAWN_X, SPAWN_Y, seq=None
-                    )
-                    outbound.extend(aoi_msgs)
-                    try:
-                        rzone = zone_at(SPAWN_X, SPAWN_Y)
-                    except Exception:
-                        rzone = "town"
-                    outbound.append(
-                        msg(
-                            ServerMessageType.MOVE_OK,
-                            ok=True,
-                            x=SPAWN_X,
-                            y=SPAWN_Y,
-                            seq=None,
-                            reason="respawn",
-                            zone=rzone,
-                        )
-                    )
-            outbound.append(
-                msg(ServerMessageType.ITEM_USED, **info, in_combat=True)
-            )
-            outbound.append(await _inventory_msg(character_id))
-            return character_id, user_id, outbound, None
-
-        # Overworld use
-        char["known_spells"] = battle_spells_at(int(char["level"]))
-        char["bonuses"] = equipment_bonuses(char)
-        outbound.append(msg(ServerMessageType.ITEM_USED, **info, in_combat=False))
-        outbound.append(await _inventory_msg(character_id))
-        return character_id, user_id, outbound, None
-
-    # inventory · shop · inn via network.handlers
+    # whisper · chat · emotes · use_item · inventory · shop · inn via handlers
 
     # Debug/test: force encounter (ALLOW_DEBUG=1)
     if msg_type == "debug_encounter":

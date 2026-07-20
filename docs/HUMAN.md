@@ -2,9 +2,9 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.148-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-791-059669?style=for-the-badge" />
-  <img alt="inn" src="https://img.shields.io/badge/inn-/rest_·_quote-14b8a6?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.149-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-798-059669?style=for-the-badge" />
+  <img alt="use" src="https://img.shields.io/badge/items-/use-a855f7?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -19,11 +19,12 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.148 · **791** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.149 · **798** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.148):** town **`/inn`** · **`/rest`** — quote cost first · town only · not mid-fight · successful rest clears AFK for friends · **791** tests.
+**Recent for players/ops (v0.5.149):** **`/use herb`** · **wings** · **fairy water** — combat herb is your turn · wings move peers can see · use clears AFK · **798** tests.
 
 > [!TIP]
+> **Use items:** **`/use herb`** heal · **`/use wings`** town warp · fairy water for fewer fights. In combat, herb spends your turn. Using items clears **AFK**.  
 > **Town inn:** **R** for cost · **R** again to rest · or **`/inn`** / **`/rest`** — town only, not mid-fight. Rest clears **AFK**.  
 > **Bag & gear:** **`/bag`** · **`/equip copper sword`** · **`/discard herb`** — blocked mid-fight; gearing clears **AFK**.  
 > **Town shop:** **`/shop`** · **`/buy copper sword`** · **`/sell herb 2`** — only in town, not mid-fight. Shopping clears **AFK**.  
@@ -341,7 +342,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 791 passed
+# expect: 798 passed
 ```
 
 ---
@@ -355,7 +356,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.148** · **791** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.149** · **798** tests).
 
 | Do | Don’t |
 |:---|:------|

@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.148` (`server/config.py` → `VERSION`) · **791** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.149` (`server/config.py` → `VERSION`) · **798** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.148** / **791** until the suite or `VERSION` changes.  
-Last **pushed** ship: `b729028` (v0.5.148).
+Keep badges at **0.5.149** / **798** until the suite or `VERSION` changes.  
+Last **pushed** ship: pending (v0.5.149 use_item extract).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.148 / 791** · GitHub README inn polish · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.149 / 798** · use_item extract · human ≠ agent · no protocol dumps.
 
 ## Documentation map (do not mix)
 
@@ -113,6 +113,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/shop.py` | town shop/buy/sell (combat gate · AFK clear · qty) |
 | `server/network/handlers/inventory.py` | bag/equip/unequip/discard (combat gate · AFK clear) |
 | `server/network/handlers/inn.py` | town rest/inn (combat gate · quote · AFK clear) |
+| `server/network/handlers/use_item.py` | use consumable (combat turn · AFK · wings AOI) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -622,6 +623,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 385. Combat gate + town presence; quote before pay; successful rest mark_active + publish_status.
 386. Quote and rest echo include online/nearby census; plain message on rest.
 387. Tests: `test_features_v05148` + `test_mp_reliability_v05148`.
+388. **`handlers/use_item.py`:** use/use_item/consume extracted from message_handler.
+389. Combat herb only on awaiting_hero turn; AFK clear; wings publish_move AOI; defeat respawn path.
+390. ITEM_USED + inventory echoes include online/nearby census; plain overworld messages.
+391. Tests: `test_features_v05149` + `test_mp_reliability_v05149`.
 
 ## Tests (mandatory for your changes)
 
