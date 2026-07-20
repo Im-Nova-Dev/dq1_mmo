@@ -2,9 +2,9 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.150-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-810-059669?style=for-the-badge" />
-  <img alt="cast" src="https://img.shields.io/badge/field-/cast-a855f7?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.151-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-822-059669?style=for-the-badge" />
+  <img alt="combat" src="https://img.shields.io/badge/combat-turns-f43f5e?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -19,9 +19,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.150 · **810** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.151 · **822** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.150):** **`/cast heal`** · **`/repel`** · **`/return`** · **`/outside`** — field only · Return move peers can see · cast clears AFK · **810** tests.
+**Recent for players/ops (v0.5.151):** Combat **Attack** · **Flee** · battle spells — **your turn only** · fight clears AFK · defeat town respawn · nearby win/flee/defeat notes · **822** tests.
 
 > [!TIP]
 > **Field magic:** **`/cast heal`** · **`/repel`** · **`/return`** · **`/outside`** (dungeon) · radiant light — overworld only; casting clears **AFK**.  
@@ -95,7 +95,11 @@ Someone AFK long enough may show as **went idle** when they leave your view.
 
 Menu: **Attack** · **Flee** · **Spells** · **Herb (H)**.
 
-- Defeat → respawn in town, **lose half your gold** (shown as gold lost), partial HP
+- Actions only work on **your turn** (spam is blocked until then)
+- Taking a combat action clears **AFK** so friends know you are active
+- **Field** magic (`/return`, `/repel`, …) is blocked mid-fight — use battle spells instead
+- Nearby heroes may see *fighting*, then *victorious* / *fled* / *defeated*
+- Defeat → respawn in town (friends can see the move), **lose half your gold** (shown as gold lost), partial HP
 - Disconnect mid-fight: about **60 seconds** to reconnect and resume
 
 ---
@@ -354,7 +358,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 810 passed
+# expect: 822 passed
 ```
 
 ---
@@ -368,7 +372,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.150** · **810** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.151** · **822** tests).
 
 | Do | Don’t |
 |:---|:------|

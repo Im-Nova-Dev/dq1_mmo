@@ -6,7 +6,7 @@ from auth.jwt_handler import decode_access_token
 from config import ALLOW_DEBUG, COMBAT_GRACE_SECONDS
 from database.db import db_write, get_db
 from game.combat_engine import combat_engine
-from game.data_loader import battle_spells_at, field_spells_at, get_enemy, get_spell
+from game.data_loader import battle_spells_at, field_spells_at, get_enemy
 from game.enemy_spawner import roll_encounter
 from game.item_manager import equipment_bonuses
 from game.player_manager import apply_character_patch, get_character
@@ -48,6 +48,7 @@ from network.handlers import status as status_handlers
 from network.handlers import thank as thank_handlers
 from network.handlers import use_item as use_item_handlers
 from network.handlers import field_magic as field_magic_handlers
+from network.handlers import combat as combat_handlers
 from network.handlers._common import (  # noqa: F401 — re-export for tests
     _afk_snap,
     _announce_combat_outcome,
@@ -288,7 +289,13 @@ async def handle_message(
     if field_peek is not None:
         return field_peek
 
-    # peeks + social + shop/inventory/inn/use_item/field_magic via handlers
+    combat_peek = await combat_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if combat_peek is not None:
+        return combat_peek
+
+    # peeks + social + shop/inventory/inn/use_item/field_magic/combat via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -428,119 +435,7 @@ async def handle_message(
                 pass
             return character_id, user_id, outbound, None
 
-    # field magic via network.handlers.field_magic
-
-    # --- Combat actions ---
-    if msg_type in (
-        ClientMessageType.ATTACK,
-        ClientMessageType.FLEE,
-        ClientMessageType.USE_SPELL,
-        "cast",
-        "cast_spell",
-        "combat_action",
-    ):
-        battle = combat_engine.get(character_id)
-        if battle is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="not in combat"))
-            return character_id, user_id, outbound, None
-
-        # Field-only spells must not be mis-routed as battle actions mid-fight
-        if msg_type in (ClientMessageType.USE_SPELL, "use_spell"):
-            sid = str(data.get("spell") or data.get("id") or "")
-            sp = get_spell(sid) if sid else None
-            if sp and sp.get("field") and not sp.get("battle"):
-                outbound.append(
-                    msg(ServerMessageType.ERROR, reason="in combat")
-                )
-                return character_id, user_id, outbound, None
-
-        if msg_type == ClientMessageType.ATTACK or (
-            msg_type == "combat_action" and data.get("action") == "attack"
-        ):
-            action = {"type": "attack"}
-        elif msg_type == ClientMessageType.FLEE or (
-            msg_type == "combat_action" and data.get("action") == "flee"
-        ):
-            action = {"type": "flee"}
-        else:
-            spell = data.get("spell") or data.get("id")
-            if msg_type == "combat_action":
-                spell = data.get("spell") or data.get("id")
-                if data.get("action") == "spell":
-                    action = {"type": "spell", "id": spell}
-                else:
-                    action = {"type": data.get("action"), "id": spell}
-            else:
-                action = {"type": "spell", "id": spell}
-
-        # Only accept actions while awaiting hero input (blocks spam mid-resolve)
-        if battle.phase != "awaiting_hero" or battle.outcome != "ongoing":
-            outbound.append(msg(ServerMessageType.ERROR, reason="wait for your turn"))
-            outbound.append(_combat_update(battle, []))
-            return character_id, user_id, outbound, None
-
-        result = battle.act(action)
-        if not result["ok"]:
-            outbound.append(msg(ServerMessageType.ERROR, reason=result.get("error") or "bad action"))
-            outbound.append(_combat_update(battle, []))
-            return character_id, user_id, outbound, None
-
-        events = result["events"]
-        outbound.append(_combat_update(battle, events))
-
-        for e in events:
-            if e.get("kind") == "level_up":
-                outbound.append(
-                    msg(
-                        ServerMessageType.LEVEL_UP,
-                        new_level=e.get("level"),
-                        new_stats=e.get("stats"),
-                    )
-                )
-                if e.get("level") is not None:
-                    await manager.publish_level(character_id, int(e["level"]))
-
-        if battle.outcome != "ongoing":
-            char = await _persist_battle_end(character_id, battle)
-            combat_engine.end(character_id)
-            manager.set_in_combat(character_id, False)
-            if char.get("level"):
-                manager.set_level(character_id, int(char["level"]))
-            await manager.publish_status(character_id, pulse_online=True)
-            end_payload = {
-                "result": battle.outcome,
-                "xp": (battle.rewards or {}).get("xp", 0),
-                "gold": (battle.rewards or {}).get("gold", 0),
-                "character": char,
-                "events": events,
-            }
-            if battle.outcome == "defeat":
-                end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
-                end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
-            outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
-            # Multiplayer: nearby system note for victory / flee / defeat
-            await _announce_combat_outcome(character_id, str(battle.outcome))
-            if battle.outcome == "defeat":
-                # Respawn in town with AOI refresh
-                aoi_msgs = await manager.publish_move(
-                    character_id, SPAWN_X, SPAWN_Y, seq=None
-                )
-                outbound.extend(aoi_msgs)
-                try:
-                    rzone = zone_at(SPAWN_X, SPAWN_Y)
-                except Exception:
-                    rzone = "town"
-                rmsg = msg(
-                    ServerMessageType.MOVE_OK,
-                    ok=True,
-                    x=SPAWN_X,
-                    y=SPAWN_Y,
-                    seq=None,
-                    reason="respawn",
-                    zone=rzone,
-                )
-                outbound.append(rmsg)
-        return character_id, user_id, outbound, None
+    # field magic + combat actions via handlers
 
     # --- Movement (server-authoritative, ack'd, rate-limited, DB-deferred) ---
     if msg_type == ClientMessageType.MOVE:

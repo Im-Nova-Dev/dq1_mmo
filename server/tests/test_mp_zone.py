@@ -218,9 +218,18 @@ def test_zone_chat_ws(tmp_path, monkeypatch):
                             pass
                     await drain(wc, 0.2)
 
+                async def realign():
+                    await drain(wc, 0.12)
+                    await wc.send(json.dumps({"type": "sync"}))
+                    try:
+                        await recv_until(wc, "world_state", timeout=2.0)
+                    except TimeoutError:
+                        pass
+                    await drain(wc, 0.08)
+
                 async def step_to(tx, ty):
                     nonlocal seq
-                    for attempt in range(6):
+                    for attempt in range(14):
                         seq += 1
                         await asyncio.sleep(0.15)
                         await wc.send(
@@ -235,24 +244,29 @@ def test_zone_chat_ws(tmp_path, monkeypatch):
                             continue
                         if mok.get("type") == "combat_start":
                             await flee_out()
+                            await realign()
                             continue
                         if mok.get("type") == "error" and mok.get("reason") == "in combat":
                             await flee_out()
+                            await realign()
                             continue
                         if mok.get("type") == "move_ok" and mok.get("ok") is False:
                             if mok.get("reason") == "in combat":
                                 await flee_out()
+                                await realign()
                                 continue
                             if mok.get("reason") == "rate_limit":
                                 await asyncio.sleep(0.12)
                                 continue
                             if mok.get("reason") == "invalid step":
-                                # Combat/desync can reject a step; retry after drain
-                                await drain(wc, 0.15)
+                                # Combat/desync can reject a step; re-sync then retry
+                                await realign()
                                 continue
                         if mok.get("type") == "error" and mok.get("reason") == "invalid step":
-                            await drain(wc, 0.15)
+                            await realign()
                             continue
+                        if mok.get("type") == "move_ok" and mok.get("ok") is True:
+                            return mok
                         return mok
                     return mok
 
