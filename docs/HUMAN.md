@@ -153,10 +153,10 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 |:--------------|:-------|
 | **T** | Open chat (global channel) |
 | **Y** | Open chat (nearby) |
-| **/say message** · **/s message** | Nearby chat (same as **Y**) |
-| **/g message** · **/global message** | Global chat |
+| **/say message** · **/s message** | Nearby chat (same as **Y**) — friends in view · mute respected · you always see your line |
+| **/g message** · **/global message** | Global chat — everyone online · mute respected · you always see your line |
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
-| **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon); not world-wide |
+| **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon); not world-wide · not from water |
 | **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line; confirm notes online/nearby) |
 | **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** · **/wave @emotedby** | List emotes, perform one, or wave at a hero — nearby friends see it; far targets still get a private wave · soft reconnect keeps **`/lastemote`** |
 | **/lastemote** | Who you last waved **at** and who last waved **at you** (near/far when online) |

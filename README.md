@@ -80,15 +80,19 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · <b><code>/wave</code></b> · meetup · near/far · <code>/poke</code> · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · <b><code>/s</code> · <code>/g</code> · <code>/yell</code></b> · <code>/w</code> · meetup · <code>/wave</code> · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
+  <img alt="chat_s" src="https://img.shields.io/badge//s-nearby-22c55e?style=flat-square" />
+  <img alt="chat_g" src="https://img.shields.io/badge//g-global-16a34a?style=flat-square" />
+  <img alt="chat_y" src="https://img.shields.io/badge//yell-same_zone-15803d?style=flat-square" />
+  <img alt="whisper" src="https://img.shields.io/badge//w_·_/r-private-0ea5e9?style=flat-square" />
   <img alt="wave" src="https://img.shields.io/badge//wave-near_·_far-f472b6?style=flat-square" />
   <img alt="emotes" src="https://img.shields.io/badge/emotes-bow_·_cheer_·_dance-ec4899?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote-8b5cf6?style=flat-square" />
   <img alt="look" src="https://img.shields.io/badge//look-near_coords_·_far_zone-0ea5e9?style=flat-square" />
   <img alt="find" src="https://img.shields.io/badge//find-plain_summary-0ea5e9?style=flat-square" />
   <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far_·_zone-64748b?style=flat-square" />
@@ -157,27 +161,28 @@ protocol · tests · reliability
   <img alt="field" src="https://img.shields.io/badge/🌿_Field-encounters-eab308?style=for-the-badge" />
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
+  <img alt="chat2" src="https://img.shields.io/badge/💬_Chat-/s_·_/g_·_/yell-22c55e?style=for-the-badge" />
+  <img alt="near2" src="https://img.shields.io/badge/🗣_Nearby-friends_in_view-16a34a?style=for-the-badge" />
+  <img alt="yell2" src="https://img.shields.io/badge/📢_Yell-same_zone-15803d?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
   <img alt="wave2" src="https://img.shields.io/badge/👋_Wave-near_·_far-f472b6?style=for-the-badge" />
-  <img alt="bow2" src="https://img.shields.io/badge/🙇_Bow_·_Cheer_·_Dance-a855f7?style=for-the-badge" />
-  <img alt="meet2" src="https://img.shields.io/badge/🤝_Meetup-invite_·_accept_·_decline-3b82f6?style=for-the-badge" />
+  <img alt="meet2" src="https://img.shields.io/badge/🤝_Meetup-invite_·_accept-3b82f6?style=for-the-badge" />
   <img alt="share2" src="https://img.shields.io/badge/📍_Share-spot_·_near_far-14b8a6?style=for-the-badge" />
-  <img alt="thank2" src="https://img.shields.io/badge/🙏_Thank-near_·_far-ec4899?style=for-the-badge" />
-  <img alt="poke2" src="https://img.shields.io/badge/👆_Poke-near_·_far-a855f7?style=for-the-badge" />
+  <img alt="whisper2" src="https://img.shields.io/badge/🔒_Whisper-/w_·_/r-0ea5e9?style=for-the-badge" />
   <img alt="find2" src="https://img.shields.io/badge/🔍_Find-plain_summary-0ea5e9?style=for-the-badge" />
   <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-zone_·_nearby-f97316?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_wave-334155?style=for-the-badge" />
+  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_chat-334155?style=for-the-badge" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
   <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
   <img alt="afkloop" src="https://img.shields.io/badge/afk-/busy_→_/back-f97316?style=for-the-badge" />
-  <img alt="waveloop" src="https://img.shields.io/badge//wave_Hero_→_near_|_far-f472b6?style=for-the-badge" />
+  <img alt="chatloop" src="https://img.shields.io/badge//s_·_/g_·_/yell_·_/w-22c55e?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#312e81', 'primaryTextColor': '#e0e7ff', 'lineColor': '#f472b6', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#14532d', 'primaryTextColor': '#dcfce7', 'lineColor': '#4ade80', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
   A[Register] --> B[Create hero]
   B --> C[Town · safe]
@@ -186,7 +191,9 @@ flowchart LR
   E --> C
   C --> F[Shop · inn · equip]
   F --> C
-  C --> W["/wave · emotes"]
+  C --> CH["/s · /g · /yell"]
+  CH --> C
+  C --> W["/wave · /w"]
   W --> C
   C --> G["Meetup · /invite"]
   G --> G2["/accept · /decline"]
@@ -200,9 +207,9 @@ flowchart LR
 <td align="center" width="12%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
 <td align="center" width="12%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
 <td align="center" width="12%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
+<td align="center" width="12%"><b>💬 Chat</b><br/><sub>/s · /g · /yell</sub></td>
 <td align="center" width="12%"><b>👋 Wave</b><br/><sub>near · far</sub></td>
 <td align="center" width="12%"><b>🤝 Meetup</b><br/><sub>invite · accept</sub></td>
-<td align="center" width="12%"><b>📍 Memory</b><br/><sub>@emote · @share</sub></td>
 <td align="center" width="12%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
 <td align="center" width="12%"><b>🔁 Soft RC</b><br/><sub>~60s memory</sub></td>
 </tr>
@@ -256,8 +263,8 @@ flowchart LR
 | | |
 |:--|:--|
 | **`/s hi`** · **Y** | friends in view |
-| **Mute** | respected |
-| **Echo** | you always see yours |
+| **Mute** | they do not see it |
+| **You** | always see your line |
 
 </td>
 <td width="33%" valign="top" align="center">
@@ -267,7 +274,7 @@ flowchart LR
 |:--|:--|
 | **`/g hi`** · **T** | whole world |
 | **`/yell`** · **`/z`** | same zone only |
-| **Not water** | zone needs a real area |
+| **Town · field · dungeon** | not water |
 
 </td>
 <td width="33%" valign="top" align="center">
@@ -275,9 +282,9 @@ flowchart LR
 ### 🔒 Private
 | | |
 |:--|:--|
-| **`/w`** · **`/r`** | still private |
-| **channel whisper** | same reliability |
-| **Fail** | AFK stays honest |
+| **`/w Hero hi`** | one person |
+| **`/r hey`** | last partner |
+| **If it fails** | AFK stays honest |
 
 </td>
 </tr>
@@ -288,7 +295,7 @@ flowchart LR
   <img alt="meta" src="https://img.shields.io/badge//s_·_/g_·_/yell-22c55e?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/767_tests-059669?style=for-the-badge" />
   <img alt="mute" src="https://img.shields.io/badge/mute-respected-64748b?style=for-the-badge" />
-  <img alt="aoi" src="https://img.shields.io/badge/nearby-view_range-0ea5e9?style=for-the-badge" />
+  <img alt="echo" src="https://img.shields.io/badge/you_always_see_yours-0ea5e9?style=for-the-badge" />
 </p>
 
 ```mermaid
@@ -297,10 +304,10 @@ flowchart LR
   subgraph chat ["Chat channels"]
     S["/s nearby"] --> V["Friends in view"]
     G["/g global"] --> W["Everyone online"]
-    Y["/yell zone"] --> Z["Same zone only"]
+    Y["/yell"] --> Z["Same zone only"]
   end
   subgraph private ["Private"]
-    P["/w · channel whisper"] --> D["Deliver or restore AFK"]
+    P["/w · /r"] --> D["Deliver · or restore AFK"]
   end
 ```
 
@@ -309,6 +316,18 @@ flowchart LR
 
 <table>
 <tr>
+<td width="11%" valign="top" align="center">
+
+### 💬 Chat
+| | |
+|:--|:--|
+| **`/s`** | nearby |
+| **`/g`** | global |
+| **`/yell`** | zone |
+
+<sub>mute · self echo</sub>
+
+</td>
 <td width="11%" valign="top" align="center">
 
 ### 👋 Wave
@@ -547,7 +566,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.145** | `/s` · `/g` · `/yell` chat channels + channel whisper · **767** tests |
+| **0.5.145** | `/s` · `/g` · `/yell` chat · mute · private whisper path · **767** tests |
 | **0.5.144** | `/w` · `/r` whisper private delivery + soft reconnect · **757** tests |
 | **0.5.143** | `/wave` · emotes near/far + soft reconnect memory · **747** tests |
 | **0.5.142** | `/accept` · `/decline` meetup reply near/far + soft-grace clear · **738** tests |
@@ -667,7 +686,7 @@ flowchart TB
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · **`/roll`** |
+| 💬 | **`/s`** nearby · **`/g`** global · **`/yell`** zone · **`/w`** · **`/r`** · mute · **`/roll`** |
 | 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share` · `/lastshare` · `/askwhere` · `/thank` · `/ty` · `/poke`** — social (not a party) |
 | 📍 | **`@share`** / **`@from`** · **`@emote`** / **`@emotedby`** — two-way social memory (needs the **@**) |
 | 👋 | **`/wave Name`** · **`/wave @last`** · **`/emotes`** · **`/lastemote`** (to + from) · near & far · **`/fighting`** · **`/social`** |

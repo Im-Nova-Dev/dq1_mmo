@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.145** (2026-07-20) · suite **767** tests · chat/yell extract · humans ≠ agents
+**Last docs refresh:** **v0.5.145** (2026-07-20) · suite **767** tests · GitHub README chat polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -100,6 +100,7 @@ flowchart TB
 - **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
 - **`/thank` · `/ty @last`** — private thanks (handy after a share)
 - Stuck meetup invites **clear** if you answer while the inviter is offline · cancel while offline clears soft-reconnect ghosts
+- **`/s` · `/g` · `/yell` · `/z`** — nearby · global · same-zone chat · mute respected · you always see your own line
 - **`/wave` · `/emotes` · `/bow` · `/cheer`** — nearby friends see it · far directed waves still arrive · soft reconnect keeps **`/lastemote`**
 - **`/poke` · `/nudge`** — private attention ping · **`/fighting`** nearby combat list
 - **`/find combat:yes`** · **`/who`** fighting census · near/zone ⚔💤 name tags
