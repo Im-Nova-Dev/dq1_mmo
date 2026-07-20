@@ -39,6 +39,7 @@ from network.handlers import afk as afk_handlers
 from network.handlers import askwhere as askwhere_handlers
 from network.handlers import find as find_handlers
 from network.handlers import hud_info as hud_info_handlers
+from network.handlers import chat as chat_handlers
 from network.handlers import emote as emote_handlers
 from network.handlers import invite as invite_handlers
 from network.handlers import invite_cancel as invite_cancel_handlers
@@ -261,7 +262,13 @@ async def handle_message(
     if whisper_peek is not None:
         return whisper_peek
 
-    # peeks + social private + invite/emote/whisper via handlers
+    chat_peek = await chat_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if chat_peek is not None:
+        return chat_peek
+
+    # peeks + social private + invite/emote/whisper/chat via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -925,218 +932,7 @@ async def handle_message(
 
         return character_id, user_id, outbound, None
 
-    # whisper/tell/reply via network.handlers.whisper
-
-    # --- Chat: global / nearby AOI / zone (`say`/`s` nearby; `chat`/`g` global; yell/shout zone) ---
-    if msg_type in (
-        ClientMessageType.CHAT,
-        ClientMessageType.SAY,
-        "chat",
-        "say",
-        "s",
-        "g",
-        "nearby_chat",
-        "yell",
-        "shout",
-    ):
-        text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
-        if text is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        name = (meta or {}).get("name") or "Hero"
-        # Explicit channel wins; say/s/nearby_chat → nearby; g → global; yell/shout → zone
-        channel = (data.get("channel") or "").lower().strip()
-        # Reserved for server-originated traffic only (level-up fanfare, etc.)
-        # Check before rate-limit so clients get a clear reason, not chat_rate_limit.
-        if channel in ("system", "admin", "server", "gm"):
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason="reserved channel")
-            )
-            return character_id, user_id, outbound, None
-        if channel not in ("global", "nearby", "local", "whisper", "zone", "area", "shout", "yell"):
-            if msg_type in (ClientMessageType.SAY, "say", "s", "nearby_chat"):
-                channel = "nearby"
-            elif msg_type == "g":
-                channel = "global"
-            elif msg_type in ("yell", "shout"):
-                channel = "zone"
-            else:
-                channel = "global"
-        if channel == "local":
-            channel = "nearby"
-        if channel == "area":
-            channel = "zone"
-        # Shout/yell = same-zone broadcast (multiplayer area shout, not global spam)
-        if channel in ("shout", "yell"):
-            channel = "zone"
-        # chat with channel=whisper and `to` name/id → private path
-        # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
-        if channel == "whisper":
-            target_name = data.get("to") or data.get("name") or data.get("target")
-            social_mode_w = _social_alias(target_name, data)
-            target_id = manager.find_id_by_player_id(
-                data.get("to_id") or data.get("player_id") or data.get("id")
-            )
-            if social_mode_w and target_id is None:
-                chain_w = (
-                    ("whisper", "emote", "invite_from", "invite_to")
-                    if social_mode_w == "last"
-                    else ("invite_from", "invite_to")
-                )
-                lid_w, lname_w, empty_w = _resolve_social_peer(
-                    manager, character_id, social_mode_w, chain=chain_w
-                )
-                if lid_w is None:
-                    outbound.append(
-                        msg(
-                            ServerMessageType.ERROR,
-                            reason=empty_w
-                            if social_mode_w == "pending"
-                            else "no one to reply to",
-                        )
-                    )
-                    return character_id, user_id, outbound, None
-                target_id = lid_w
-                target_name = lname_w
-            if target_id is None and isinstance(target_name, str) and target_name.strip():
-                if not social_mode_w:
-                    tid, nerr = manager.resolve_live_name(target_name)
-                    if nerr == "name ambiguous":
-                        outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                        return character_id, user_id, outbound, None
-                    target_id = tid
-            if target_id is None and not (
-                isinstance(target_name, str) and target_name.strip()
-            ):
-                outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
-                return character_id, user_id, outbound, None
-            if target_id is None:
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-                return character_id, user_id, outbound, None
-            if target_id not in manager.online_ids():
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
-                return character_id, user_id, outbound, None
-            if target_id == character_id:
-                outbound.append(msg(ServerMessageType.ERROR, reason="cannot whisper yourself"))
-                return character_id, user_id, outbound, None
-            if manager.is_ignored_by(target_id, character_id):
-                outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
-                return character_id, user_id, outbound, None
-            if manager.is_ignored_by(character_id, target_id):
-                outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
-                return character_id, user_id, outbound, None
-            from network.websocket_manager import _is_idle as _idle_chk
-
-            was_idle_w = _idle_chk(meta) if meta else False
-            was_afk_w, afk_msg_w = _afk_snap(meta)
-            allowed, retry = manager.allow_chat(character_id)
-            if not allowed:
-                outbound.append(
-                    msg(
-                        ServerMessageType.ERROR,
-                        reason="chat_rate_limit",
-                        retry_after=round(retry, 3),
-                    )
-                )
-                return character_id, user_id, outbound, None
-            tmeta = manager.get_meta(target_id)
-            tname = (tmeta or {}).get("name") or (
-                target_name.strip() if isinstance(target_name, str) else "Hero"
-            )
-            whisper_msg = msg(
-                ServerMessageType.CHAT,
-                player_id=character_id,
-                name=name,
-                text=text,
-                channel="whisper",
-                to=tname,
-                to_id=target_id,
-            )
-            sid_w = manager.session_id(character_id)
-            if sid_w is not None:
-                whisper_msg["session_id"] = sid_w
-            target_afk_w = bool((tmeta or {}).get("afk"))
-            target_afk_msg_w = None
-            if target_afk_w and tmeta is not None:
-                amw = tmeta.get("afk_message")
-                if isinstance(amw, str) and amw.strip():
-                    target_afk_msg_w = amw.strip()[:48]
-            if not await private_social_delivery(
-                character_id,
-                target_id,
-                whisper_msg,
-                was_afk=was_afk_w,
-                afk_message=afk_msg_w,
-                outbound=outbound,
-            ):
-                return character_id, user_id, outbound, None
-            echo_w = dict(whisper_msg)
-            if target_afk_w:
-                echo_w["target_afk"] = True
-                if target_afk_msg_w:
-                    echo_w["target_afk_message"] = target_afk_msg_w
-            outbound.append(echo_w)
-            manager.note_whisper_from(target_id, character_id, name)
-            manager.note_whisper_from(character_id, target_id, tname)
-            if was_idle_w:
-                await manager.publish_status(character_id)
-            return character_id, user_id, outbound, None
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        was_idle = _idle_chk(meta) if meta else False
-        zone_name = None
-        if meta is not None:
-            try:
-                zone_name = zone_at(int(meta["x"]), int(meta["y"]))
-            except Exception:
-                zone_name = None
-        # Zone chat only from walkable social zones (not water/wall)
-        if channel == "zone" and zone_name not in ("town", "field", "dungeon"):
-            outbound.append(msg(ServerMessageType.ERROR, reason="not in a zone"))
-            return character_id, user_id, outbound, None
-        allowed, retry = manager.allow_chat(character_id)
-        if not allowed:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        chat_msg = msg(
-            ServerMessageType.CHAT,
-            player_id=character_id,
-            name=name,
-            text=text,
-            channel=channel,
-            zone=zone_name if channel == "zone" else None,
-        )
-        sid_c = manager.session_id(character_id)
-        if sid_c is not None:
-            chat_msg["session_id"] = sid_c
-        # Peers via broadcast (exclude self); self always via outbound once
-        # so local UI never loses the echo if a peer-send races/fails.
-        if channel == "nearby":
-            await manager.broadcast_nearby(
-                character_id, chat_msg, include_self=False, respect_ignore=True
-            )
-        elif channel == "zone":
-            await manager.broadcast_zone(
-                character_id, chat_msg, include_self=False, respect_ignore=True
-            )
-        else:
-            await manager.broadcast(
-                chat_msg,
-                exclude=character_id,
-                from_id=character_id,
-                respect_ignore=True,
-            )
-        outbound.append(chat_msg)
-        if was_idle:
-            await manager.publish_status(character_id)
-        return character_id, user_id, outbound, None
+    # whisper · chat/say/yell via network.handlers
 
     # roll/dice · emotes via network.handlers
 
