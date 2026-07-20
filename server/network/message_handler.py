@@ -17,7 +17,7 @@ from game.item_manager import (
     resolve_item_id,
     use_consumable,
 )
-from game.player_manager import apply_character_patch, get_character, inn_cost, rest_at_inn
+from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
 from game.serialize import character_dict
 from game.world_manager import (
@@ -38,6 +38,7 @@ from network.handlers import emote as emote_handlers
 from network.handlers import invite as invite_handlers
 from network.handlers import invite_cancel as invite_cancel_handlers
 from network.handlers import invite_reply as invite_reply_handlers
+from network.handlers import inn as inn_handlers
 from network.handlers import inventory as inventory_handlers
 from network.handlers import shop as shop_handlers
 from network.handlers import whisper as whisper_handlers
@@ -276,7 +277,13 @@ async def handle_message(
     if inv_peek is not None:
         return inv_peek
 
-    # peeks + social private + invite/emote/whisper/chat/shop/inventory via handlers
+    inn_peek = await inn_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if inn_peek is not None:
+        return inn_peek
+
+    # peeks + social private + invite/emote/whisper/chat/shop/inventory/inn via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -1088,57 +1095,7 @@ async def handle_message(
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
-    # --- Town inn (rest) ---
-    if msg_type in (ClientMessageType.REST, "rest", "inn", "sleep"):
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
-            outbound.append(msg(ServerMessageType.ERROR, reason="inn only in town"))
-            return character_id, user_id, outbound, None
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        from game.item_manager import _safe_gold
-
-        # Preview cost when asked
-        if data.get("preview") or data.get("quote"):
-            cost = inn_cost(char)
-            full = (
-                int(char.get("current_hp") or 0) >= int(char.get("max_hp") or 1)
-                and int(char.get("current_mp") or 0) >= int(char.get("max_mp") or 0)
-            )
-            outbound.append(
-                msg(
-                    ServerMessageType.REST_OK,
-                    preview=True,
-                    cost=cost,
-                    can_afford=_safe_gold(char) >= cost,
-                    full=full,
-                    message=(
-                        "You are already well rested."
-                        if full
-                        else f"Inn stay costs {cost} G"
-                    ),
-                )
-            )
-            return character_id, user_id, outbound, None
-
-        async with db_write() as db:
-            ok, reason, info = await rest_at_inn(db, char)
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason, **(info or {})))
-            return character_id, user_id, outbound, None
-        char = await get_character(character_id) or char
-        char["known_spells"] = battle_spells_at(int(char["level"]))
-        char["bonuses"] = equipment_bonuses(char)
-        outbound.append(msg(ServerMessageType.REST_OK, preview=False, character=char, **info))
-        return character_id, user_id, outbound, None
-
-    # inventory/equip/discard via network.handlers.inventory
-    # buy/sell/shop via network.handlers.shop
+    # inventory · shop · inn via network.handlers
 
     # Debug/test: force encounter (ALLOW_DEBUG=1)
     if msg_type == "debug_encounter":
