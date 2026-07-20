@@ -723,7 +723,7 @@ flowchart TB
 | 🔍 | **`/find`** · **`/find combat:yes`** (plain summary) · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/version`** · **`/time`** · **`/bag`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |
-| 🛒 | **`/shop`** · **`/buy`** · **`/sell`** · **`/bag`** · **`/equip`** · **`/discard`** · clears AFK · not mid-fight |
+| 🛒 | **`/inn`** · **`/rest`** · **`/shop`** · **`/buy`** · **`/sell`** · **`/bag`** · **`/equip`** · clears AFK · town / not mid-fight |
 | ✨ | **`/cast`** · **`/repel`** · **`/return`** field magic from chat |
 | ☕ | **`/afk lunch`** · **`/busy`** · **`/back`** (zone · nearby · online on confirm) |
 | 🔑 | Email accounts can **change password** via API |
@@ -741,6 +741,7 @@ flowchart TB
 | **Names** | Shop & gear accept **display names** or short unique nicknames (spaces OK) |
 | **Bag** | **12** stacks · **8** each · **`/bag`** · **`/equip`** · **D** / **`/discard`** · equip clears AFK · not mid-fight |
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
+| **Inn UX** | **R** quote then rest · **`/inn`** / **`/rest`** · town only · not mid-fight · rest clears AFK |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** · not mid-fight · buy/sell clears AFK |
 | **Ops** | Health endpoint · AFK census · zone population |
 | **Stability** | Server-authoritative movement · combat resume · soft reconnect · **791** tests |
