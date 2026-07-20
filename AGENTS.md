@@ -30,7 +30,7 @@ Keep trees separate on every docs pass: polish README for GitHub humans; put pro
 Keep badges at **0.5.142** / **738** until the suite or `VERSION` changes.  
 Last **pushed** ship: `d1bce6c` (v0.5.142).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.142 / 738** · accept/decline meetup · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.142 / 738** · GitHub README accept/decline polish · human ≠ agent · no protocol dumps.
 
 ## Documentation map (do not mix)
 

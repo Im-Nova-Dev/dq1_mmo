@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.142** (2026-07-20) · suite **738** tests · accept/decline meetup · humans ≠ agents
+**Last docs refresh:** **v0.5.142** (2026-07-20) · suite **738** tests · GitHub README accept/decline polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -95,7 +95,8 @@ flowchart TB
 - **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · emote shortcuts (`/bow`, …)
 - **`@emote`** = who *you* last waved at · **`@emotedby`** = who last waved *at you* (**@** required)
 - **`@share`** = who *you* shared with · **`@from`** = who shared *with you* (**@** required)
-- **Meetup loop (not a party):** **`/invite` · `/share` · `/askwhere` · `/thank` · `/accept` · `/decline` · `/cancel` · `/lastinvite` · `/pending`**
+- **Meetup loop (not a party):** **`/invite` · `/accept` · `/decline` · `/share` · `/askwhere` · `/thank` · `/cancel` · `/lastinvite` · `/pending`**
+- **`/accept` · `/coming` · `/decline` · `/later`** — answer invites; near inviters get your map spot · far see zone only · failed reply keeps pending + restores AFK
 - **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
 - **`/thank` · `/ty @last`** — private thanks (handy after a share)
 - Stuck meetup invites **clear** if you answer while the inviter is offline · cancel while offline clears soft-reconnect ghosts

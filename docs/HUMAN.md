@@ -4,6 +4,7 @@
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
   <img alt="version" src="https://img.shields.io/badge/version-0.5.142-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/tests-738-059669?style=for-the-badge" />
+  <img alt="meetup" src="https://img.shields.io/badge/meetup-/accept_·_/decline-ec4899?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -159,7 +160,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/w @emote** · **/wave @emote** | Reuse who *you* last directed an emote at (**@** required) |
 | **/w @emotedby** · **/wave @emotedby** | Reuse who last directed an emote *at you* (**@** required) |
 | **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — near peers get your map spot · far see zone only · **/accept** or **/decline** |
-| **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite you received (one answer only) |
+| **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite (one answer only) — near inviters get your map spot · far see zone only · failed reply restores AFK and keeps pending |
 | **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice if still pending; soft-grace pointers clear) |
 | **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) · near/far confirm for you |
 | **/askwhere Name** · **/locate @last** | Ask them where they are — they can **/share @last** to answer · near/far confirm |

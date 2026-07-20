@@ -7,30 +7,32 @@
 </p>
 
 <p align="center">
-  <img src="client/assets/sprites/heroes/hero.png" alt="Hero" height="72" />
-  &nbsp;
-  <img src="client/assets/ui/icon_sword.png" alt="Sword" height="40" />
-  &nbsp;
-  <img src="client/assets/tiles/town.png" alt="Town" height="48" />
-  <img src="client/assets/tiles/field.png" alt="Field" height="48" />
-  <img src="client/assets/tiles/dungeon.png" alt="Dungeon" height="48" />
-  <img src="client/assets/tiles/water.png" alt="Water" height="48" />
-  &nbsp;
-  <img src="client/assets/sprites/enemies/slime.png" alt="Slime" height="56" />
-  <img src="client/assets/sprites/enemies/drakee.png" alt="Drakee" height="56" />
-  <img src="client/assets/sprites/enemies/ghost.png" alt="Ghost" height="56" />
-  &nbsp;
-  <img src="client/assets/sprites/heroes/other.png" alt="Other hero" height="72" />
+  <img src="client/assets/sprites/heroes/hero.png" alt="Hero" height="80" />
+  &nbsp;&nbsp;
+  <img src="client/assets/ui/icon_sword.png" alt="Sword" height="44" />
+  &nbsp;&nbsp;
+  <img src="client/assets/tiles/town.png" alt="Town" height="52" />
+  <img src="client/assets/tiles/field.png" alt="Field" height="52" />
+  <img src="client/assets/tiles/dungeon.png" alt="Dungeon" height="52" />
+  <img src="client/assets/tiles/water.png" alt="Water" height="52" />
+  &nbsp;&nbsp;
+  <img src="client/assets/sprites/enemies/slime.png" alt="Slime" height="60" />
+  <img src="client/assets/sprites/enemies/drakee.png" alt="Drakee" height="60" />
+  <img src="client/assets/sprites/enemies/ghost.png" alt="Ghost" height="60" />
+  &nbsp;&nbsp;
+  <img src="client/assets/sprites/heroes/other.png" alt="Other hero" height="80" />
 </p>
 
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.142</b> · <b>738</b> tests green · <code>/accept</code> · <code>/decline</code> meetup · near/far · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.142</b> · <b>738</b> tests green · meetup <code>/accept</code> · <code>/decline</code> · near/far · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
-  <a href="https://skillicons.dev"><img src="https://skillicons.dev/icons?i=python,fastapi,lua,sqlite,github,linux&theme=dark" alt="Python · FastAPI · Lua · SQLite · GitHub · Linux" /></a>
+  <a href="https://skillicons.dev">
+    <img src="https://skillicons.dev/icons?i=python,fastapi,lua,sqlite,github,linux&theme=dark" alt="Python · FastAPI · Lua · SQLite · GitHub · Linux" />
+  </a>
 </p>
 
 <p align="center">
@@ -39,6 +41,7 @@
   <img alt="tests" src="https://img.shields.io/badge/tests-738_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
+  <img alt="meetup" src="https://img.shields.io/badge/meetup-/accept_·_/decline-ec4899?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -77,7 +80,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/invite</code> meetup · near/far · <code>/poke</code> · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · <b>meetup</b> (<code>/invite</code> → <code>/accept</code> · <code>/decline</code>) · near/far · <code>/poke</code> · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -91,7 +94,8 @@
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
   <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_·_zone_·_nearby-f97316?style=flat-square" />
-  <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/share_·_/wave-ec4899?style=flat-square" />
+  <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/accept_·_/decline-ec4899?style=flat-square" />
+  <img alt="answer" src="https://img.shields.io/badge//accept_·_/decline-near_·_far-f472b6?style=flat-square" />
   <img alt="wave" src="https://img.shields.io/badge/waves-two--way_memory-f472b6?style=flat-square" />
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
@@ -154,7 +158,9 @@ protocol · tests · reliability
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
-  <img alt="meet2" src="https://img.shields.io/badge/🤝_Meetup-invite_near_far-3b82f6?style=for-the-badge" />
+  <img alt="meet2" src="https://img.shields.io/badge/🤝_Meetup-invite_·_accept_·_decline-3b82f6?style=for-the-badge" />
+  <img alt="yes2" src="https://img.shields.io/badge/✅_Accept-coming_·_near_far-22c55e?style=for-the-badge" />
+  <img alt="no2" src="https://img.shields.io/badge/🙅_Decline-later_·_clear-f43f5e?style=for-the-badge" />
   <img alt="share2" src="https://img.shields.io/badge/📍_Share-spot_·_near_far-14b8a6?style=for-the-badge" />
   <img alt="thank2" src="https://img.shields.io/badge/🙏_Thank-near_·_far-ec4899?style=for-the-badge" />
   <img alt="poke2" src="https://img.shields.io/badge/👆_Poke-near_·_far-a855f7?style=for-the-badge" />
@@ -167,9 +173,11 @@ protocol · tests · reliability
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
   <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
   <img alt="afkloop" src="https://img.shields.io/badge/afk-/busy_→_/back-f97316?style=for-the-badge" />
+  <img alt="meetloop" src="https://img.shields.io/badge/meetup-/invite_→_/accept_|_/decline-ec4899?style=for-the-badge" />
 </p>
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#312e81', 'primaryTextColor': '#e0e7ff', 'lineColor': '#a78bfa', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
   A[Register] --> B[Create hero]
   B --> C[Town · safe]
@@ -178,20 +186,22 @@ flowchart LR
   E --> C
   C --> F[Shop · inn · equip]
   F --> C
-  C --> G[Social meetup]
-  G --> C
+  C --> G["Meetup · /invite"]
+  G --> G2["/accept · /decline"]
+  G2 --> C
   D --> H["/busy · AFK"]
   H --> D
 ```
 
 <table>
 <tr>
-<td align="center" width="16%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
-<td align="center" width="16%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
-<td align="center" width="16%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
-<td align="center" width="16%"><b>👋 Social</b><br/><sub>invite · wave</sub></td>
-<td align="center" width="16%"><b>📍 Memory</b><br/><sub>@share · @emote</sub></td>
-<td align="center" width="16%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
+<td align="center" width="14%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
+<td align="center" width="14%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
+<td align="center" width="14%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
+<td align="center" width="14%"><b>🤝 Meetup</b><br/><sub>invite · accept</sub></td>
+<td align="center" width="14%"><b>📍 Memory</b><br/><sub>@share · @emote</sub></td>
+<td align="center" width="14%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
+<td align="center" width="14%"><b>🔁 Soft RC</b><br/><sub>~60s memory</sub></td>
 </tr>
 </table>
 
@@ -230,40 +240,63 @@ flowchart LR
 <p align="center">
   <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.142-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/738_tests_green-059669?style=for-the-badge" />
-</p>
-
-<p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-accept_·_decline-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-accept_·_decline-ec4899?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.142** — **`/accept`** · **`/decline`** meetup reply · **738** tests |
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### ✅ Accept
+| | |
 |:--|:--|
-| ✅ | **`/accept`** (or **`/coming`**) · they get your zone · near also get map spot |
-| 🙅 | **`/decline`** (or **`/later`**) · clear pending · soft reconnect stays honest |
-| 🔁 | Failed delivery refunds chat rate, restores AFK, keeps invite for retry |
-| 🧪 | **738** automated tests green |
+| **`/accept`** · **`/coming`** | you are on the way |
+| **Near** | they see your map spot |
+| **Far** | zone only |
+| **After** | **`/r`** whisper is ready |
+
+</td>
+<td width="50%" valign="top">
+
+### 🙅 Decline
+| | |
+|:--|:--|
+| **`/decline`** · **`/later`** | not right now |
+| **Pending** | cleared for both sides |
+| **Offline inviter** | soft reconnect stays clean |
+| **Fail safe** | AFK restored · invite kept to retry |
+
+</td>
+</tr>
+</table>
 
 <p align="center">
   <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.142-7c3aed?style=for-the-badge" />
   <img alt="meta" src="https://img.shields.io/badge//accept_·_/decline-meetup-a855f7?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/738_tests-059669?style=for-the-badge" />
+  <img alt="privacy" src="https://img.shields.io/badge/privacy-near_coords_·_far_zone-0ea5e9?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1e3a8a', 'primaryTextColor': '#dbeafe', 'lineColor': '#60a5fa', 'secondaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#831843', 'primaryTextColor': '#fce7f3', 'lineColor': '#f472b6', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
   subgraph meetup ["Meetup loop"]
-    I["/invite Hero"] --> A["/accept or /decline"]
-    A --> N["Near: zone + coords"]
-    A --> F["Far: zone only"]
-    A --> R["/r whisper after accept"]
+    I["/invite Hero"] --> A{"/accept or /decline"}
+    A -->|accept near| N["Zone + map spot"]
+    A -->|accept far| F["Zone only"]
+    A -->|decline| D["Pending cleared"]
+    N --> R["/r whisper unlocked"]
+    F --> R
   end
   subgraph soft ["Brief disconnect ~1 min"]
-    A --> P["pending cleared · offline inviter soft-grace clean"]
+    A --> P["Offline inviter · soft reconnect clean"]
   end
 ```
+
+> [!TIP]
+> Got an invite? **`/accept`** (or **`/coming`**) · **`/decline`** (or **`/later`**). Nearby friends also see your map spot; far friends only see the zone. Soft reconnect keeps **`/pending`** honest.
 
 <table>
 <tr>
@@ -272,7 +305,9 @@ flowchart LR
 ### 🤝 Meetup
 | | |
 |:--|:--|
-| **`/invite`** | meetup |
+| **`/invite`** | send |
+| **`/accept`** | yes |
+| **`/decline`** | no |
 | **`/cancel`** | clear |
 
 <sub>near coords · far zone</sub>
@@ -417,10 +452,11 @@ flowchart LR
 ### 🤝 Meetup
 | Command | Means |
 |:--------|:------|
-| **`/invite`** | meetup |
+| **`/invite`** | send |
+| **`/accept`** · **`/decline`** | answer |
 | **`/pending`** | invites |
 
-<sub>**`/lastinvite`**</sub>
+<sub>**`/lastinvite`** · **`/cancel`**</sub>
 
 </td>
 </tr>
@@ -1111,7 +1147,7 @@ flowchart LR
 | **Inspiration** | *Dragon Quest I / Dragon Warrior* (NES-era combat math — not a ROM dump) |
 | **Combat reference** | [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) |
 | **Art (CC0)** | [Kenney.nl](https://kenney.nl) · [Tiny Creatures](https://opengameart.org/content/tiny-creatures) — [ATTRIBUTION](client/assets/ATTRIBUTION.md) |
-| **Badges / icons** | [shields.io](https://shields.io) · [skillicons.dev](https://skillicons.dev) · [github-readme-stats](https://github.com/anuraghazra/github-readme-stats) · mermaid · GFM |
+| **Badges / widgets** | [shields.io](https://shields.io) · [skillicons.dev](https://skillicons.dev) · [github-readme-stats](https://github.com/anuraghazra/github-readme-stats) · [star-history](https://star-history.com) · [mermaid](https://mermaid.js.org) · GitHub Flavored Markdown |
 | **Disclaimer** | Fan project — **not** Square Enix |
 
 ---
@@ -1121,9 +1157,7 @@ flowchart LR
     <img alt="dq1_mmo" src="https://github-readme-stats.vercel.app/api/pin/?username=Im-Nova-Dev&repo=dq1_mmo&theme=radical&hide_border=true" />
   </a>
   &nbsp;
-  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/stargazers">
-    <img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=github&color=fbbf24" />
-  </a>
+  <img alt="top lang" src="https://github-readme-stats.vercel.app/api/top-langs/?username=Im-Nova-Dev&layout=compact&theme=radical&hide_border=true&langs_count=6&hide=html,css" height="165" />
 </p>
 
 <p align="center">
@@ -1133,7 +1167,10 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="top lang" src="https://github-readme-stats.vercel.app/api/top-langs/?username=Im-Nova-Dev&layout=compact&theme=radical&hide_border=true&langs_count=6&hide=html,css" height="140" />
+  <img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=github&color=fbbf24" />
+  <img alt="forks" src="https://img.shields.io/github/forks/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=github&color=94a3b8" />
+  <img alt="issues" src="https://img.shields.io/github/issues/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=github&color=f43f5e" />
+  <img alt="last" src="https://img.shields.io/github/last-commit/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=git&color=6366f1" />
 </p>
 
 <p align="center">
@@ -1147,6 +1184,7 @@ flowchart LR
   <img alt="tests" src="https://img.shields.io/badge/738_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
+  <img alt="meetup" src="https://img.shields.io/badge/meetup-/accept_·_/decline-ec4899?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1159,6 +1197,8 @@ flowchart LR
   <a href="client/assets/ATTRIBUTION.md"><img alt="art" src="https://img.shields.io/badge/🎨_Art-10b981?style=for-the-badge" /></a>
   &nbsp;
   <a href="#-quick-start"><img alt="play" src="https://img.shields.io/badge/▶_Quick_start-0ea5e9?style=for-the-badge" /></a>
+  &nbsp;
+  <a href="#-whats-new"><img alt="new" src="https://img.shields.io/badge/🆕_What's_new-a855f7?style=for-the-badge" /></a>
 </p>
 
 <p align="center">
