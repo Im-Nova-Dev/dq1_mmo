@@ -8,19 +8,11 @@ from database.db import db_write, get_db
 from game.combat_engine import combat_engine
 from game.data_loader import battle_spells_at, field_spells_at, get_enemy, get_spell
 from game.enemy_spawner import roll_encounter
-from game import formulas as F
-from game.item_manager import (
-    REPEL_STEPS,
-    character_public,
-    equipment_bonuses,
-    list_items,
-    resolve_item_id,
-)
+from game.item_manager import equipment_bonuses
 from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
 from game.serialize import character_dict
 from game.world_manager import (
-    DUNGEON_ENTRANCE,
     SPAWN_X,
     SPAWN_Y,
     is_adjacent_step,
@@ -55,6 +47,7 @@ from network.handlers import social_peeks
 from network.handlers import status as status_handlers
 from network.handlers import thank as thank_handlers
 from network.handlers import use_item as use_item_handlers
+from network.handlers import field_magic as field_magic_handlers
 from network.handlers._common import (  # noqa: F401 — re-export for tests
     _afk_snap,
     _announce_combat_outcome,
@@ -289,7 +282,13 @@ async def handle_message(
     if use_peek is not None:
         return use_peek
 
-    # peeks + social private + shop/inventory/inn/use_item via handlers
+    field_peek = await field_magic_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if field_peek is not None:
+        return field_peek
+
+    # peeks + social + shop/inventory/inn/use_item/field_magic via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -429,171 +428,7 @@ async def handle_message(
                 pass
             return character_id, user_id, outbound, None
 
-    # --- Field magic (overworld) ---
-    # Shortcuts: {type:cast,spell:heal} or {type:heal}/{type:repel}/… when not in combat
-    _FIELD_SHORTCUTS = {
-        "heal",
-        "healmore",
-        "return",
-        "repel",
-        "outside",
-        "radiant",
-    }
-    if (
-        msg_type in (ClientMessageType.USE_SPELL, "use_spell", "cast", "cast_spell")
-        or (msg_type in _FIELD_SHORTCUTS and not combat_engine.is_in_combat(character_id))
-    ) and not combat_engine.is_in_combat(character_id):
-        if msg_type in _FIELD_SHORTCUTS:
-            spell_id = str(msg_type)
-        else:
-            spell_id = str(
-                data.get("spell")
-                or data.get("id")
-                or data.get("name")
-                or ""
-            ).strip().lower().replace(" ", "")
-        # normalize aliases
-        _spell_alias = {
-            "healmore": "healmore",
-            "heal_more": "healmore",
-            "return": "return",
-            "warp": "return",
-            "town": "return",
-            "repel": "repel",
-            "holy_protection": "repel",
-            "outside": "outside",
-            "exit": "outside",
-            "radiant": "radiant",
-            "light": "radiant",
-            "heal": "heal",
-        }
-        spell_id = _spell_alias.get(spell_id, spell_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        known = field_spells_at(int(char["level"]))
-        # also allow known_spells from battle list if field flag set
-        if spell_id not in known:
-            outbound.append(msg(ServerMessageType.ERROR, reason="unknown or unlearned spell"))
-            return character_id, user_id, outbound, None
-        sp = get_spell(spell_id)
-        if not sp or not sp.get("field"):
-            outbound.append(msg(ServerMessageType.ERROR, reason="cannot cast on field"))
-            return character_id, user_id, outbound, None
-        cost = int(sp.get("mp_cost") or 0)
-        mp = int(char.get("current_mp") or 0)
-        if mp < cost:
-            outbound.append(msg(ServerMessageType.ERROR, reason="not enough MP"))
-            return character_id, user_id, outbound, None
-
-        rng = Rng()
-        meta = manager.get_meta(character_id)
-        patch: dict = {"current_mp": mp - cost}
-        info: dict = {
-            "spell": spell_id,
-            "name": sp.get("name") or spell_id,
-            "mp_cost": cost,
-            "current_mp": mp - cost,
-        }
-        formula = sp.get("formula") or spell_id
-
-        if formula in ("heal", "healmore"):
-            max_hp = int(char.get("max_hp") or 1)
-            cur_hp = int(char.get("current_hp") or 0)
-            if cur_hp >= max_hp:
-                outbound.append(msg(ServerMessageType.ERROR, reason="already at full HP"))
-                return character_id, user_id, outbound, None
-            amt = F.heal_amount(rng) if formula == "heal" else F.healmore_amount(rng)
-            new_hp, actual = F.apply_heal(cur_hp, max_hp, amt)
-            patch["current_hp"] = new_hp
-            info.update(
-                {
-                    "healed": actual,
-                    "current_hp": new_hp,
-                    "max_hp": max_hp,
-                    "message": f"You cast {sp.get('name')}! Recovered {actual} HP.",
-                }
-            )
-        elif formula == "return" or spell_id == "return":
-            patch["world_x"] = SPAWN_X
-            patch["world_y"] = SPAWN_Y
-            info.update(
-                {
-                    "teleported": True,
-                    "x": SPAWN_X,
-                    "y": SPAWN_Y,
-                    "message": f"You cast {sp.get('name')}! Returned to town.",
-                }
-            )
-        elif formula == "repel" or spell_id == "repel":
-            manager.set_repel(character_id, REPEL_STEPS)
-            info.update(
-                {
-                    "repel_steps": REPEL_STEPS,
-                    "message": f"You cast {sp.get('name')}! Foes keep away for a while.",
-                }
-            )
-        elif spell_id == "outside":
-            zone = zone_at(int(meta["x"]), int(meta["y"])) if meta else "blocked"
-            if zone != "dungeon":
-                outbound.append(msg(ServerMessageType.ERROR, reason="only works in dungeon"))
-                return character_id, user_id, outbound, None
-            # Exit to field just west of dungeon mouth
-            ox, oy = 14, 3
-            if not is_walkable(ox, oy):
-                ox, oy = DUNGEON_ENTRANCE[0] - 1, DUNGEON_ENTRANCE[1]
-            patch["world_x"] = ox
-            patch["world_y"] = oy
-            info.update(
-                {
-                    "teleported": True,
-                    "x": ox,
-                    "y": oy,
-                    "message": f"You cast {sp.get('name')}! You exit the dungeon.",
-                }
-            )
-        elif spell_id == "radiant":
-            steps = int(getattr(manager, "RADIANT_STEPS", 64) or 64)
-            manager.set_radiant(character_id, steps)
-            info.update(
-                {
-                    "radiant_steps": steps,
-                    "message": (
-                        f"You cast {sp.get('name')}! A soft light surrounds you "
-                        f"({steps} steps — safer in dungeons)."
-                    ),
-                }
-            )
-        else:
-            outbound.append(msg(ServerMessageType.ERROR, reason="cannot cast on field"))
-            return character_id, user_id, outbound, None
-
-        char = await apply_character_patch(character_id, patch) or char
-        if info.get("teleported"):
-            aoi = await manager.publish_move(character_id, int(info["x"]), int(info["y"]), seq=None)
-            outbound.extend(aoi)
-            outbound.append(
-                msg(
-                    ServerMessageType.MOVE_OK,
-                    ok=True,
-                    x=int(info["x"]),
-                    y=int(info["y"]),
-                    seq=None,
-                    reason="spell",
-                )
-            )
-        # Casting is multiplayer activity — clear AFK for peers
-        was_afk_cast = manager.mark_active(character_id)
-        if was_afk_cast:
-            await manager.publish_status(character_id, pulse_online=True)
-        char["known_spells"] = battle_spells_at(int(char["level"]))
-        char["field_spells"] = field_spells_at(int(char["level"]))
-        char["bonuses"] = equipment_bonuses(char)
-        outbound.append(
-            msg(ServerMessageType.SPELL_CAST, character=char, **info)
-        )
-        return character_id, user_id, outbound, None
+    # field magic via network.handlers.field_magic
 
     # --- Combat actions ---
     if msg_type in (

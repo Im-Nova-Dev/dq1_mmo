@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.149</b> · <b>798</b> tests green · <code>/use</code> herb · wings · fairy water · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.150</b> · <b>810</b> tests green · <code>/cast</code> field magic · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -36,12 +36,12 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.149-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.150-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-798_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-810_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
-  <img alt="use" src="https://img.shields.io/badge/items-/use_herb_·_wings-a855f7?style=for-the-badge" />
+  <img alt="cast" src="https://img.shields.io/badge/field-/cast_·_/repel_·_/return-a855f7?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -80,30 +80,28 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · <b><code>/inn</code> · <code>/rest</code></b> · shop · bag · chat · meetup · <b>soft reconnect</b>.
+  Server-side 1v1 · <b><code>/use herb</code> · wings · fairy water</b> · inn · shop · chat · meetup · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
+  <img alt="use" src="https://img.shields.io/badge//use-herb_·_wings_·_water-a855f7?style=flat-square" />
+  <img alt="herb" src="https://img.shields.io/badge/herb-heal_·_turn-22c55e?style=flat-square" />
+  <img alt="wings" src="https://img.shields.io/badge/wings-warp_town-6366f1?style=flat-square" />
+  <img alt="water" src="https://img.shields.io/badge/fairy_water-fewer_fights-0ea5e9?style=flat-square" />
   <img alt="inn" src="https://img.shields.io/badge//inn-quote_·_rest-14b8a6?style=flat-square" />
-  <img alt="rest" src="https://img.shields.io/badge//rest-full_HP_MP-0d9488?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge//shop-town_catalog-eab308?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge//bag_·_/equip-f59e0b?style=flat-square" />
   <img alt="chat_s" src="https://img.shields.io/badge//s_·_/g_·_/yell-22c55e?style=flat-square" />
   <img alt="whisper" src="https://img.shields.io/badge//w_·_/r-private-0ea5e9?style=flat-square" />
   <img alt="wave" src="https://img.shields.io/badge//wave-near_·_far-f472b6?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from-8b5cf6?style=flat-square" />
-  <img alt="look" src="https://img.shields.io/badge//look-near_·_far-0ea5e9?style=flat-square" />
-  <img alt="find" src="https://img.shields.io/badge//find-plain_summary-0ea5e9?style=flat-square" />
-  <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far-64748b?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=flat-square" />
-  <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel-a855f7?style=flat-square" />
-  <img alt="afk" src="https://img.shields.io/badge/AFK-rest_clears_it-f97316?style=flat-square" />
+  <img alt="afk" src="https://img.shields.io/badge/AFK-use_clears_it-f97316?style=flat-square" />
   <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/accept-ec4899?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-798_green-059669?style=flat-square" />
-  <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp-a855f7?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-810_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -223,7 +221,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.149** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.150** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -240,10 +238,10 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.149-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/798_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.150-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/810_tests_green-059669?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-/use_items-a855f7?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-/cast_field_magic-a855f7?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
@@ -251,21 +249,21 @@ flowchart LR
 <tr>
 <td width="33%" valign="top" align="center">
 
-### 🌿 Herb
+### ✨ Heal · Repel
 | | |
 |:--|:--|
-| **`/use herb`** | heal |
-| **Field** | no waste at full HP |
-| **Fight** | spends your turn |
+| **`/cast heal`** | recover HP |
+| **Full HP** | no waste |
+| **`/repel`** | fewer fights |
 
 </td>
 <td width="33%" valign="top" align="center">
 
-### 🪽 Wings · water
+### 🏠 Return · Outside
 | | |
 |:--|:--|
-| **`/use wings`** | warp to town |
-| **Fairy water** | fewer fights |
+| **`/return`** | warp to town |
+| **`/outside`** | leave dungeon |
 | **Friends** | see you move |
 
 </td>
@@ -274,8 +272,8 @@ flowchart LR
 ### ✅ Multiplayer
 | | |
 |:--|:--|
-| **AFK** | use clears it |
-| **Your turn** | combat wait |
+| **AFK** | cast clears it |
+| **Fight** | battle spells stay |
 | **Room** | online · nearby |
 
 </td>
@@ -283,28 +281,27 @@ flowchart LR
 </table>
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.149-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//use-herb_·_wings_·_water-a855f7?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/798_tests-059669?style=for-the-badge" />
-  <img alt="combat" src="https://img.shields.io/badge/herb_in_fight-turn-f43f5e?style=for-the-badge" />
-  <img alt="afk" src="https://img.shields.io/badge/use_clears_AFK-f97316?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.150-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//cast_·_/repel_·_/return-a855f7?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/810_tests-059669?style=for-the-badge" />
+  <img alt="field" src="https://img.shields.io/badge/field_only-not_mid_fight-0ea5e9?style=for-the-badge" />
+  <img alt="afk" src="https://img.shields.io/badge/cast_clears_AFK-f97316?style=for-the-badge" />
 </p>
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#4c1d95', 'primaryTextColor': '#ede9fe', 'lineColor': '#c4b5fd', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph use ["Use items"]
-    U["/use herb · wings · water"] --> F{"Fighting?"}
-    F -->|yes| T["Your turn only"]
-    F -->|no| O["Field use"]
-    T --> A["AFK clears"]
-    O --> A
-    O --> W["Wings · friends see move"]
+  subgraph cast ["Field magic"]
+    C["/cast · /repel · /return"] --> F{"Fighting?"}
+    F -->|yes| B["Battle spells only"]
+    F -->|no| O["Field cast"]
+    O --> A["AFK clears"]
+    O --> T["Return · friends see move"]
   end
 ```
 
 > [!TIP]
-> **`/use herb`** to heal · **`/use wings`** to return to town · fairy water for fewer fights. In combat, herb spends your turn. Using an item clears **AFK** so friends know you are back.
+> **`/cast heal`** when hurt · **`/repel`** for fewer fights · **`/return`** to town · **`/outside`** from the dungeon. Field magic is overworld-only; casting clears **AFK** so friends know you are back.
 
 <table>
 <tr>
@@ -594,6 +591,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.150** | `/cast` field magic extract · Return AOI · cast clears AFK · census · **810** tests |
 | **0.5.149** | `/use` herb · wings · fairy water · AFK clear · combat turn · **798** tests |
 | **0.5.148** | town `/inn` · `/rest` · quote · AFK clear · **791** tests |
 | **0.5.147** | `/bag` · `/equip` · `/discard` · AFK clear · combat gate · **784** tests |
@@ -746,7 +744,7 @@ flowchart TB
 | **Inn UX** | **R** quote then rest · **`/inn`** / **`/rest`** · town only · not mid-fight · rest clears AFK |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** · not mid-fight · buy/sell clears AFK |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **798** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **810** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -871,7 +869,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 798 passed
+# expect: 810 passed
 ```
 
 ---
@@ -1148,9 +1146,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-798_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-810_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.149-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.150-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1256,8 +1254,8 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.149-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/798_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.150-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/810_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
   <img alt="use" src="https://img.shields.io/badge/items-/use-a855f7?style=for-the-badge" />
