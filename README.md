@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.141</b> · <b>730</b> tests green · <code>/invite</code> meetup · near/far · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.141</b> · <b>730</b> tests green · <code>/invite</code> meetup · near/far · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -36,7 +36,7 @@
 <p align="center">
   <img alt="version" src="https://img.shields.io/badge/version-0.5.141-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-719_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-730_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -96,7 +96,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-719_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-730_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
   <img alt="meta" src="https://img.shields.io/badge/meta-/played_·_/version_·_/time-06b6d4?style=flat-square" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
@@ -154,6 +154,7 @@ protocol · tests · reliability
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
+  <img alt="meet2" src="https://img.shields.io/badge/🤝_Meetup-invite_near_far-3b82f6?style=for-the-badge" />
   <img alt="share2" src="https://img.shields.io/badge/📍_Share-spot_·_near_far-14b8a6?style=for-the-badge" />
   <img alt="thank2" src="https://img.shields.io/badge/🙏_Thank-near_·_far-ec4899?style=for-the-badge" />
   <img alt="poke2" src="https://img.shields.io/badge/👆_Poke-near_·_far-a855f7?style=for-the-badge" />
@@ -228,7 +229,7 @@ flowchart LR
 
 <p align="center">
   <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/719_tests_green-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/730_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -247,25 +248,37 @@ flowchart LR
 <p align="center">
   <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.141-7c3aed?style=for-the-badge" />
   <img alt="meta" src="https://img.shields.io/badge//invite-meetup_near_far-a855f7?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/719_tests-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/730_tests-059669?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#134e4a', 'primaryTextColor': '#ccfbf1', 'lineColor': '#5eead4', 'secondaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1e3a8a', 'primaryTextColor': '#dbeafe', 'lineColor': '#60a5fa', 'secondaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph share ["Share loop"]
-    A["/askwhere Hero"] --> B["/share @last"]
-    B --> C["You: Location shared with Hero [near]"]
-    B --> D["Hero: zone + map coords"]
-    D --> E["/thank @from"]
+  subgraph meetup ["Meetup loop"]
+    I["/invite Hero"] --> N["Near: zone + coords"]
+    I --> F["Far: zone only"]
+    N --> A["/accept or /decline"]
+    F --> A
+    A --> R["/r whisper unlocked"]
   end
   subgraph soft ["Brief disconnect ~1 min"]
-    B --> F["@share / @from restored"]
+    I --> P["/pending · /lastinvite restored"]
   end
 ```
 
 <table>
 <tr>
+<td width="12%" valign="top" align="center">
+
+### 🤝 Meetup
+| | |
+|:--|:--|
+| **`/invite`** | meetup |
+| **`/cancel`** | clear |
+
+<sub>near coords · far zone</sub>
+
+</td>
 <td width="12%" valign="top" align="center">
 
 ### 📍 Share
@@ -1023,7 +1036,7 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-719_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-730_green-059669?style=for-the-badge" />
   &nbsp;
   <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.141-6366f1?style=for-the-badge" />
 </p>
@@ -1131,7 +1144,7 @@ flowchart LR
 
 <p align="center">
   <img alt="v" src="https://img.shields.io/badge/v0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/719_tests-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/730_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
 </p>

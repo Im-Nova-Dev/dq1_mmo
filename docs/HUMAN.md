@@ -23,6 +23,7 @@ Protocol tables and test matrices stay **out** of this guide.
 **Recent for players/ops (v0.5.141):** **`/invite`** meetup — near peers get your map spot · far see zone only · failed invites restore AFK · soft reconnect keeps pending · **730** tests.
 
 > [!TIP]
+> **Meetup invite:** **`/invite Hero`** — if they are nearby they also see your map spot; if far, zone only. Soft reconnect keeps **`/pending`**.  
 > **Share your spot:** **`/share Hero`** (or after **`/askwhere`**, they **`/share @last`**) — they get zone + coords; you see near/far. Soft reconnect keeps **@share** / **@from**.  
 > **Thank someone:** **`/thank Hero`** or **`/ty @from`** after a share — you see near/far (and zone); they get a private thanks. Failed delivery refunds chat rate and restores AFK.  
 > **Poke a friend:** **`/poke Hero`** or **`/nudge @last`** — you see near/far (and zone); they get a private “trying to get your attention.” Failed delivery won’t leave you stuck rate-limited or wrongly AFK.  
