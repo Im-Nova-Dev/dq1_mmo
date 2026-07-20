@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-730-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.142-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-738-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,11 +18,12 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.141 · **730** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.142 · **738** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.141):** **`/invite`** meetup — near peers get your map spot · far see zone only · failed invites restore AFK · soft reconnect keeps pending · **730** tests.
+**Recent for players/ops (v0.5.142):** **`/accept`** · **`/decline`** meetup reply — near inviters get your map spot · far see zone only · failed replies restore AFK and keep pending · offline inviter clears soft reconnect · **738** tests.
 
 > [!TIP]
+> **Answer a meetup:** **`/accept`** (or **`/coming`**) · **`/decline`** (or **`/later`**) — if they are nearby they also see your map spot; if far, zone only. Offline inviter clears **`/pending`**.  
 > **Meetup invite:** **`/invite Hero`** — if they are nearby they also see your map spot; if far, zone only. Soft reconnect keeps **`/pending`**.  
 > **Share your spot:** **`/share Hero`** (or after **`/askwhere`**, they **`/share @last`**) — they get zone + coords; you see near/far. Soft reconnect keeps **@share** / **@from**.  
 > **Thank someone:** **`/thank Hero`** or **`/ty @from`** after a share — you see near/far (and zone); they get a private thanks. Failed delivery refunds chat rate and restores AFK.  
@@ -331,7 +332,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 730 passed
+# expect: 738 passed
 ```
 
 ---
@@ -345,7 +346,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.141** · **730** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.142** · **738** tests).
 
 | Do | Don’t |
 |:---|:------|

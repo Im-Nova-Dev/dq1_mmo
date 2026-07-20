@@ -41,6 +41,7 @@ from network.handlers import find as find_handlers
 from network.handlers import hud_info as hud_info_handlers
 from network.handlers import invite as invite_handlers
 from network.handlers import invite_cancel as invite_cancel_handlers
+from network.handlers import invite_reply as invite_reply_handlers
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
 from network.handlers import mute as mute_handlers
@@ -240,150 +241,14 @@ async def handle_message(
     if invite_peek is not None:
         return invite_peek
 
-    # peeks + social private + invite/cancel via handlers
+    reply_peek = await invite_reply_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if reply_peek is not None:
+        return reply_peek
 
-    # Social peeks (lastwhisper/social/lastemote/lastshare/lastinvite/pending)
-    # handled early via network.handlers.social_peeks
-
-    # invite via network.handlers.invite
-
-    # cancel invite via network.handlers.invite_cancel
-
-    # share via network.handlers.share
-
-    # poke/nudge via network.handlers.poke
-
-    # askwhere/locate via network.handlers.askwhere
-
-    # thank/ty via network.handlers.thank
-
-    # lastinvite / pending peeks handled via network.handlers.social_peeks
-
-    # --- Accept / decline last meetup invite (not a party — private reply only) ---
-    if msg_type in (
-        "accept",
-        "coming",
-        "invite_accept",
-        "decline",
-        "later",
-        "invite_decline",
-        "pass_invite",
-    ):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        accepting = msg_type in ("accept", "coming", "invite_accept")
-        lid, lname = manager.last_invite_from(character_id)
-        if lid is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="no invite to answer"))
-            return character_id, user_id, outbound, None
-        if lid not in manager.online_ids():
-            # Inviter left — clear stuck invite so /accept|/decline cannot loop forever
-            # Also clear inviter soft-grace last_invite_to so they do not rehydrate
-            # a zombie outgoing invite after reconnect.
-            manager.clear_last_invite(character_id)
-            manager.clear_invite_to_peer(lid, character_id)
-            live = lname or "Hero"
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="player not online",
-                    invite_cleared=True,
-                    message=f"Invite from {live} cleared (player offline).",
-                )
-            )
-            return character_id, user_id, outbound, None
-        if manager.is_ignored_by(lid, character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
-            return character_id, user_id, outbound, None
-        if manager.is_ignored_by(character_id, lid):
-            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
-            return character_id, user_id, outbound, None
-        meta_pre = manager.get_meta(character_id)
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        was_idle = _idle_chk(meta_pre) if meta_pre else False
-        was_afk, afk_msg_snap = _afk_snap(meta_pre)
-        ok_chat, retry = manager.allow_chat(character_id)
-        if not ok_chat:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        tmeta = manager.get_meta(lid)
-        name = (meta or {}).get("name") or "Hero"
-        tname = (tmeta or {}).get("name") or lname or "Hero"
-        # Zone of the person accepting/declining (no coords unless already nearby)
-        from network.websocket_manager import _zone_of
-
-        reply_zone = _zone_of(meta) if meta else None
-        zone_bit = (
-            f" (from the {reply_zone})"
-            if reply_zone in ("town", "field", "dungeon")
-            else ""
-        )
-        if accepting:
-            line = f"{name} is coming to meet you{zone_bit}."
-            self_line = f"You told {tname} you are coming{zone_bit}."
-            action = "accept"
-        else:
-            line = f"{name} cannot meet right now{zone_bit}."
-            self_line = f"You declined {tname}'s invite."
-            action = "decline"
-        reply_msg: dict = {
-            "type": "invite_reply",
-            "action": action,
-            "from": name,
-            "from_id": character_id,
-            "to": tname,
-            "to_id": lid,
-            "message": line,
-        }
-        if reply_zone in ("town", "field", "dungeon"):
-            reply_msg["zone"] = reply_zone
-        # Share coords only when already nearby (same privacy as invite/look)
-        if lid in set(manager.ids_nearby(character_id)):
-            try:
-                reply_msg["x"] = int(meta["x"]) if meta else None
-                reply_msg["y"] = int(meta["y"]) if meta else None
-            except (TypeError, ValueError, KeyError):
-                pass
-            reply_msg["nearby"] = True
-        else:
-            reply_msg["nearby"] = False
-        sid_r = manager.session_id(character_id)
-        if sid_r is not None:
-            reply_msg["session_id"] = sid_r
-        if not await private_social_delivery(
-            character_id,
-            lid,
-            reply_msg,
-            was_afk=was_afk,
-            afk_message=afk_msg_snap,
-            outbound=outbound,
-        ):
-            return character_id, user_id, outbound, None
-        # Consume invite so double-accept cannot spam the inviter
-        manager.clear_last_invite(character_id)
-        # Inviter's outgoing pointer no longer pending
-        inv_to, _ = manager.last_invite_to(lid)
-        if inv_to == character_id:
-            manager.clear_last_invite_to(lid)
-        # Accept also sets /r peer for easy follow-up whisper
-        if accepting:
-            manager.note_whisper_from(character_id, lid, tname)
-            manager.note_whisper_from(lid, character_id, name)
-        echo = dict(reply_msg)
-        echo["message"] = self_line
-        outbound.append(echo)
-        if was_idle:
-            await manager.publish_status(character_id)
-        return character_id, user_id, outbound, None
+    # peeks + social private + invite/cancel/accept via handlers
+    # accept/decline via network.handlers.invite_reply
 
     # fighting via presence_peeks · quit/stuck via safety
 

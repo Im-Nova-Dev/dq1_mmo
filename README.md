@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.141</b> · <b>730</b> tests green · <code>/invite</code> meetup · near/far · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.142</b> · <b>738</b> tests green · <code>/accept</code> · <code>/decline</code> meetup · near/far · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -34,9 +34,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.141-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.142-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-730_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-738_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -96,7 +96,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-730_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-738_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
   <img alt="meta" src="https://img.shields.io/badge/meta-/played_·_/version_·_/time-06b6d4?style=flat-square" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
@@ -211,7 +211,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.141** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.142** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -228,41 +228,40 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/730_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.142-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/738_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-meetup_invite-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-accept_·_decline-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.141** — meetup invite knows near · far · **730** tests |
+| | **v0.5.142** — **`/accept`** · **`/decline`** meetup reply · **738** tests |
 |:--|:--|
-| 🤝 | **`/invite Hero`** · near peers get coords · far see zone only |
-| 🔁 | Failed delivery refunds chat rate and restores AFK |
-| 🔗 | Soft reconnect still remembers **pending** / **lastinvite** |
-| 🧪 | **730** automated tests green |
+| ✅ | **`/accept`** (or **`/coming`**) · they get your zone · near also get map spot |
+| 🙅 | **`/decline`** (or **`/later`**) · clear pending · soft reconnect stays honest |
+| 🔁 | Failed delivery refunds chat rate, restores AFK, keeps invite for retry |
+| 🧪 | **738** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//invite-meetup_near_far-a855f7?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/730_tests-059669?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.142-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//accept_·_/decline-meetup-a855f7?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/738_tests-059669?style=for-the-badge" />
 </p>
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#1e3a8a', 'primaryTextColor': '#dbeafe', 'lineColor': '#60a5fa', 'secondaryColor': '#1e293b'}}}%%
 flowchart LR
   subgraph meetup ["Meetup loop"]
-    I["/invite Hero"] --> N["Near: zone + coords"]
-    I --> F["Far: zone only"]
-    N --> A["/accept or /decline"]
-    F --> A
-    A --> R["/r whisper unlocked"]
+    I["/invite Hero"] --> A["/accept or /decline"]
+    A --> N["Near: zone + coords"]
+    A --> F["Far: zone only"]
+    A --> R["/r whisper after accept"]
   end
   subgraph soft ["Brief disconnect ~1 min"]
-    I --> P["/pending · /lastinvite restored"]
+    A --> P["pending cleared · offline inviter soft-grace clean"]
   end
 ```
 
@@ -491,6 +490,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.142** | `/accept` · `/decline` meetup reply near/far + soft-grace clear · **738** tests |
 | **0.5.141** | `/invite` meetup near/far + soft-grace memory · **730** tests |
 | **0.5.140** | `/cancel` invite soft-grace clear + near/far · **724** tests |
 | **0.5.139** | `/share` location + near/far confirm + delivery refund · **719** tests |
@@ -634,7 +634,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **730** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **738** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -759,7 +759,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 730 passed
+# expect: 738 passed
 ```
 
 ---
@@ -1036,9 +1036,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-730_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-738_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.141-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.142-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1143,8 +1143,8 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.141-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/730_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.142-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/738_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
 </p>
