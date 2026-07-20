@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.150** (2026-07-20) · suite **810** tests · field_magic extract · humans ≠ agents
+**Last docs refresh:** **v0.5.150** (2026-07-20) · suite **810** tests · field magic polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -70,6 +70,7 @@ flowchart TB
 **Covered for players (current):**
 
 - Install & quick start · overworld / combat / inventory keys
+- Field magic · **`/cast heal`** · **`/repel`** · **`/return`** · **`/outside`** · cast clears AFK · friends see Return
 - Zones · `/zone` · `/counts` · bag limits · **D** discard · inn **R** quote then confirm
 - Whisper / look / ignore: full name or **unique prefix** (ambiguous names rejected)
 - Nearby system lines: fight start · victory · flee · defeat · zone enter · level-ups · idle leave

@@ -80,17 +80,17 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · <b><code>/use herb</code> · wings · fairy water</b> · inn · shop · chat · meetup · <b>soft reconnect</b>.
+  Server-side 1v1 · <b><code>/cast heal</code> · <code>/repel</code> · <code>/return</code></b> · inn · shop · chat · meetup · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="use" src="https://img.shields.io/badge//use-herb_·_wings_·_water-a855f7?style=flat-square" />
-  <img alt="herb" src="https://img.shields.io/badge/herb-heal_·_turn-22c55e?style=flat-square" />
-  <img alt="wings" src="https://img.shields.io/badge/wings-warp_town-6366f1?style=flat-square" />
-  <img alt="water" src="https://img.shields.io/badge/fairy_water-fewer_fights-0ea5e9?style=flat-square" />
+  <img alt="cast" src="https://img.shields.io/badge//cast-heal_·_repel_·_return-a855f7?style=flat-square" />
+  <img alt="outside" src="https://img.shields.io/badge//outside-leave_dungeon-6366f1?style=flat-square" />
+  <img alt="radiant" src="https://img.shields.io/badge/radiant-soft_light-eab308?style=flat-square" />
   <img alt="inn" src="https://img.shields.io/badge//inn-quote_·_rest-14b8a6?style=flat-square" />
+  <img alt="use" src="https://img.shields.io/badge//use-herb_·_wings-22c55e?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge//shop-town_catalog-eab308?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge//bag_·_/equip-f59e0b?style=flat-square" />
   <img alt="chat_s" src="https://img.shields.io/badge//s_·_/g_·_/yell-22c55e?style=flat-square" />
@@ -98,7 +98,7 @@
   <img alt="wave" src="https://img.shields.io/badge//wave-near_·_far-f472b6?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=flat-square" />
-  <img alt="afk" src="https://img.shields.io/badge/AFK-use_clears_it-f97316?style=flat-square" />
+  <img alt="afk" src="https://img.shields.io/badge/AFK-cast_clears_it-f97316?style=flat-square" />
   <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/accept-ec4899?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel-10b981?style=flat-square" />
   <img alt="suite" src="https://img.shields.io/badge/tests-810_green-059669?style=flat-square" />
@@ -155,25 +155,28 @@ protocol · tests · reliability
   <img alt="field" src="https://img.shields.io/badge/🌿_Field-encounters-eab308?style=for-the-badge" />
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
+  <img alt="cast2" src="https://img.shields.io/badge/✨_Cast-/heal_·_/return-a855f7?style=for-the-badge" />
+  <img alt="repel2" src="https://img.shields.io/badge/🛡_Repel-fewer_fights-0ea5e9?style=for-the-badge" />
   <img alt="inn2" src="https://img.shields.io/badge/🏨_Inn-/rest_·_quote-14b8a6?style=for-the-badge" />
   <img alt="shop2" src="https://img.shields.io/badge/🛒_Shop-/buy_·_/sell-eab308?style=for-the-badge" />
-  <img alt="bag2" src="https://img.shields.io/badge/🎒_Bag-/equip_·_/discard-f59e0b?style=for-the-badge" />
+  <img alt="bag2" src="https://img.shields.io/badge/🎒_Bag-/equip_·_/use-f59e0b?style=for-the-badge" />
   <img alt="chat2" src="https://img.shields.io/badge/💬_Chat-/s_·_/g_·_/yell-22c55e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
   <img alt="whisper2" src="https://img.shields.io/badge/🔒_Whisper-/w_·_/r-0ea5e9?style=for-the-badge" />
-  <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-rest_clears_it-f97316?style=for-the-badge" />
+  <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-cast_clears_it-f97316?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_inn_→_shop_→_field-334155?style=for-the-badge" />
+  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_cast_→_return-334155?style=for-the-badge" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
   <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
-  <img alt="afkloop" src="https://img.shields.io/badge/afk-/rest_or_/back-f97316?style=for-the-badge" />
+  <img alt="afkloop" src="https://img.shields.io/badge/afk-cast_or_/back-f97316?style=for-the-badge" />
+  <img alt="castloop" src="https://img.shields.io/badge//cast_heal_·_/return-a855f7?style=for-the-badge" />
   <img alt="innloop" src="https://img.shields.io/badge/R_quote_→_R_rest-14b8a6?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#134e4a', 'primaryTextColor': '#ccfbf1', 'lineColor': '#2dd4bf', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#4c1d95', 'primaryTextColor': '#ede9fe', 'lineColor': '#c4b5fd', 'secondaryColor': '#134e4a', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
   A[Register] --> B[Create hero]
   B --> C[Town · safe]
@@ -183,11 +186,14 @@ flowchart LR
   SH --> EQ["/bag · /equip"]
   EQ --> C
   C --> D[Field / Dungeon]
+  D --> CAST["/cast · /repel · /return"]
+  CAST --> C
   D --> E[Fight 1v1]
   E --> C
   C --> CH["Chat · meetup"]
   CH --> C
   D --> H["/busy · AFK"]
+  H --> CAST
   H --> INN
   H --> D
 ```
@@ -196,11 +202,11 @@ flowchart LR
 <tr>
 <td align="center" width="12%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
 <td align="center" width="12%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
+<td align="center" width="12%"><b>✨ Cast</b><br/><sub>/heal · /return</sub></td>
 <td align="center" width="12%"><b>🏨 Inn</b><br/><sub>quote · rest</sub></td>
 <td align="center" width="12%"><b>🛒 Shop</b><br/><sub>/buy · /sell</sub></td>
-<td align="center" width="12%"><b>🎒 Bag</b><br/><sub>/equip · /discard</sub></td>
-<td align="center" width="12%"><b>💬 Chat</b><br/><sub>/s · /g · /yell</sub></td>
-<td align="center" width="12%"><b>☕ AFK</b><br/><sub>rest clears it</sub></td>
+<td align="center" width="12%"><b>🎒 Bag</b><br/><sub>/use · /equip</sub></td>
+<td align="center" width="12%"><b>☕ AFK</b><br/><sub>cast clears it</sub></td>
 <td align="center" width="12%"><b>🔁 Soft RC</b><br/><sub>~60s memory</sub></td>
 </tr>
 </table>
@@ -307,6 +313,18 @@ flowchart LR
 <tr>
 <td width="11%" valign="top" align="center">
 
+### ✨ Cast
+| | |
+|:--|:--|
+| **`/cast heal`** | recover |
+| **`/repel`** | fewer fights |
+| **`/return`** | town warp |
+
+<sub>field only · clears AFK</sub>
+
+</td>
+<td width="11%" valign="top" align="center">
+
 ### 🏨 Inn
 | | |
 |:--|:--|
@@ -322,7 +340,7 @@ flowchart LR
 ### 🎒 Bag
 | | |
 |:--|:--|
-| **`/bag`** | open |
+| **`/use`** | herb · wings |
 | **`/equip`** | gear up |
 | **`/discard`** | free space |
 
@@ -591,7 +609,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.150** | `/cast` field magic extract · Return AOI · cast clears AFK · census · **810** tests |
+| **0.5.150** | `/cast` · `/repel` · `/return` · friends see Return · cast clears AFK · **810** tests |
 | **0.5.149** | `/use` herb · wings · fairy water · AFK clear · combat turn · **798** tests |
 | **0.5.148** | town `/inn` · `/rest` · quote · AFK clear · **791** tests |
 | **0.5.147** | `/bag` · `/equip` · `/discard` · AFK clear · combat gate · **784** tests |
@@ -910,7 +928,7 @@ python tests/run_tests.py
 | **/busy [reason]** | AFK alias (same as **/afk**) |
 | **/buy copper sword** · **/sell herb** · **/shop** | Town shop — **names or ids** (optional qty) |
 | **/use herb** · **/equip copper sword** | Use consumable · equip gear (slot auto) |
-| **/cast heal** · **/repel** · **/return** | Field magic (when learned) |
+| **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when learned · clears AFK · friends see Return |
 | **/discard fairy water** | Destroy bag items (optional qty) |
 | **/ping** | Latency check |
 | **/r message** | Reply last whisper |
@@ -1025,7 +1043,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/busy [reason]` | Same as `/afk` — show as away |
 | `/shop` · `/buy copper sword` · `/sell herb 2` | Town shop — **friendly names** (optional qty) |
 | `/use herbs` · `/equip copper sword` | Use / equip (names OK; slot auto) |
-| `/cast heal` · `/repel` · `/return` | Field magic when learned |
+| `/cast heal` · `/repel` · `/return` · `/outside` | Field magic when learned · clears AFK |
 | `/discard fairy water` | Destroy bag items |
 | `/ping` | Latency check |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |

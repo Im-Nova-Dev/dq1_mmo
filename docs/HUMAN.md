@@ -52,7 +52,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **World** | **Town** (safe) · **field** · **dungeon** · shared grid |
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
-| **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
+| **Magic** | Field **`/cast heal`** · **`/return`** · **`/repel`** · radiant · **`/outside`** · keys **H** / **M** · cast clears AFK |
 | **Social** | Global · nearby · zone · yell · whisper · `/r` · invite / cancel / pending · **share** · **`/lastshare`** · **`@share`** / **`@from`** · **wave** · **`/lastemote`** (to + from) · **`@emote`** / **`@emotedby`** · askwhere · thank · poke · accept / decline · fighting · social (near/far) · emotes · roll · **look** (near coords · far zone · plain line) · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/version`** · **`/time`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat · zone population |
 | **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect ( **`/played` age** · **mute list near/far** · **last whisper** near/far · **share** · **emote** · **invite** peers · buffs) · **`/stuck` home** · **change password** · swappable PNG art |
@@ -114,19 +114,30 @@ Press **R** in town to **see the inn cost**, then **R again** (within a few seco
 
 ## Field magic
 
-| Key | Action |
+Overworld only — not mid-fight. Casting clears **AFK** so friends see you are back.  
+**Return** and **Outside** move you on the map; nearby heroes can see you leave.
+
+| Key / slash | Action |
 |:---:|:-------|
 | **H** | Heal / Healmore (if known) |
 | **M** | Cycle field spells (Return, Repel, Outside, Radiant, …) |
 | **K** | List field + battle spells you know |
+| **`/cast heal`** | Recover HP (refuses at full HP) |
+| **`/repel`** | Fewer random fights for a while |
+| **`/return`** | Warp to town (friends see you move) |
+| **`/outside`** | Leave dungeon → field |
+| **`/radiant`** | Soft light — fewer dungeon fights |
 
 | Spell | Effect |
 |:------|:-------|
+| **Heal / Healmore** | Recover HP · no waste at full |
 | **Return** | Warp to town |
 | **Repel** | Fewer random fights (HUD: remaining steps) |
 | **Radiant** | Soft light — fewer dungeon fights for a while (HUD: **light N**) |
 | **Outside** | Leave dungeon → field |
-| **Fairy Water** | Same idea as Repel (item) |
+| **Fairy Water** | Same idea as Repel (item — use from bag) |
+
+You learn spells as you level; **`/spells`** lists what you know. Battle spells stay for combat menus.
 
 ---
 
