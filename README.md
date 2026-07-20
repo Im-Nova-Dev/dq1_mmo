@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.140</b> · <b>724</b> tests green · <code>/cancel</code> invite · soft-grace clear · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.141</b> · <b>730</b> tests green · <code>/invite</code> meetup · near/far · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.140-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.141-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/tests-719_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/cancel</code> invite · soft-grace clear · <code>/poke</code> · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/invite</code> meetup · near/far · <code>/poke</code> · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -210,7 +210,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.140** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.141** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -227,26 +227,26 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.140-7c3aed?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.141-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/719_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-cancel_invite-7c3aed?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-meetup_invite-7c3aed?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.140** — cancel invite is soft-grace safe · **724** tests |
+| | **v0.5.141** — meetup invite knows near · far · **730** tests |
 |:--|:--|
-| 🚫 | **`/cancel`** clears pending meetup invites on both peers |
-| 🔇 | Muted guests are not spammed with cancel notices |
-| 📍 | **`/share`** still confirms near/far |
-| 🧪 | **724** automated tests green |
+| 🤝 | **`/invite Hero`** · near peers get coords · far see zone only |
+| 🔁 | Failed delivery refunds chat rate and restores AFK |
+| 🔗 | Soft reconnect still remembers **pending** / **lastinvite** |
+| 🧪 | **730** automated tests green |
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.140-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//cancel-invite_clear-a855f7?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.141-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//invite-meetup_near_far-a855f7?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/719_tests-059669?style=for-the-badge" />
 </p>
 
@@ -478,6 +478,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.141** | `/invite` meetup near/far + soft-grace memory · **730** tests |
 | **0.5.140** | `/cancel` invite soft-grace clear + near/far · **724** tests |
 | **0.5.139** | `/share` location + near/far confirm + delivery refund · **719** tests |
 | **0.5.138** | `/askwhere` · `/locate` near/far confirm + delivery refund · **714** tests |
@@ -620,7 +621,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **724** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **730** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -745,7 +746,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 724 passed
+# expect: 730 passed
 ```
 
 ---
@@ -1024,7 +1025,7 @@ dq1_mmo/
   &nbsp;
   <img alt="suite" src="https://img.shields.io/badge/suite-719_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.140-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.141-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1129,7 +1130,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.140-7c3aed?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.141-7c3aed?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/719_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />

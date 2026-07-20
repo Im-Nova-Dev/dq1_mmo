@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.140` (`server/config.py` → `VERSION`) · **724** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.141` (`server/config.py` → `VERSION`) · **730** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.140** / **724** until the suite or `VERSION` changes.  
-Last **pushed** ship: `38f0077` / `ebe1c43` (v0.5.139). Shipping **0.5.140**.
+Keep badges at **0.5.141** / **730** until the suite or `VERSION` changes.  
+Last **pushed** ship: `47d65ed` (v0.5.140). Shipping **0.5.141**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.140 / 724** · invite_cancel extract · protocol only here.
+Docs pass (**this run**): badges **0.5.141 / 730** · invite handler extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -105,6 +105,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/askwhere.py` | askwhere/locate (private_social_delivery · near/far) |
 | `server/network/handlers/share.py` | share location (private_social_delivery · soft memory) |
 | `server/network/handlers/invite_cancel.py` | cancel/uninvite (soft-grace clear · mute hygiene) |
+| `server/network/handlers/invite.py` | meetup invite (private_social_delivery · near coords) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -581,6 +582,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 352. Clears soft-grace invite pointers; notifies guest only if still pending and not muted.
 353. Echo includes **nearby**, optional **zone**, online/nearby_count, plain message.
 354. Tests: `test_features_v05140` + `test_mp_reliability_v05140`.
+355. **`handlers/invite.py`:** invite/meet/beckon/come extracted from message_handler.
+356. Invite uses **private_social_delivery**; coords only when AOI-near; soft-grace invite_to/from.
+357. Supersede/retarget notices via best_effort_send; mute hygiene; echo near/far plain message.
+358. Tests: `test_features_v05141` + `test_mp_reliability_v05141`.
 
 ## Tests (mandatory for your changes)
 

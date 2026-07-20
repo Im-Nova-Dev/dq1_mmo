@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.140-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-724-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.141-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-730-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.140 · **724** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.141 · **730** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.140):** **`/cancel`** clears your meetup invite (and their pending pointer) · muted guests are not spammed · share still soft-reconnects · **724** tests.
+**Recent for players/ops (v0.5.141):** **`/invite`** meetup — near peers get your map spot · far see zone only · failed invites restore AFK · soft reconnect keeps pending · **730** tests.
 
 > [!TIP]
 > **Share your spot:** **`/share Hero`** (or after **`/askwhere`**, they **`/share @last`**) — they get zone + coords; you see near/far. Soft reconnect keeps **@share** / **@from**.  
@@ -156,7 +156,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/lastemote** | Who you last waved **at** and who last waved **at you** (near/far when online) |
 | **/w @emote** · **/wave @emote** | Reuse who *you* last directed an emote at (**@** required) |
 | **/w @emotedby** · **/wave @emotedby** | Reuse who last directed an emote *at you* (**@** required) |
-| **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — they get a toast with your zone · **/accept** or **/decline** |
+| **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — near peers get your map spot · far see zone only · **/accept** or **/decline** |
 | **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite you received (one answer only) |
 | **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice if still pending; soft-grace pointers clear) |
 | **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) · near/far confirm for you |
@@ -330,7 +330,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 724 passed
+# expect: 730 passed
 ```
 
 ---
@@ -344,7 +344,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.140** · **724** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.141** · **730** tests).
 
 | Do | Don’t |
 |:---|:------|
