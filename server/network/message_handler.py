@@ -39,6 +39,7 @@ from network.handlers import afk as afk_handlers
 from network.handlers import askwhere as askwhere_handlers
 from network.handlers import find as find_handlers
 from network.handlers import hud_info as hud_info_handlers
+from network.handlers import invite_cancel as invite_cancel_handlers
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
 from network.handlers import mute as mute_handlers
@@ -226,7 +227,13 @@ async def handle_message(
     if share_peek is not None:
         return share_peek
 
-    # peeks + poke + thank + askwhere + share via handlers
+    cancel_peek = await invite_cancel_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if cancel_peek is not None:
+        return cancel_peek
+
+    # peeks + social private + invite cancel via handlers
 
     # Social peeks (lastwhisper/social/lastemote/lastshare/lastinvite/pending)
     # handled early via network.handlers.social_peeks
@@ -416,86 +423,7 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
-    # --- Cancel last outgoing meetup invite ---
-    if msg_type in ("cancel", "uninvite", "invite_cancel", "revoke_invite"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        tid, tname = manager.last_invite_to(character_id)
-        if tid is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="no invite to cancel"))
-            return character_id, user_id, outbound, None
-        meta_pre = manager.get_meta(character_id)
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        was_idle = _idle_chk(meta_pre) if meta_pre else False
-        ok_chat, retry = manager.allow_chat(character_id)
-        if not ok_chat:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        name = (meta or {}).get("name") or "Hero"
-        live_name = tname
-        notified = False
-        muted_skip = False
-        peer_near: bool | None = None
-        if tid in manager.online_ids():
-            tmeta = manager.get_meta(tid)
-            live_name = (tmeta or {}).get("name") or tname or "Hero"
-            peer_near = tid in set(manager.ids_nearby(character_id))
-            # Only notify if invite is still pending from us
-            # (prevents spam cancel after accept/decline)
-            from_id, _ = manager.last_invite_from(tid)
-            if from_id == character_id:
-                # Do not push cancel to someone who ignores us (mute hygiene)
-                if not manager.is_ignored_by(tid, character_id):
-                    cancel_msg = {
-                        "type": "invite_cancel",
-                        "from": name,
-                        "from_id": character_id,
-                        "to": live_name,
-                        "to_id": tid,
-                        "message": f"{name} cancelled their meetup invite.",
-                    }
-                    sid_c = manager.session_id(character_id)
-                    if sid_c is not None:
-                        cancel_msg["session_id"] = sid_c
-                    # Honest notified flag — dead sockets must not claim success
-                    notified = await best_effort_send(tid, cancel_msg)
-                else:
-                    muted_skip = True
-                # still clear their pending pointer even if muted / send failed
-        # Always drop peer pointer (live + soft-grace) so offline guests
-        # do not rehydrate a zombie invite after reconnect.
-        manager.clear_invite_from_peer(tid, character_id)
-        manager.clear_last_invite_to(character_id)
-        if notified:
-            clear_msg = f"Invite to {live_name} cancelled."
-        elif muted_skip:
-            clear_msg = f"Cleared invite to {live_name} (they muted you)."
-        else:
-            clear_msg = f"Cleared invite to {live_name} (already answered or offline)."
-        cancel_echo: dict[str, Any] = {
-            "type": "invite_cancel",
-            "action": "cancel",
-            "to": live_name,
-            "to_id": tid,
-            "notified": notified,
-            "muted": muted_skip,
-            "message": clear_msg,
-        }
-        if peer_near is not None:
-            cancel_echo["nearby"] = peer_near
-        outbound.append(cancel_echo)
-        if was_idle:
-            await manager.publish_status(character_id)
-        return character_id, user_id, outbound, None
+    # cancel invite via network.handlers.invite_cancel
 
     # share via network.handlers.share
 

@@ -248,6 +248,8 @@ def main() -> int:
         "tests.test_mp_reliability_v05138",
         "tests.test_features_v05139",
         "tests.test_mp_reliability_v05139",
+        "tests.test_features_v05140",
+        "tests.test_mp_reliability_v05140",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)
