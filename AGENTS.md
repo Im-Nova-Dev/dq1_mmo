@@ -30,7 +30,7 @@ Keep trees separate on every docs pass: polish README for GitHub humans; put pro
 Keep badges at **0.5.146** / **776** until the suite or `VERSION` changes.  
 Last **pushed** ship: `877c327` (v0.5.146).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.146 / 776** · town shop extract · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.146 / 776** · GitHub README shop polish · human ≠ agent · no protocol dumps.
 
 ## Documentation map (do not mix)
 
@@ -241,7 +241,7 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 6. Chat: sanitize (strip control chars, collapse whitespace); empty → error; rate-limit → `chat_rate_limit`.
 7. **Ping / sync / who / look must not be rate-limited** (main.py exempts them so RTT and presence stay healthy under move spam).
 8. Outbound WS batches: best-effort send; one failure must not crash the connection loop.
-9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8776).
+9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8767).
 10. If a WS **send fails**, stop the receive loop and disconnect cleanly (do not call `receive_*` on a dead socket).
 11. On connect, deliver **`auth_ok` (+ world_state) before** `broadcast_online()` so the joiner never sees `online` first.
 12. DB / presence / manager locks must be **loop-safe** (per-loop locks + generation-stamped `close_db`) — sequential uvicorn tests use new event loops.
@@ -743,7 +743,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.
-- Integration WS tests should use `tests.ws_helpers.start_server()` (ephemeral port), not hard-coded 8765–8776.
+- Integration WS tests should use `tests.ws_helpers.start_server()` (ephemeral port), not hard-coded 8765–8767.
 - Use isolated `DATABASE_URL` (runner already temp-isolates).
 - Do not depend on the developer's live `data/dq1_mmo.db`.
 

@@ -175,7 +175,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/social** · **/peers** | Whisper · invite · emote peers (online/offline) |
 | **/find @pending** · **/find @last** | Find your meetup or last social peer online |
 | **/fighting** · **/combats** | List nearby heroes currently in combat |
-| **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
+| **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK) · town only · not mid-fight · successful buy/sell clears **AFK** for friends |
 | **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
 | **/discard fairy water** · **/discard herb 2** | Destroy items from the bag |
