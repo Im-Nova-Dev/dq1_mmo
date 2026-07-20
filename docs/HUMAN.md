@@ -177,9 +177,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find @pending** · **/find @last** | Find your meetup or last social peer online |
 | **/fighting** · **/combats** | List nearby heroes currently in combat |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK) · town only · not mid-fight · successful buy/sell clears **AFK** for friends |
-| **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
+| **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) · not mid-fight · clears **AFK** |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
-| **/discard fairy water** · **/discard herb 2** | Destroy items from the bag |
+| **/discard fairy water** · **/discard herb 2** | Destroy items from the bag · qty 0 rejected · not mid-fight · clears **AFK** |
 | **/ping** | Check connection latency |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) · plain line with zone · nearby |
@@ -216,8 +216,8 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/buffs** · **/effects** | Repel, radiant, AFK flags (zone when empty; nearby when active) |
 | **/keys** · **/controls** | Keybind summary + online census |
 | **/spells** · **/magic** | Known battle + field spells (zone) |
-| **/bag** · **/inv** · **/items** | Open bag (same as **I**) |
-| **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
+| **/bag** · **/inv** · **/items** | Open bag (same as **I**) · notes online / nearby |
+| **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet · not mid-fight · clears **AFK** |
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
 | **/last** · **/lastwhisper** | See who **/r** will reply to (near/far when online) |
 | **/** | Open chat ready for a slash command |
