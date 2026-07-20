@@ -156,7 +156,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
 | **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon); not world-wide |
 | **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line; confirm notes online/nearby) |
-| **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** · **/wave @emotedby** | List emotes, perform one, or direct an emote at a hero |
+| **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** · **/wave @emotedby** | List emotes, perform one, or wave at a hero — nearby friends see it; far targets still get a private wave · soft reconnect keeps **`/lastemote`** |
 | **/lastemote** | Who you last waved **at** and who last waved **at you** (near/far when online) |
 | **/w @emote** · **/wave @emote** | Reuse who *you* last directed an emote at (**@** required) |
 | **/w @emotedby** · **/wave @emotedby** | Reuse who last directed an emote *at you* (**@** required) |
